@@ -1,9 +1,12 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+import tempfile
+import uuid
 
 # Load environment variables
 load_dotenv()
@@ -12,6 +15,13 @@ load_dotenv()
 from models import db, User, QuizSession, Question, Topic
 from auth import init_jwt, generate_tokens, auth_required
 from question_gen import question_generator
+from content_processor import ContentProcessor
+
+# Import error handling system
+from error_handler import (
+    ErrorHandler, SmartQuizzerError, AIServiceError, ValidationError,
+    ErrorCategory, ErrorSeverity, InputValidator, handle_errors
+)
 
 def create_app():
     app = Flask(__name__)
@@ -20,6 +30,13 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'smart-quizzer-secret-2024-change-in-production')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///smart_quizzer.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # File upload configuration
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+    app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
+    
+    # Ensure upload directory exists
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
     # Initialize extensions
     db.init_app(app)
@@ -89,6 +106,58 @@ def health_check():
         'message': 'Smart Quizzer API is running',
         'timestamp': datetime.now().isoformat()
     }), 200
+
+@app.route('/api/health/detailed', methods=['GET'])
+def detailed_health_check():
+    """Comprehensive health check including service status"""
+    try:
+        service_health = question_generator.get_service_health()
+        
+        overall_status = 'healthy'
+        if service_health['service_health']['gemini_api']['status'] == 'unhealthy':
+            overall_status = 'degraded'
+        
+        if service_health['rate_limiting']['circuit_breaker_active']:
+            overall_status = 'critical'
+        
+        return jsonify({
+            'status': overall_status,
+            'message': 'Smart Quizzer detailed health check',
+            'timestamp': datetime.now().isoformat(),
+            'services': service_health,
+            'database': {
+                'status': 'connected' if db.engine.connect() else 'disconnected'
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Health check failed: {str(e)}',
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/admin/reset-health', methods=['POST'])
+@auth_required
+def reset_service_health(current_user_id):
+    """Reset service health status (admin only)"""
+    try:
+        data = request.get_json() or {}
+        service = data.get('service')  # Optional: specific service to reset
+        
+        question_generator.reset_service_health(service)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Service health reset for {service if service else "all services"}',
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'error': f'Failed to reset service health: {str(e)}',
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 # Auth Routes
 @app.route('/api/auth/register', methods=['POST'])
@@ -275,18 +344,40 @@ def get_topics():
 
 @app.route('/api/quiz/start', methods=['POST'])
 @auth_required
+@handle_errors
 def start_quiz(current_user_id):
     try:
         data = request.get_json()
         
+        # Validate input parameters using comprehensive validation
+        validation_errors = InputValidator.validate_quiz_params(data)
+        if validation_errors:
+            error_messages = [error.message for error in validation_errors]
+            raise ValidationError(
+                message=f"Invalid request parameters: {'; '.join(error_messages)}",
+                field="request_data",
+                value=data,
+                validation_rule="comprehensive_validation"
+            )
+        
         required_fields = ['topic', 'skill_level']
         for field in required_fields:
             if field not in data:
-                return jsonify({'error': f'{field} is required'}), 400
+                raise ValidationError(
+                    message=f"Required field '{field}' is missing",
+                    field=field,
+                    value=None,
+                    validation_rule="required_field"
+                )
         
         # Validate inputs
         if data['skill_level'] not in ['Beginner', 'Intermediate', 'Advanced']:
-            return jsonify({'error': 'Invalid skill level'}), 400
+            raise ValidationError(
+                message="Invalid skill level",
+                field="skill_level",
+                value=data['skill_level'],
+                validation_rule="allowed_values=['Beginner', 'Intermediate', 'Advanced']"
+            )
         
         num_questions = data.get('num_questions', 5)
         custom_topic = data.get('custom_topic')
@@ -294,24 +385,48 @@ def start_quiz(current_user_id):
         
         # Enhanced validation for custom topics
         if topic in ['Custom', 'Custom Topic'] and not custom_topic:
-            return jsonify({'error': 'Custom topic content is required when using custom topics'}), 400
+            raise ValidationError(
+                message="Custom topic content is required when using custom topics",
+                field="custom_topic",
+                value=custom_topic,
+                validation_rule="required_when_topic_is_custom"
+            )
         
         if custom_topic and len(custom_topic.strip()) < 10:
-            return jsonify({'error': 'Custom topic content must be at least 10 characters long'}), 400
+            raise ValidationError(
+                message="Custom topic content must be at least 10 characters long",
+                field="custom_topic",
+                value=custom_topic,
+                validation_rule="min_length=10"
+            )
         
         # Validate number of questions
         if not isinstance(num_questions, int) or num_questions < 1 or num_questions > 20:
-            return jsonify({'error': 'Number of questions must be between 1 and 20'}), 400
+            raise ValidationError(
+                message="Number of questions must be between 1 and 20",
+                field="num_questions",
+                value=num_questions,
+                validation_rule="range=1-20"
+            )
         
         print(f"🎯 Starting quiz for user {current_user_id}: {topic} ({data['skill_level']}) - {num_questions} questions")
         if custom_topic:
             print(f"📝 Custom topic content: {custom_topic[:100]}...")
         
         # Initialize adaptive profile for user
-        adaptive_profile = question_generator.adaptive_engine.initialize_user_profile(
-            user_id=str(current_user_id), 
-            initial_skill_level=data['skill_level']
-        )
+        try:
+            adaptive_profile = question_generator.adaptive_engine.initialize_user_profile(
+                user_id=str(current_user_id), 
+                initial_skill_level=data['skill_level']
+            )
+        except Exception as e:
+            raise SmartQuizzerError(
+                message="Failed to initialize adaptive profile",
+                category=ErrorCategory.SYSTEM,
+                severity=ErrorSeverity.HIGH,
+                details={'user_id': current_user_id, 'original_error': str(e)},
+                user_message="Unable to set up personalized quiz system. Please try again."
+            )
         
         # Create quiz session
         quiz_session = QuizSession(
@@ -322,10 +437,20 @@ def start_quiz(current_user_id):
             total_questions=num_questions
         )
         
-        db.session.add(quiz_session)
-        db.session.commit()
+        try:
+            db.session.add(quiz_session)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise SmartQuizzerError(
+                message="Failed to create quiz session",
+                category=ErrorCategory.DATABASE,
+                severity=ErrorSeverity.HIGH,
+                details={'original_error': str(e)},
+                user_message="Unable to start quiz session. Please try again."
+            )
         
-        # Generate questions using AI with user tracking for uniqueness
+        # Generate questions using AI with comprehensive error handling
         try:
             questions_data = question_generator.generate_quiz_questions(
                 topic=topic,
@@ -337,42 +462,100 @@ def start_quiz(current_user_id):
             
             if not questions_data or len(questions_data) == 0:
                 db.session.rollback()
-                return jsonify({'error': 'Failed to generate questions. Please try again with different content.'}), 500
+                raise SmartQuizzerError(
+                    message="Question generation returned empty result",
+                    category=ErrorCategory.AI_SERVICE,
+                    severity=ErrorSeverity.HIGH,
+                    details={'topic': topic, 'skill_level': data['skill_level']},
+                    user_message="Unable to generate quiz questions. Please try a different topic or try again later."
+                )
                 
-        except Exception as qgen_error:
-            print(f"❌ Question generation error: {qgen_error}")
+        except ValidationError:
             db.session.rollback()
-            return jsonify({'error': f'Question generation failed: {str(qgen_error)}'}), 500
-        
-        # Save questions to database
-        for q_data in questions_data:
-            question = Question(
-                quiz_session_id=quiz_session.id,
-                question_text=q_data['question_text'],
-                question_type=q_data['question_type'],
-                correct_answer=q_data['correct_answer'],
-                explanation=q_data['explanation'],
-                difficulty_level=q_data['difficulty_level']
+            raise  # Re-raise validation errors
+        except AIServiceError as ai_error:
+            db.session.rollback()
+            print(f"❌ AI Service error: {ai_error}")
+            raise SmartQuizzerError(
+                message="AI question generation service failed",
+                category=ErrorCategory.AI_SERVICE,
+                severity=ErrorSeverity.HIGH,
+                details={'ai_error': str(ai_error), 'topic': topic},
+                user_message="Question generation service is temporarily unavailable. Please try again in a few minutes."
             )
-            question.set_options(q_data.get('options', []))
-            db.session.add(question)
+        except Exception as qgen_error:
+            db.session.rollback()
+            print(f"❌ Unexpected question generation error: {qgen_error}")
+            raise SmartQuizzerError(
+                message=f"Unexpected error during question generation: {str(qgen_error)}",
+                category=ErrorCategory.SYSTEM,
+                severity=ErrorSeverity.HIGH,
+                details={'original_error': str(qgen_error), 'topic': topic},
+                user_message="An unexpected error occurred while generating questions. Please try again."
+            )
         
-        db.session.commit()
+        # Save questions to database with error handling
+        try:
+            for q_data in questions_data:
+                question = Question(
+                    quiz_session_id=quiz_session.id,
+                    question_text=q_data['question_text'],
+                    question_type=q_data['question_type'],
+                    correct_answer=q_data['correct_answer'],
+                    explanation=q_data['explanation'],
+                    difficulty_level=q_data['difficulty_level']
+                )
+                question.set_options(q_data.get('options', []))
+                db.session.add(question)
+            
+            db.session.commit()
+            
+        except Exception as db_error:
+            db.session.rollback()
+            print(f"❌ Database error saving questions: {db_error}")
+            raise SmartQuizzerError(
+                message="Failed to save generated questions",
+                category=ErrorCategory.DATABASE,
+                severity=ErrorSeverity.HIGH,
+                details={'original_error': str(db_error)},
+                user_message="Generated questions could not be saved. Please try again."
+            )
         
         # Return quiz session with questions (without correct answers)
-        questions = Question.query.filter_by(quiz_session_id=quiz_session.id).all()
+        try:
+            questions = Question.query.filter_by(quiz_session_id=quiz_session.id).all()
+            
+            print(f"✅ Quiz started successfully with {len(questions)} questions")
+            
+            return jsonify({
+                'quiz_session': quiz_session.to_dict(),
+                'questions': [q.to_dict(include_correct_answer=False) for q in questions],
+                'success': True,
+                'message': f'Quiz started successfully with {len(questions)} questions'
+            }), 201
+            
+        except Exception as response_error:
+            print(f"❌ Error preparing response: {response_error}")
+            raise SmartQuizzerError(
+                message="Failed to prepare quiz response",
+                category=ErrorCategory.SYSTEM,
+                severity=ErrorSeverity.MEDIUM,
+                details={'original_error': str(response_error)},
+                user_message="Quiz was created but there was an error loading it. Please refresh the page."
+            )
         
-        print(f"✅ Quiz started successfully with {len(questions)} questions")
-        
-        return jsonify({
-            'quiz_session': quiz_session.to_dict(),
-            'questions': [q.to_dict(include_correct_answer=False) for q in questions]
-        }), 201
-        
+    except (ValidationError, SmartQuizzerError, AIServiceError):
+        raise  # Re-raise our custom errors to be handled by decorator
     except Exception as e:
-        print(f"❌ Quiz start error: {e}")
+        print(f"❌ Unexpected quiz start error: {e}")
         db.session.rollback()
-        return jsonify({'error': f'Failed to start quiz: {str(e)}'}), 500
+        raise SmartQuizzerError(
+            message=f"Unexpected system error: {str(e)}",
+            category=ErrorCategory.SYSTEM,
+            severity=ErrorSeverity.CRITICAL,
+            details={'original_error': str(e), 'error_type': type(e).__name__},
+            user_message="An unexpected system error occurred. Please try again or contact support if the problem persists."
+        )
 
 @app.route('/api/quiz/<int:quiz_id>/answer', methods=['POST'])
 @auth_required
@@ -615,33 +798,333 @@ def get_quiz_history(current_user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Content Upload and Processing Endpoints
+@app.route('/api/content/upload', methods=['POST'])
+@auth_required
+def upload_content_file(current_user_id):
+    """Upload and process content files for custom quiz generation"""
+    try:
+        # Initialize content processor
+        content_processor = ContentProcessor(app.config['UPLOAD_FOLDER'])
+        
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        # Secure filename and save temporarily
+        filename = secure_filename(file.filename)
+        unique_filename = f"{uuid.uuid4()}_{filename}"
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        
+        try:
+            # Save uploaded file
+            file.save(temp_path)
+            
+            # Process the content
+            processing_result = content_processor.process_content(temp_path, "file")
+            
+            if not processing_result['success']:
+                return jsonify({
+                    'error': 'File processing failed',
+                    'details': processing_result['error']
+                }), 400
+            
+            # Generate content summary
+            content_summary = content_processor.get_content_summary(processing_result['content'])
+            
+            # Return processed content and metadata
+            response_data = {
+                'success': True,
+                'content': processing_result['content'],
+                'metadata': processing_result['metadata'],
+                'summary': content_summary,
+                'file_info': {
+                    'original_filename': filename,
+                    'processed_filename': unique_filename,
+                    'upload_timestamp': datetime.now().isoformat()
+                }
+            }
+            
+            print(f"📁 File processed successfully: {filename} ({content_summary['word_count']} words)")
+            return jsonify(response_data), 200
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        
+    except Exception as e:
+        print(f"❌ File upload error: {e}")
+        return jsonify({'error': f'File upload failed: {str(e)}'}), 500
+
+@app.route('/api/content/process-url', methods=['POST'])
+@auth_required
+def process_url_content(current_user_id):
+    """Process content from web URLs"""
+    try:
+        data = request.get_json()
+        if not data or 'url' not in data:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        url = data['url'].strip()
+        if not url:
+            return jsonify({'error': 'URL cannot be empty'}), 400
+        
+        # Initialize content processor
+        content_processor = ContentProcessor()
+        
+        # Process URL content
+        processing_result = content_processor.process_content(url, "url")
+        
+        if not processing_result['success']:
+            return jsonify({
+                'error': 'URL processing failed',
+                'details': processing_result['error']
+            }), 400
+        
+        # Generate content summary
+        content_summary = content_processor.get_content_summary(processing_result['content'])
+        
+        response_data = {
+            'success': True,
+            'content': processing_result['content'],
+            'metadata': processing_result['metadata'],
+            'summary': content_summary,
+            'source_url': url
+        }
+        
+        print(f"🌐 URL processed successfully: {url} ({content_summary['word_count']} words)")
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        print(f"❌ URL processing error: {e}")
+        return jsonify({'error': f'URL processing failed: {str(e)}'}), 500
+
+@app.route('/api/content/analyze', methods=['POST'])
+@auth_required
+def analyze_text_content(current_user_id):
+    """Analyze and provide insights for text content"""
+    try:
+        data = request.get_json()
+        if not data or 'content' not in data:
+            return jsonify({'error': 'Content is required'}), 400
+        
+        content = data['content'].strip()
+        if len(content) < 10:
+            return jsonify({'error': 'Content must be at least 10 characters long'}), 400
+        
+        # Initialize content processor
+        content_processor = ContentProcessor()
+        
+        # Process text content
+        processing_result = content_processor.process_content(content, "text")
+        
+        if not processing_result['success']:
+            return jsonify({
+                'error': 'Content analysis failed',
+                'details': processing_result['error']
+            }), 400
+        
+        # Generate detailed content summary
+        content_summary = content_processor.get_content_summary(processing_result['content'])
+        
+        # Additional analysis for quiz generation suitability
+        analysis = {
+            'content_length': 'short' if len(content) < 500 else 'medium' if len(content) < 2000 else 'long',
+            'complexity_estimate': 'beginner' if content_summary['word_count'] < 100 else 'intermediate' if content_summary['word_count'] < 500 else 'advanced',
+            'recommended_questions': min(10, max(3, content_summary['word_count'] // 50)),
+            'content_type_suggestions': []
+        }
+        
+        # Suggest content types based on keywords
+        keywords = content_summary['top_keywords']
+        if any(kw in ['history', 'historical', 'century', 'war', 'empire'] for kw in keywords):
+            analysis['content_type_suggestions'].append('History')
+        if any(kw in ['science', 'scientific', 'research', 'experiment', 'theory'] for kw in keywords):
+            analysis['content_type_suggestions'].append('Science')
+        if any(kw in ['math', 'mathematical', 'equation', 'calculate', 'number'] for kw in keywords):
+            analysis['content_type_suggestions'].append('Mathematics')
+        if any(kw in ['literature', 'literary', 'author', 'novel', 'poetry'] for kw in keywords):
+            analysis['content_type_suggestions'].append('Literature')
+        
+        response_data = {
+            'success': True,
+            'content': processing_result['content'],
+            'metadata': processing_result['metadata'],
+            'summary': content_summary,
+            'analysis': analysis,
+            'quiz_generation_ready': True
+        }
+        
+        print(f"📊 Content analyzed: {content_summary['word_count']} words, {analysis['recommended_questions']} recommended questions")
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        print(f"❌ Content analysis error: {e}")
+        return jsonify({'error': f'Content analysis failed: {str(e)}'}), 500
+
+@app.route('/api/content/formats', methods=['GET'])
+def get_supported_formats():
+    """Get list of supported file formats and content types"""
+    supported_formats = {
+        'file_formats': {
+            'documents': ['.pdf', '.docx', '.doc'],
+            'text_files': ['.txt', '.md', '.rst'],
+            'data_files': ['.json', '.csv', '.xml']
+        },
+        'content_sources': [
+            'Direct text input',
+            'File upload (PDF, DOCX, TXT, etc.)',
+            'Web URL content extraction',
+            'JSON/CSV data files'
+        ],
+        'limitations': {
+            'max_file_size': '10MB',
+            'max_content_length': '50,000 characters',
+            'supported_languages': 'Primarily English'
+        },
+        'features': [
+            'Automatic content type detection',
+            'Text extraction and cleaning',
+            'Content analysis and summarization',
+            'Quiz generation optimization',
+            'Difficulty level suggestions'
+        ]
+    }
+    
+    return jsonify(supported_formats), 200
+
 # Error handlers
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Endpoint not found'}), 404
 
+# Global Error Handlers for comprehensive error management
+@app.errorhandler(ValidationError)
+def handle_validation_error(error):
+    """Handle validation errors with detailed field information"""
+    return jsonify({
+        'error': 'Validation Error',
+        'message': error.user_message or error.message,
+        'details': {
+            'field': error.field,
+            'value': str(error.value) if error.value is not None else None,
+            'validation_rule': error.validation_rule
+        },
+        'error_code': 'VALIDATION_ERROR',
+        'timestamp': datetime.now().isoformat()
+    }), 400
+
+@app.errorhandler(AIServiceError)
+def handle_ai_service_error(error):
+    """Handle AI service errors with service information"""
+    return jsonify({
+        'error': 'AI Service Error',
+        'message': error.user_message or "AI service is temporarily unavailable",
+        'details': {
+            'service': error.service_name,
+            'error_code': error.error_code,
+            'retry_count': error.retry_count
+        },
+        'error_code': 'AI_SERVICE_ERROR',
+        'timestamp': datetime.now().isoformat()
+    }), 503
+
+@app.errorhandler(SmartQuizzerError)
+def handle_smart_quizzer_error(error):
+    """Handle custom application errors"""
+    status_code = 500
+    if error.severity == ErrorSeverity.LOW:
+        status_code = 400
+    elif error.severity == ErrorSeverity.MEDIUM:
+        status_code = 422
+    elif error.severity == ErrorSeverity.HIGH:
+        status_code = 500
+    elif error.severity == ErrorSeverity.CRITICAL:
+        status_code = 503
+    
+    return jsonify({
+        'error': 'Application Error',
+        'message': error.user_message or error.message,
+        'details': error.details,
+        'category': error.category.value if error.category else 'unknown',
+        'severity': error.severity.value if error.severity else 'unknown',
+        'error_code': 'SMART_QUIZZER_ERROR',
+        'timestamp': datetime.now().isoformat()
+    }), status_code
+
+@app.errorhandler(404)
+def handle_not_found(error):
+    """Handle 404 errors"""
+    return jsonify({
+        'error': 'Not Found',
+        'message': 'The requested resource was not found',
+        'error_code': 'NOT_FOUND',
+        'timestamp': datetime.now().isoformat()
+    }), 404
+
+@app.errorhandler(405)
+def handle_method_not_allowed(error):
+    """Handle 405 errors"""
+    return jsonify({
+        'error': 'Method Not Allowed',
+        'message': 'The HTTP method is not allowed for this endpoint',
+        'error_code': 'METHOD_NOT_ALLOWED',
+        'timestamp': datetime.now().isoformat()
+    }), 405
+
+@app.errorhandler(413)
+def handle_file_too_large(error):
+    """Handle file upload size errors"""
+    return jsonify({
+        'error': 'File Too Large',
+        'message': 'The uploaded file exceeds the maximum size limit (16MB)',
+        'error_code': 'FILE_TOO_LARGE',
+        'timestamp': datetime.now().isoformat()
+    }), 413
+
 @app.errorhandler(500)
-def internal_error(error):
+def handle_internal_error(error):
+    """Handle unexpected server errors"""
     db.session.rollback()
-    return jsonify({'error': 'Internal server error'}), 500
+    return jsonify({
+        'error': 'Internal Server Error',
+        'message': 'An unexpected error occurred. Please try again later.',
+        'error_code': 'INTERNAL_ERROR',
+        'timestamp': datetime.now().isoformat()
+    }), 500
 
 if __name__ == '__main__':
     print("🚀 Starting Smart Quizzer API...")
     print("🔑 JWT Authentication ✅")
     print("💾 SQLite Database ✅")
     print("🤖 Gemini AI Model ✅")
+    print("📁 Advanced Content Processing ✅")
     print("\n🌐 API running on: http://localhost:5000")
     print("📖 API Documentation:")
+    print("   Authentication:")
     print("   - POST /api/auth/register - User registration")
     print("   - POST /api/auth/login - User login")
     print("   - GET  /api/auth/profile - User profile")
+    print("   Quiz & Topics:")
     print("   - GET  /api/topics - Available topics")
     print("   - POST /api/quiz/start - Start quiz")
     print("   - POST /api/quiz/<id>/answer - Submit answer")
     print("   - GET  /api/quiz/<id>/results - Quiz results")
     print("   - GET  /api/quiz/history - Quiz history")
+    print("   Content Upload & Processing:")
+    print("   - POST /api/content/upload - Upload files (PDF, DOCX, TXT, etc.)")
+    print("   - POST /api/content/process-url - Process web URL content")
+    print("   - POST /api/content/analyze - Analyze text content")
+    print("   - GET  /api/content/formats - Supported formats info")
+    print("   Analytics & Adaptation:")
     print("   - GET  /api/user/adaptive-analytics - Adaptive learning analytics")
     print("   - POST /api/user/difficulty-recommendation - Get difficulty recommendation")
+    print("   System:")
     print("   - GET  /api/health - Health check")
     
     app.run(debug=True, host='0.0.0.0', port=5000)

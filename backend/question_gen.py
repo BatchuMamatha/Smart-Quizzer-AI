@@ -8,6 +8,14 @@ import math
 from collections import Counter, deque
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import time
+import hashlib
+
+# Import error handling system
+from error_handler import (
+    ErrorHandler, FallbackManager, SmartQuizzerError, AIServiceError, ValidationError,
+    ErrorCategory, ErrorSeverity, InputValidator, handle_errors
+)
 
 # Load environment variables
 load_dotenv()
@@ -285,7 +293,7 @@ class DifficultyClassifier:
         
         CLASSIFICATION PIPELINE:
         1. Text Complexity Analysis (30% weight)
-        2. Bloom's Taxonomy Mapping (40% weight)  
+        2. Bloom's Taxonomy Mapping (40% weight)
         3. Semantic Structure Analysis (30% weight)
         4. Skill Level Influence (10% weight)
         
@@ -299,7 +307,7 @@ class DifficultyClassifier:
         - Confidence score based on strongest indicator
         - Fallback to skill level if confidence < threshold
         - Comprehensive metadata for transparency
-        """"
+        """
         
         # 1. Text complexity analysis
         text_metrics = self.calculate_text_complexity(question_text)
@@ -654,12 +662,36 @@ class AdaptiveQuizEngine:
 
 class GeminiQuestionGenerator:
     def __init__(self):
-        # Get API key from environment variables
+        # Initialize error handling and fallback systems
+        self.error_handler = ErrorHandler()
+        self.fallback_manager = FallbackManager()
+        
+        # Get API key from environment variables with validation
         self.api_key = os.getenv('GEMINI_API_KEY')
         if not self.api_key:
-            raise ValueError("❌ GEMINI_API_KEY environment variable is not set. Please check your .env file.")
+            raise SmartQuizzerError(
+                message="GEMINI_API_KEY environment variable is not set",
+                category=ErrorCategory.SYSTEM,
+                severity=ErrorSeverity.CRITICAL,
+                details={'config_file': '.env', 'required_key': 'GEMINI_API_KEY'},
+                user_message="AI service configuration error. Please contact support."
+            )
         
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+        
+        # Service health monitoring
+        self.service_health = {
+            'gemini_api': {'status': 'unknown', 'last_check': None, 'consecutive_failures': 0},
+            'fallback_ready': True
+        }
+        
+        # Rate limiting and circuit breaker
+        self.rate_limiter = {
+            'requests_per_minute': 60,
+            'request_timestamps': deque(maxlen=60),
+            'circuit_breaker_threshold': 5,
+            'circuit_breaker_reset_time': 300  # 5 minutes
+        }
         
         # Initialize difficulty classifier
         self.difficulty_classifier = DifficultyClassifier()
@@ -667,7 +699,13 @@ class GeminiQuestionGenerator:
         # Initialize adaptive quiz engine
         self.adaptive_engine = AdaptiveQuizEngine()
         
-        print("🤖 Gemini AI Question Generator initialized with adaptive difficulty system")
+        # Register fallback strategies
+        self._register_fallback_strategies()
+        
+        print("🤖 Gemini AI Question Generator initialized with robust error handling")
+        
+        # Perform initial health check
+        self._check_service_health()
         
         # Topic-specific content for enhanced context
         self.topic_content = {
@@ -698,6 +736,121 @@ class GeminiQuestionGenerator:
             }
         }
     
+    def _register_fallback_strategies(self):
+        """Register fallback strategies for different services"""
+        self.fallback_manager.register_fallback(
+            'question_generation',
+            self._generate_fallback_questions
+        )
+        
+        self.fallback_manager.register_fallback(
+            'ai_service',
+            self._handle_ai_service_fallback
+        )
+    
+    def _check_service_health(self):
+        """Check health of external services"""
+        try:
+            # Simple health check for Gemini API
+            test_payload = {
+                "contents": [{"parts": [{"text": "Health check"}]}],
+                "generationConfig": {"maxOutputTokens": 10}
+            }
+            
+            headers = {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': self.api_key
+            }
+            
+            response = requests.post(self.base_url, headers=headers, json=test_payload, timeout=10)
+            
+            if response.status_code == 200:
+                self.service_health['gemini_api'] = {
+                    'status': 'healthy',
+                    'last_check': datetime.now(),
+                    'consecutive_failures': 0
+                }
+                print("✅ Gemini API health check passed")
+            else:
+                self._mark_service_unhealthy('gemini_api', f"HTTP {response.status_code}")
+                
+        except Exception as e:
+            self._mark_service_unhealthy('gemini_api', str(e))
+    
+    def _mark_service_unhealthy(self, service: str, reason: str):
+        """Mark a service as unhealthy"""
+        self.service_health[service]['status'] = 'unhealthy'
+        self.service_health[service]['last_check'] = datetime.now()
+        self.service_health[service]['consecutive_failures'] += 1
+        print(f"⚠️ {service} marked as unhealthy: {reason}")
+    
+    def _check_rate_limit(self) -> bool:
+        """Check if we're within rate limits"""
+        now = time.time()
+        
+        # Remove old timestamps
+        while (self.rate_limiter['request_timestamps'] and 
+               now - self.rate_limiter['request_timestamps'][0] > 60):
+            self.rate_limiter['request_timestamps'].popleft()
+        
+        # Check if we can make a request
+        if len(self.rate_limiter['request_timestamps']) >= self.rate_limiter['requests_per_minute']:
+            return False
+        
+        # Add current timestamp
+        self.rate_limiter['request_timestamps'].append(now)
+        return True
+    
+    def _should_use_circuit_breaker(self, service: str) -> bool:
+        """Check if circuit breaker should be triggered"""
+        health = self.service_health.get(service, {})
+        consecutive_failures = health.get('consecutive_failures', 0)
+        last_check = health.get('last_check')
+        
+        # If too many consecutive failures
+        if consecutive_failures >= self.rate_limiter['circuit_breaker_threshold']:
+            # Check if enough time has passed to try again
+            if last_check:
+                time_since_failure = (datetime.now() - last_check).total_seconds()
+                if time_since_failure < self.rate_limiter['circuit_breaker_reset_time']:
+                    return True
+                else:
+                    # Reset circuit breaker
+                    self.service_health[service]['consecutive_failures'] = 0
+                    return False
+            return True
+        
+        return False
+    
+    def _generate_fallback_questions(self, topic: str, skill_level: str, num_questions: int = 3) -> List[Dict]:
+        """Generate fallback questions when AI service is unavailable"""
+        print(f"🔄 Generating {num_questions} fallback questions for {topic} ({skill_level})")
+        
+        return self.fallback_manager.get_fallback_questions(topic, skill_level, num_questions)
+    
+    def _handle_ai_service_fallback(self, error: Exception, **kwargs) -> str:
+        """Handle AI service failures with basic template responses"""
+        topic = kwargs.get('topic', 'General')
+        question_type = kwargs.get('question_type', 'MCQ')
+        
+        # Simple template-based fallback
+        if question_type == 'MCQ':
+            return f"""Question: What is a key concept in {topic}?
+Type: MCQ
+Options: A. Option 1, B. Option 2, C. Option 3, D. Option 4
+Correct Answer: A
+Explanation: This is a basic question about {topic} concepts."""
+        elif question_type == 'True/False':
+            return f"""Question: {topic} is an important subject of study.
+Type: True/False
+Correct Answer: True
+Explanation: {topic} contains many important concepts worth studying."""
+        else:
+            return f"""Question: Describe a basic concept in {topic}.
+Type: Short Answer
+Correct Answer: Basic concept
+Explanation: This question tests fundamental understanding of {topic}."""
+
     def get_previous_questions(self, user_id: int, topic: str, skill_level: str) -> List[str]:
         """Get previously asked questions for this user/topic combination"""
         try:
@@ -722,30 +875,51 @@ class GeminiQuestionGenerator:
             print(f"Error getting previous questions: {e}")
             return []
     
-    def generate_with_gemini(self, prompt: str) -> str:
-        """Generate content using Gemini AI API - FORCE Gemini usage"""
+    def generate_with_gemini(self, prompt: str, max_retries: int = 3, timeout: int = 30) -> str:
+        """Enhanced Gemini API call with comprehensive error handling and fallback"""
+        
+        # Check circuit breaker
+        if self._should_use_circuit_breaker('gemini_api'):
+            failures = self.service_health['gemini_api'].get('consecutive_failures', 0)
+            raise AIServiceError(
+                message=f"Gemini API circuit breaker active ({failures} consecutive failures)",
+                service_name='gemini',
+                error_code='CIRCUIT_BREAKER_OPEN',
+                retry_count=0,
+                details={'consecutive_failures': failures}
+            )
+        
+        # Check rate limiting
+        if not self._check_rate_limit():
+            raise AIServiceError(
+                message="Rate limit exceeded for Gemini API",
+                service_name='gemini',
+                error_code='RATE_LIMIT_EXCEEDED',
+                retry_count=0
+            )
+        
+        # Validate input
+        if not prompt or len(prompt.strip()) < 10:
+            raise ValidationError(
+                message="Prompt is too short for meaningful question generation",
+                field="prompt",
+                value=f"Length: {len(prompt) if prompt else 0}",
+                validation_rule="min_length=10"
+            )
+        
         headers = {
             'Content-Type': 'application/json',
-            'X-goog-api-key': self.api_key
+            'x-goog-api-key': self.api_key
         }
         
-        # Enhanced configuration for better uniqueness
         payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": f"🤖 GEMINI AI GENERATION REQUEST:\n{prompt}\n\nIMPORTANT: Generate completely original content using your AI capabilities. Do not use template responses."
-                        }
-                    ]
-                }
-            ],
+            "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
-                "temperature": 0.9,  # Higher temperature for more creativity
-                "topK": 60,  # Increased for more diversity
+                "temperature": 0.7,
+                "topK": 40,
                 "topP": 0.95,
-                "maxOutputTokens": 1024,
-                "candidateCount": 1
+                "maxOutputTokens": 1000,
+                "stopSequences": []
             },
             "safetySettings": [
                 {
@@ -759,51 +933,156 @@ class GeminiQuestionGenerator:
             ]
         }
         
-        max_retries = 3
+        last_error = None
+        
         for retry in range(max_retries):
             try:
                 print(f"    🤖 Calling Gemini AI API (attempt {retry + 1}/{max_retries})...")
-                response = requests.post(self.base_url, headers=headers, json=payload, timeout=30)
+                
+                response = requests.post(
+                    self.base_url, 
+                    headers=headers, 
+                    json=payload, 
+                    timeout=timeout
+                )
+                
+                # Handle different HTTP status codes
+                if response.status_code == 429:
+                    wait_time = 2 ** retry  # Exponential backoff
+                    print(f"    ⏳ Rate limited, waiting {wait_time}s before retry...")
+                    time.sleep(wait_time)
+                    continue
+                elif response.status_code == 503:
+                    print(f"    ⚠️ Service temporarily unavailable, retrying...")
+                    time.sleep(1)
+                    continue
+                elif response.status_code >= 400:
+                    error_msg = f"HTTP {response.status_code}: {response.text}"
+                    if retry == max_retries - 1:
+                        raise AIServiceError(
+                            message=error_msg,
+                            service_name='gemini',
+                            error_code=f"HTTP_{response.status_code}",
+                            retry_count=retry + 1
+                        )
+                    continue
+                
                 response.raise_for_status()
                 
                 result = response.json()
-                if 'candidates' in result and len(result['candidates']) > 0:
-                    content = result['candidates'][0]['content']['parts'][0]['text']
-                    
-                    # Verify this is genuine Gemini content (not empty or error)
-                    if len(content.strip()) > 30 and "error" not in content.lower():
-                        print(f"    ✅ Gemini AI responded successfully with {len(content)} characters")
-                        return content.strip()
-                    else:
-                        print(f"    ⚠️ Gemini response too short or contains error, retrying...")
-                        continue
-                else:
+                
+                # Validate response structure
+                if 'candidates' not in result or len(result['candidates']) == 0:
                     print(f"    ⚠️ No candidates in Gemini response, retrying...")
                     continue
-                    
+                
+                candidate = result['candidates'][0]
+                if 'content' not in candidate or 'parts' not in candidate['content']:
+                    print(f"    ⚠️ Invalid response structure, retrying...")
+                    continue
+                
+                content = candidate['content']['parts'][0].get('text', '')
+                
+                # Validate content quality
+                if len(content.strip()) < 30:
+                    print(f"    ⚠️ Response too short ({len(content)} chars), retrying...")
+                    continue
+                
+                if any(error_word in content.lower() for error_word in ['error', 'sorry', 'cannot', 'unable']):
+                    print(f"    ⚠️ Response contains error indicators, retrying...")
+                    continue
+                
+                # Success - reset failure counter
+                self.service_health['gemini_api']['consecutive_failures'] = 0
+                self.service_health['gemini_api']['status'] = 'healthy'
+                self.service_health['gemini_api']['last_check'] = datetime.now()
+                
+                print(f"    ✅ Gemini AI responded successfully with {len(content)} characters")
+                return content.strip()
+                
+            except requests.exceptions.Timeout as e:
+                last_error = AIServiceError(
+                    message=f"Gemini API timeout after {timeout}s",
+                    service_name='gemini',
+                    error_code='TIMEOUT',
+                    retry_count=retry + 1,
+                    details={'timeout': timeout}
+                )
+                print(f"    ⏰ Timeout error (attempt {retry + 1}): {e}")
+                
+            except requests.exceptions.ConnectionError as e:
+                last_error = AIServiceError(
+                    message="Failed to connect to Gemini API",
+                    service_name='gemini',
+                    error_code='CONNECTION_ERROR',
+                    retry_count=retry + 1,
+                    details={'original_error': str(e)}
+                )
+                print(f"    🔌 Connection error (attempt {retry + 1}): {e}")
+                
             except requests.exceptions.RequestException as e:
-                print(f"    ❌ Gemini API Request Error (attempt {retry + 1}): {e}")
-                if retry == max_retries - 1:
-                    raise Exception(f"Failed to connect to Gemini AI after {max_retries} attempts: {e}")
-                continue
+                last_error = AIServiceError(
+                    message=f"Gemini API request failed: {str(e)}",
+                    service_name='gemini',
+                    error_code='REQUEST_ERROR',
+                    retry_count=retry + 1,
+                    details={'original_error': str(e)}
+                )
+                print(f"    ❌ Request error (attempt {retry + 1}): {e}")
+                
             except Exception as e:
-                print(f"    ❌ Gemini API Error (attempt {retry + 1}): {e}")
-                if retry == max_retries - 1:
-                    raise Exception(f"Gemini AI failed after {max_retries} attempts: {e}")
-                continue
+                last_error = AIServiceError(
+                    message=f"Unexpected error calling Gemini API: {str(e)}",
+                    service_name='gemini',
+                    error_code='UNEXPECTED_ERROR',
+                    retry_count=retry + 1,
+                    details={'original_error': str(e), 'error_type': type(e).__name__}
+                )
+                print(f"    💥 Unexpected error (attempt {retry + 1}): {e}")
+            
+            # Wait before retry (exponential backoff)
+            if retry < max_retries - 1:
+                wait_time = min(2 ** retry, 10)  # Cap at 10 seconds
+                print(f"    ⏳ Waiting {wait_time}s before retry...")
+                time.sleep(wait_time)
         
-        # If we get here, all retries failed
-        raise Exception("❌ CRITICAL: All Gemini AI attempts failed - No fallback allowed")
+        # All retries failed - mark service as unhealthy
+        self._mark_service_unhealthy('gemini_api', f"Failed after {max_retries} attempts")
+        
+        # Raise the last error or a generic one
+        if last_error:
+            raise last_error
+        else:
+            raise AIServiceError(
+                message=f"Gemini AI failed after {max_retries} attempts with unknown error",
+                service_name='gemini',
+                error_code='UNKNOWN_FAILURE',
+                retry_count=max_retries
+            )
     
     def get_context_for_topic(self, topic: str, skill_level: str, custom_topic: str = None) -> str:
-        """Get relevant context for question generation"""
-        if custom_topic:
-            return custom_topic
-        
-        if topic in self.topic_content and skill_level in self.topic_content[topic]:
-            return self.topic_content[topic][skill_level]
-        
-        return f"Content about {topic} at {skill_level} level"
+        """Get relevant context for question generation with validation"""
+        try:
+            if custom_topic:
+                # Validate custom topic content
+                if len(custom_topic.strip()) < 10:
+                    raise ValidationError(
+                        message="Custom topic content is too short",
+                        field="custom_topic",
+                        value=custom_topic,
+                        validation_rule="min_length=10"
+                    )
+                return custom_topic.strip()
+            
+            if topic in self.topic_content and skill_level in self.topic_content[topic]:
+                return self.topic_content[topic][skill_level]
+            
+            # Fallback context
+            return f"Educational content about {topic} at {skill_level} level. This includes fundamental concepts, key principles, and practical applications relevant to {topic}."
+            
+        except Exception as e:
+            self.error_handler.log_error(e, {'topic': topic, 'skill_level': skill_level})
+            return f"Content about {topic} at {skill_level} level"
     
     def create_question_prompt(self, topic: str, skill_level: str, question_type: str, context: str, previous_questions: List[str] = None) -> str:
         """Create a detailed prompt for Gemini AI with uniqueness requirements"""
@@ -1333,6 +1612,36 @@ Explanation: [what makes a good answer and why this topic is important]
         }
         
         return learning_analytics
+    
+    def get_service_health(self) -> Dict[str, Any]:
+        """Get current service health status"""
+        return {
+            'service_health': self.service_health,
+            'error_stats': self.error_handler.get_error_stats(),
+            'fallback_status': {
+                'fallback_manager_ready': self.fallback_manager is not None,
+                'registered_fallbacks': list(self.fallback_manager.fallback_strategies.keys()) if self.fallback_manager else []
+            },
+            'rate_limiting': {
+                'requests_in_last_minute': len(self.rate_limiter['request_timestamps']),
+                'rate_limit': self.rate_limiter['requests_per_minute'],
+                'circuit_breaker_active': self._should_use_circuit_breaker('gemini_api')
+            }
+        }
+    
+    def reset_service_health(self, service: str = None):
+        """Reset service health status (for administrative use)"""
+        if service:
+            if service in self.service_health:
+                self.service_health[service]['consecutive_failures'] = 0
+                self.service_health[service]['status'] = 'unknown'
+                print(f"🔄 Reset health status for {service}")
+        else:
+            for svc in self.service_health:
+                if isinstance(self.service_health[svc], dict):
+                    self.service_health[svc]['consecutive_failures'] = 0
+                    self.service_health[svc]['status'] = 'unknown'
+            print("🔄 Reset health status for all services")
 
 # Initialize the question generator
 question_generator = GeminiQuestionGenerator()
