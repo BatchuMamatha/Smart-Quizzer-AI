@@ -3,6 +3,10 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Import our modules
 from models import db, User, QuizSession, Question, Topic
@@ -12,9 +16,9 @@ from question_gen import question_generator
 def create_app():
     app = Flask(__name__)
     
-    # Configuration
-    app.config['SECRET_KEY'] = 'smart-quizzer-secret-2024'
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///smart_quizzer.db'
+    # Configuration - Use environment variables with fallbacks
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'smart-quizzer-secret-2024-change-in-production')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///smart_quizzer.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Initialize extensions

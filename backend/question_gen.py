@@ -2,10 +2,15 @@ import random
 import re
 import json
 import requests
+import os
 from typing import List, Dict, Any
 import math
 from collections import Counter, deque
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class DifficultyClassifier:
     """Advanced difficulty classification based on text complexity, Bloom's taxonomy, and semantic structure"""
@@ -524,7 +529,11 @@ class AdaptiveQuizEngine:
 
 class GeminiQuestionGenerator:
     def __init__(self):
-        self.api_key = "AIzaSyCxh2uCa-4_S2csbC7Y4G5lp_ytrCyF6Vs"
+        # Get API key from environment variables
+        self.api_key = os.getenv('GEMINI_API_KEY')
+        if not self.api_key:
+            raise ValueError("❌ GEMINI_API_KEY environment variable is not set. Please check your .env file.")
+        
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
         
         # Initialize difficulty classifier

@@ -170,15 +170,31 @@
 
 ### 🔑 Environment Setup
 
-For a full demonstration of both modules:
+**IMPORTANT: Secure your API keys!**
 
-Create a `.env` file in the backend directory:```bash
+1. **Automated Setup (Recommended):**
+   ```bash
+   cd backend
+   python setup_env.py
+   ```
 
-```envcd backend
+2. **Manual Setup:**
+   ```bash
+   cd backend
+   cp .env.example .env
+   # Edit .env file and add your API keys
+   ```
 
-GEMINI_API_KEY=your_google_gemini_api_key_herepython console_demo.py
+3. **Required Environment Variables:**
+   ```env
+   GEMINI_API_KEY=your_google_gemini_api_key_here
+   SECRET_KEY=your_secure_secret_key_here
+   DATABASE_URL=sqlite:///smart_quizzer.db
+   ```
 
-SECRET_KEY=your_secret_key_here```
+**Get your Gemini API key:** https://makersuite.google.com/app/apikey
+
+⚠️ **Security Note:** Never commit your `.env` file to version control!
 
 ```
 
