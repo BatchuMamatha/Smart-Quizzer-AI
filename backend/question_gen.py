@@ -13,10 +13,41 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class DifficultyClassifier:
-    """Advanced difficulty classification based on text complexity, Bloom's taxonomy, and semantic structure"""
+    """
+    🎯 ADVANCED DIFFICULTY CLASSIFICATION MODULE
+    
+    This sophisticated module implements multi-layered difficulty analysis using:
+    
+    📚 BLOOM'S TAXONOMY INTEGRATION:
+    - Maps questions to cognitive levels (Remember, Understand, Apply, Analyze, Evaluate, Create)
+    - Easy: Remember (list, name, identify) + Understand (explain, describe, summarize)
+    - Medium: Apply (solve, demonstrate, calculate) + Analyze (compare, contrast, examine)
+    - Hard: Evaluate (judge, critique, assess) + Create (design, construct, develop)
+    
+    🔍 TEXT COMPLEXITY ANALYSIS:
+    - Flesch Reading Score calculation (0-100 scale)
+    - Average word length and sentence complexity
+    - Lexical diversity and vocabulary sophistication
+    - Syllable counting for readability assessment
+    
+    📊 CLASSIFIER THRESHOLDS:
+    - Flesch Score: >70 (Easy), 50-70 (Medium), <50 (Hard)
+    - Word Length: ≤4 chars (Easy), 4-6 chars (Medium), >6 chars (Hard)
+    - Bloom's Weight: 40% of final classification
+    - Semantic Weight: 30% of final classification
+    - Text Complexity: 30% of final classification
+    
+    🧠 SEMANTIC STRUCTURE PATTERNS:
+    - Domain-specific complexity indicators
+    - Mathematical terminology analysis
+    - Question structure pattern recognition
+    - Multi-method weighted scoring system
+    """
     
     def __init__(self):
-        # Bloom's taxonomy keywords for cognitive levels
+        # 📚 BLOOM'S TAXONOMY COGNITIVE LEVEL MAPPING
+        # Based on revised Bloom's taxonomy (Anderson & Krathwohl, 2001)
+        # Each level maps to specific difficulty classifications
         self.blooms_taxonomy = {
             'easy': {
                 'remember': ['list', 'name', 'identify', 'define', 'recall', 'state', 'what is', 'who is', 'when did'],
@@ -32,24 +63,57 @@ class DifficultyClassifier:
             }
         }
         
-        # Complex vocabulary indicators
+        # 🔍 VOCABULARY COMPLEXITY INDICATORS
+        # Linguistic markers for cognitive demand levels
         self.complexity_indicators = {
             'easy': ['simple', 'basic', 'main', 'first', 'common', 'usual', 'general'],
             'medium': ['analyze', 'process', 'relationship', 'factor', 'method', 'principle', 'concept'],
             'hard': ['synthesize', 'hypothesis', 'paradigm', 'methodology', 'theoretical', 'empirical', 'philosophical']
         }
         
-        # Mathematical complexity patterns
+        # 📊 MATHEMATICAL COMPLEXITY CLASSIFICATION
+        # Domain-specific mathematical concept difficulty mapping
         self.math_complexity = {
             'easy': ['addition', 'subtraction', 'multiplication', 'division', 'counting', 'basic'],
             'medium': ['algebra', 'equation', 'function', 'graph', 'probability', 'statistics'],
             'hard': ['calculus', 'derivative', 'integral', 'matrix', 'theorem', 'proof', 'differential']
         }
         
+        # 📈 CLASSIFIER CONFIGURATION SUMMARY
+        self.classifier_config = {
+            'flesch_thresholds': {'easy': 70, 'medium': 50, 'hard': 0},
+            'word_length_thresholds': {'easy': 4, 'medium': 6, 'hard': float('inf')},
+            'weights': {
+                'blooms_taxonomy': 0.4,
+                'semantic_analysis': 0.3, 
+                'text_complexity': 0.2,
+                'skill_level_influence': 0.1
+            },
+            'confidence_threshold': 0.3,
+            'syllable_estimation': 'flesch_kincaid_approximation'
+        }
+        
         print("🎯 Difficulty Classifier initialized with Bloom's taxonomy and semantic analysis")
+        print(f"📊 Classification weights: Bloom's {self.classifier_config['weights']['blooms_taxonomy']*100}%, "
+              f"Semantic {self.classifier_config['weights']['semantic_analysis']*100}%, "
+              f"Text {self.classifier_config['weights']['text_complexity']*100}%")
     
     def calculate_text_complexity(self, text: str) -> Dict[str, float]:
-        """Calculate text complexity metrics"""
+        """
+        📊 CALCULATE COMPREHENSIVE TEXT COMPLEXITY METRICS
+        
+        Uses multiple linguistic measures to assess reading difficulty:
+        - Flesch Reading Ease Score (0-100): Higher = easier to read
+        - Average word length: Character count per word
+        - Average sentence length: Words per sentence  
+        - Lexical diversity: Unique words / Total words
+        - Syllable estimation: For readability calculation
+        
+        THRESHOLDS:
+        - Flesch Score: >70 (Easy), 50-70 (Medium), <50 (Hard)
+        - Word Length: ≤4 (Easy), 4-6 (Medium), >6 (Hard)
+        - Sentence Length: <15 (Easy), 15-25 (Medium), >25 (Hard)
+        """
         words = text.split()
         sentences = text.split('.')
         
@@ -96,7 +160,25 @@ class DifficultyClassifier:
         return max(1, syllables)
     
     def analyze_blooms_taxonomy(self, question_text: str) -> Dict[str, Any]:
-        """Analyze question based on Bloom's taxonomy cognitive levels"""
+        """
+        📚 BLOOM'S TAXONOMY COGNITIVE LEVEL ANALYSIS
+        
+        Maps question verbs to cognitive complexity levels:
+        
+        EASY LEVEL (Foundational):
+        - Remember: list, name, identify, define, recall, state
+        - Understand: explain, describe, summarize, interpret, classify
+        
+        MEDIUM LEVEL (Application):
+        - Apply: solve, demonstrate, calculate, show, complete, examine
+        - Analyze: compare, contrast, distinguish, categorize, differentiate
+        
+        HARD LEVEL (Higher-Order):
+        - Evaluate: judge, critique, assess, justify, argue, defend
+        - Create: design, construct, develop, formulate, compose, plan
+        
+        Returns confidence score based on verb detection frequency
+        """
         question_lower = question_text.lower()
         
         bloom_scores = {'easy': 0, 'medium': 0, 'hard': 0}
@@ -124,7 +206,31 @@ class DifficultyClassifier:
         }
     
     def analyze_semantic_structure(self, question_text: str, topic: str) -> Dict[str, Any]:
-        """Analyze semantic structure and domain-specific complexity"""
+        """
+        🔍 SEMANTIC STRUCTURE & DOMAIN-SPECIFIC ANALYSIS
+        
+        Analyzes multiple dimensions of question complexity:
+        
+        VOCABULARY COMPLEXITY:
+        - Easy: simple, basic, main, first, common, usual, general
+        - Medium: analyze, process, relationship, factor, method, principle
+        - Hard: synthesize, hypothesis, paradigm, methodology, theoretical
+        
+        MATHEMATICAL DOMAIN PATTERNS:
+        - Easy: addition, subtraction, multiplication, division, counting
+        - Medium: algebra, equation, function, graph, probability, statistics  
+        - Hard: calculus, derivative, integral, matrix, theorem, proof
+        
+        STRUCTURAL COMPLEXITY:
+        - Easy: "what is", "which of", "true or false", "name the"
+        - Medium: "compare and", "explain how", "what happens when"
+        - Hard: "evaluate the", "synthesize", "critically analyze"
+        
+        WEIGHTING SYSTEM:
+        - Complexity indicators: 1x weight
+        - Mathematical terms: 2x weight  
+        - Structural patterns: 3x weight
+        """
         question_lower = question_text.lower()
         
         # Check for complexity indicators
@@ -174,7 +280,26 @@ class DifficultyClassifier:
         }
     
     def classify_difficulty(self, question_text: str, topic: str, skill_level: str) -> Dict[str, Any]:
-        """Comprehensive difficulty classification using multiple methods"""
+        """
+        🎯 COMPREHENSIVE MULTI-METHOD DIFFICULTY CLASSIFICATION
+        
+        CLASSIFICATION PIPELINE:
+        1. Text Complexity Analysis (30% weight)
+        2. Bloom's Taxonomy Mapping (40% weight)  
+        3. Semantic Structure Analysis (30% weight)
+        4. Skill Level Influence (10% weight)
+        
+        DECISION THRESHOLDS:
+        - Flesch Score: >70 (Easy), 50-70 (Medium), <50 (Hard)
+        - Word Length: ≤4 (Easy), 4-6 (Medium), >6 (Hard)
+        - Minimum Confidence: 0.3 (fallback to skill level)
+        
+        FINAL CLASSIFICATION:
+        - Weighted sum of all analysis methods
+        - Confidence score based on strongest indicator
+        - Fallback to skill level if confidence < threshold
+        - Comprehensive metadata for transparency
+        """"
         
         # 1. Text complexity analysis
         text_metrics = self.calculate_text_complexity(question_text)

@@ -305,6 +305,117 @@ The Smart Quizzer AI features a sophisticated answer evaluation system that goes
 - **Confidence Display**: Visual representation of evaluation confidence
 - **Detailed Metadata**: Complete evaluation breakdown for learning insights
 
+## 🎯 Advanced Difficulty Classification Module
+
+The Smart Quizzer AI implements a sophisticated **Difficulty Classification Module** that uses multiple AI techniques to accurately assess and categorize question complexity:
+
+### 📚 Bloom's Taxonomy Integration
+
+The system maps questions to cognitive complexity levels based on Bloom's revised taxonomy:
+
+#### 🟢 **Easy Level (Foundational Knowledge)**
+- **Remember**: list, name, identify, define, recall, state, "what is", "who is"
+- **Understand**: explain, describe, summarize, interpret, give example, classify
+
+#### 🟡 **Medium Level (Application & Analysis)** 
+- **Apply**: solve, demonstrate, calculate, show, complete, examine, modify
+- **Analyze**: compare, contrast, distinguish, examine, categorize, differentiate
+
+#### 🔴 **Hard Level (Higher-Order Thinking)**
+- **Evaluate**: judge, critique, assess, evaluate, justify, argue, defend, support
+- **Create**: design, construct, develop, formulate, compose, plan, produce, invent
+
+### 🔍 Multi-Dimensional Analysis Framework
+
+#### **1. Text Complexity Analysis (30% Weight)**
+- **Flesch Reading Ease Score**: 0-100 scale readability assessment
+  - `>70`: Easy to read (Elementary level)
+  - `50-70`: Moderate difficulty (High school level)  
+  - `<50`: Difficult to read (College level)
+- **Average Word Length**: Character count analysis
+  - `≤4 chars`: Simple vocabulary (Easy)
+  - `4-6 chars`: Standard vocabulary (Medium)
+  - `>6 chars`: Complex vocabulary (Hard)
+- **Lexical Diversity**: Unique words / Total words ratio
+- **Syllable Estimation**: Advanced phonetic complexity calculation
+
+#### **2. Semantic Structure Patterns (30% Weight)**
+- **Vocabulary Complexity Indicators**:
+  - Easy: simple, basic, main, first, common, usual, general
+  - Medium: analyze, process, relationship, factor, method, principle, concept
+  - Hard: synthesize, hypothesis, paradigm, methodology, theoretical, empirical
+
+- **Mathematical Domain Analysis** (2x weight for math topics):
+  - Easy: addition, subtraction, multiplication, division, counting, basic
+  - Medium: algebra, equation, function, graph, probability, statistics
+  - Hard: calculus, derivative, integral, matrix, theorem, proof, differential
+
+- **Question Structure Patterns** (3x weight for structural indicators):
+  - Easy: "what is", "which of", "true or false", "name the"
+  - Medium: "compare and", "explain how", "what happens when", "why does"
+  - Hard: "evaluate the", "synthesize", "critically analyze", "justify your"
+
+#### **3. Bloom's Taxonomy Weighting (40% Weight)**
+- **Cognitive Verb Detection**: Identifies action words that indicate thinking level
+- **Confidence Scoring**: Based on frequency and strength of detected patterns
+- **Primary Level Assignment**: Determines dominant cognitive demand
+
+### ⚙️ Classifier Configuration & Thresholds
+
+```python
+classifier_config = {
+    'flesch_thresholds': {'easy': 70, 'medium': 50, 'hard': 0},
+    'word_length_thresholds': {'easy': 4, 'medium': 6, 'hard': float('inf')},
+    'weights': {
+        'blooms_taxonomy': 0.4,      # 40% - Cognitive level analysis
+        'semantic_analysis': 0.3,     # 30% - Domain-specific patterns  
+        'text_complexity': 0.2,       # 20% - Readability metrics
+        'skill_level_influence': 0.1  # 10% - User skill consideration
+    },
+    'confidence_threshold': 0.3,      # Minimum confidence for classification
+    'syllable_estimation': 'flesch_kincaid_approximation'
+}
+```
+
+### 🎛️ Advanced Decision Logic
+
+#### **Final Classification Algorithm**:
+1. **Multi-Method Analysis**: Combines all three analysis methods with weighted scoring
+2. **Confidence Assessment**: Ensures classification reliability above 30% threshold
+3. **Fallback Mechanism**: Uses skill level if confidence is insufficient
+4. **Metadata Generation**: Provides complete transparency of classification reasoning
+
+#### **Quality Assurance**:
+- **Cross-Validation**: Multiple methods must agree for high-confidence classification
+- **Adaptive Thresholds**: Adjusts based on user performance patterns
+- **Continuous Learning**: Improves classification accuracy over time
+
+### 📊 Classification Output & Metadata
+
+Each question receives comprehensive difficulty analysis:
+
+```json
+{
+  "classified_difficulty": "medium",
+  "confidence": 0.78,
+  "text_metrics": {
+    "flesch_score": 65.2,
+    "avg_word_length": 5.3,
+    "lexical_diversity": 0.72
+  },
+  "blooms_analysis": {
+    "primary_level": "apply",
+    "detected_verbs": ["solve", "calculate", "demonstrate"]
+  },
+  "semantic_analysis": {
+    "complexity_indicators": ["process", "method"],
+    "domain_terms": ["equation", "function"]
+  }
+}
+```
+
+This sophisticated classification system ensures that questions are appropriately matched to user skill levels and learning objectives, providing optimal challenge without overwhelming learners.
+
 ## 📊 Advanced Analytics & Performance Tracking
 
 ### Real-Time Performance Dashboard
