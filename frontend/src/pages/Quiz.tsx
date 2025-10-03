@@ -1,0 +1,330 @@
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { quizAPI, Question, QuizSession } from '../lib/api';
+
+interface QuizState {
+  quizData: {
+    quiz_session: QuizSession;
+    questions: Question[];
+  };
+}
+
+const Quiz: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { quizData } = (location.state as QuizState) || {};
+  
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [selectedAnswer, setSelectedAnswer] = useState('');
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedback, setFeedback] = useState<any>(null);
+  const [startTime, setStartTime] = useState(Date.now());
+  const [completedQuestions, setCompletedQuestions] = useState(0);
+
+  useEffect(() => {
+    if (!quizData) {
+      navigate('/dashboard');
+      return;
+    }
+    setStartTime(Date.now());
+  }, [quizData, navigate]);
+
+  if (!quizData) {
+    return null;
+  }
+
+  const { quiz_session, questions } = quizData;
+  const currentQuestion = questions[currentQuestionIndex];
+
+  const handleAnswerSubmit = async () => {
+    if (!selectedAnswer) {
+      alert('Please select an answer');
+      return;
+    }
+
+    const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+    
+    try {
+      const response = await quizAPI.submitAnswer(quiz_session.id, {
+        question_id: currentQuestion.id,
+        answer: selectedAnswer,
+        time_taken: timeTaken,
+      });
+
+      setFeedback(response);
+      setShowFeedback(true);
+      setAnswers({ ...answers, [currentQuestion.id]: selectedAnswer });
+      
+      // Update completed questions count from the API response
+      if (response.quiz_progress && response.quiz_progress.completed !== undefined) {
+        console.log('Updating completed questions:', response.quiz_progress.completed);
+        setCompletedQuestions(response.quiz_progress.completed);
+      } else {
+        console.log('No quiz_progress.completed in response:', response);
+      }
+
+      // Check if quiz is completed
+      if (response.quiz_progress.is_completed) {
+        // Quiz completed - results will be shown when navigating
+      }
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Failed to submit answer');
+    }
+  };
+
+  const handleNextQuestion = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setSelectedAnswer('');
+      setShowFeedback(false);
+      setFeedback(null);
+      setStartTime(Date.now());
+    } else {
+      // Quiz completed, navigate to results
+      navigate('/results', { state: { quizId: quiz_session.id } });
+    }
+  };
+
+  const getQuestionTypeDisplay = (question: Question) => {
+    if (question.question_type === 'MCQ') {
+      return (
+        <div className="space-y-2">
+          {question.options.map((option, index) => (
+            <label key={index} className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="radio"
+                name="answer"
+                value={option.charAt(0)}
+                checked={selectedAnswer === option.charAt(0)}
+                onChange={(e) => setSelectedAnswer(e.target.value)}
+                disabled={showFeedback}
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
+              />
+              <span className="text-sm text-gray-700">{option}</span>
+            </label>
+          ))}
+        </div>
+      );
+    } else if (question.question_type === 'True/False') {
+      return (
+        <div className="space-y-2">
+          <label className="flex items-center space-x-3 cursor-pointer">
+            <input
+              type="radio"
+              name="answer"
+              value="True"
+              checked={selectedAnswer === 'True'}
+              onChange={(e) => setSelectedAnswer(e.target.value)}
+              disabled={showFeedback}
+              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
+            />
+            <span className="text-sm text-gray-700">True</span>
+          </label>
+          <label className="flex items-center space-x-3 cursor-pointer">
+            <input
+              type="radio"
+              name="answer"
+              value="False"
+              checked={selectedAnswer === 'False'}
+              onChange={(e) => setSelectedAnswer(e.target.value)}
+              disabled={showFeedback}
+              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
+            />
+            <span className="text-sm text-gray-700">False</span>
+          </label>
+        </div>
+      );
+    } else {
+      return (
+        <textarea
+          value={selectedAnswer}
+          onChange={(e) => setSelectedAnswer(e.target.value)}
+          disabled={showFeedback}
+          placeholder="Enter your answer..."
+          rows={3}
+          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+        />
+      );
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      {/* Background Decorations */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-green-400 to-blue-500 rounded-full opacity-10 blur-3xl"></div>
+      </div>
+
+      {/* Header */}
+      <header className="relative bg-white bg-opacity-80 backdrop-blur-md shadow-lg border-b border-white border-opacity-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="animate-fade-in-up">
+              <h1 className="text-3xl font-bold text-gradient mb-1">
+                🧠 Smart Quiz Session
+              </h1>
+              <p className="text-gray-600 font-medium">AI-Generated Questions</p>
+            </div>
+            <div className="text-right animate-slide-in-right">
+              <div className="flex items-center space-x-2 mb-1">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                  Question {currentQuestionIndex + 1} of {questions.length}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500">
+                📚 {quiz_session.topic} | 🎯 {quiz_session.skill_level}
+              </p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="relative max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          {/* Progress Bar */}
+          <div className="mb-8 animate-fade-in-up">
+            <div className="flex justify-between text-sm text-gray-600 mb-3">
+              <span className="font-medium">📈 Progress</span>
+              <span className="font-bold text-blue-600">
+                {Math.round((completedQuestions / questions.length) * 100)}% Complete
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+              <div
+                className="progress-bar h-3"
+                style={{ 
+                  width: `${(completedQuestions / questions.length) * 100}%`,
+                  minWidth: completedQuestions === 0 ? '0%' : '2%' // Show at least 2% when there's progress
+                }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-2">
+              <span>🔥 Keep going!</span>
+              <span>{questions.length - completedQuestions} questions remaining</span>
+            </div>
+          </div>
+
+          {/* Question Card */}
+          <div className="question-card animate-fade-in-scale mb-8">
+            <div className="p-6 sm:p-8">
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800">
+                    📝 {currentQuestion.question_type}
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-green-100 to-blue-100 text-green-800">
+                    {currentQuestion.difficulty_level === 'Beginner' ? '🌱' : currentQuestion.difficulty_level === 'Intermediate' ? '🚀' : '🏆'} {currentQuestion.difficulty_level}
+                  </span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 leading-relaxed">
+                  {currentQuestion.question_text}
+                </h3>
+              </div>
+
+              {/* Answer Options */}
+              <div className="mb-8">
+                {getQuestionTypeDisplay(currentQuestion)}
+              </div>
+
+              {/* Feedback */}
+              {showFeedback && feedback && (
+                <div className={`${feedback.is_correct ? 'feedback-correct' : 'feedback-incorrect'} mb-6 animate-fade-in-up`}>
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      {feedback.is_correct ? (
+                        <span className="text-green-600 text-2xl">✅</span>
+                      ) : (
+                        <span className="text-red-600 text-2xl">❌</span>
+                      )}
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <h4 className={`text-lg font-bold mb-2 ${
+                        feedback.is_correct ? 'text-green-800' : 'text-red-800'
+                      }`}>
+                        {feedback.is_correct ? '🎉 Excellent!' : '📚 Let\'s Learn!'}
+                      </h4>
+                      {!feedback.is_correct && (
+                        <div className="mb-3 p-3 bg-white bg-opacity-60 rounded-lg">
+                          <p className="text-sm font-medium text-red-700">
+                            🎯 Correct answer: <span className="font-bold">{feedback.correct_answer}</span>
+                          </p>
+                        </div>
+                      )}
+                      <div className="mb-4 p-4 bg-white bg-opacity-80 rounded-lg">
+                        <p className="text-gray-700 leading-relaxed">
+                          💡 <span className="font-medium">Explanation:</span> {feedback.explanation}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                        <div className="bg-white bg-opacity-60 rounded-lg p-3 text-center">
+                          <div className="font-bold text-blue-600">{feedback.quiz_progress.completed}/{feedback.quiz_progress.total}</div>
+                          <div className="text-blue-800">Progress</div>
+                        </div>
+                        <div className="bg-white bg-opacity-60 rounded-lg p-3 text-center">
+                          <div className="font-bold text-green-600">{feedback.quiz_progress.score_percentage.toFixed(1)}%</div>
+                          <div className="text-green-800">Score</div>
+                        </div>
+                        {feedback.time_taken !== null && feedback.time_taken !== undefined && (
+                          <div className="bg-white bg-opacity-60 rounded-lg p-3 text-center">
+                            <div className="font-bold text-purple-600">{feedback.time_taken}s</div>
+                            <div className="text-purple-800">Time Taken</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-between">
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="btn btn-secondary group"
+                >
+                  <span className="mr-2">🏠</span>
+                  Back to Dashboard
+                  <span className="ml-2 transform group-hover:-translate-x-1 transition-transform">←</span>
+                </button>
+                
+                {!showFeedback ? (
+                  <button
+                    onClick={handleAnswerSubmit}
+                    disabled={!selectedAnswer}
+                    className="btn btn-primary btn-lg group"
+                  >
+                    <span className="mr-2">✅</span>
+                    Submit Answer
+                    <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleNextQuestion}
+                    className="btn btn-success btn-lg group"
+                  >
+                    {currentQuestionIndex < questions.length - 1 ? (
+                      <>
+                        <span className="mr-2">➡️</span>
+                        Next Question
+                        <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="mr-2">🎉</span>
+                        View Results
+                        <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Quiz;

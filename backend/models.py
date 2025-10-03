@@ -1,0 +1,176 @@
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
+import bcrypt
+import json
+
+db = SQLAlchemy()
+
+class User(db.Model):
+    __tablename__ = 'users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    full_name = db.Column(db.String(100), nullable=False)
+    skill_level = db.Column(db.String(20), nullable=False, default='Beginner')  # Beginner, Intermediate, Advanced
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    quiz_sessions = db.relationship('QuizSession', backref='user', lazy=True, cascade='all, delete-orphan')
+    
+    def set_password(self, password):
+        """Hash and set password"""
+        self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    def check_password(self, password):
+        """Check if provided password matches hash"""
+        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'full_name': self.full_name,
+            'skill_level': self.skill_level,
+            'created_at': self.created_at.isoformat(),
+            'quiz_count': len(self.quiz_sessions)
+        }
+
+class QuizSession(db.Model):
+    __tablename__ = 'quiz_sessions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    topic = db.Column(db.String(100), nullable=False)
+    skill_level = db.Column(db.String(20), nullable=False)
+    custom_topic = db.Column(db.Text, nullable=True)  # For custom text input
+    total_questions = db.Column(db.Integer, nullable=False, default=5)
+    completed_questions = db.Column(db.Integer, nullable=False, default=0)
+    correct_answers = db.Column(db.Integer, nullable=False, default=0)
+    score_percentage = db.Column(db.Float, nullable=False, default=0.0)
+    session_data = db.Column(db.Text, nullable=True)  # JSON string for storing questions and answers
+    status = db.Column(db.String(20), nullable=False, default='active')  # active, completed, abandoned
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relationships
+    questions = db.relationship('Question', backref='quiz_session', lazy=True, cascade='all, delete-orphan')
+    
+    def set_session_data(self, data):
+        """Store session data as JSON"""
+        self.session_data = json.dumps(data)
+    
+    def get_session_data(self):
+        """Retrieve session data from JSON"""
+        if self.session_data:
+            return json.loads(self.session_data)
+        return {}
+    
+    def calculate_score(self):
+        """Calculate and update score percentage"""
+        if self.total_questions > 0:
+            self.score_percentage = (self.correct_answers / self.total_questions) * 100
+        else:
+            self.score_percentage = 0.0
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'topic': self.topic,
+            'skill_level': self.skill_level,
+            'custom_topic': self.custom_topic,
+            'total_questions': self.total_questions,
+            'completed_questions': self.completed_questions,
+            'correct_answers': self.correct_answers,
+            'score_percentage': self.score_percentage,
+            'status': self.status,
+            'started_at': self.started_at.isoformat(),
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'questions_count': len(self.questions)
+        }
+
+class Question(db.Model):
+    __tablename__ = 'questions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    quiz_session_id = db.Column(db.Integer, db.ForeignKey('quiz_sessions.id'), nullable=False)
+    question_text = db.Column(db.Text, nullable=False)
+    question_type = db.Column(db.String(20), nullable=False)  # MCQ, True/False, Short Answer
+    options = db.Column(db.Text, nullable=True)  # JSON string for MCQ options
+    correct_answer = db.Column(db.Text, nullable=False)
+    user_answer = db.Column(db.Text, nullable=True)
+    explanation = db.Column(db.Text, nullable=True)
+    difficulty_level = db.Column(db.String(20), nullable=False)
+    is_correct = db.Column(db.Boolean, nullable=True)  # True, False, or None if not answered
+    answered_at = db.Column(db.DateTime, nullable=True)
+    time_taken = db.Column(db.Integer, nullable=True)  # Time in seconds
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def set_options(self, options_list):
+        """Store options as JSON"""
+        if options_list:
+            self.options = json.dumps(options_list)
+    
+    def get_options(self):
+        """Retrieve options from JSON"""
+        if self.options:
+            return json.loads(self.options)
+        return []
+    
+    def check_answer(self, user_answer):
+        """Check if user answer is correct"""
+        self.user_answer = user_answer
+        self.answered_at = datetime.utcnow()
+        
+        if self.question_type == 'MCQ':
+            self.is_correct = user_answer.strip().lower() == self.correct_answer.strip().lower()
+        elif self.question_type == 'True/False':
+            self.is_correct = user_answer.strip().lower() == self.correct_answer.strip().lower()
+        else:  # Short Answer - simple contains check (can be enhanced)
+            self.is_correct = self.correct_answer.strip().lower() in user_answer.strip().lower()
+        
+        return self.is_correct
+    
+    def to_dict(self, include_correct_answer=False):
+        result = {
+            'id': self.id,
+            'quiz_session_id': self.quiz_session_id,
+            'question_text': self.question_text,
+            'question_type': self.question_type,
+            'options': self.get_options(),
+            'user_answer': self.user_answer,
+            'explanation': self.explanation,
+            'difficulty_level': self.difficulty_level,
+            'is_correct': self.is_correct,
+            'answered_at': self.answered_at.isoformat() if self.answered_at else None,
+            'time_taken': self.time_taken
+        }
+        
+        if include_correct_answer:
+            result['correct_answer'] = self.correct_answer
+            
+        return result
+
+class Topic(db.Model):
+    __tablename__ = 'topics'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    category = db.Column(db.String(50), nullable=False)
+    sample_content = db.Column(db.Text, nullable=True)  # Sample text for question generation
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'category': self.category,
+            'is_active': self.is_active
+        }
