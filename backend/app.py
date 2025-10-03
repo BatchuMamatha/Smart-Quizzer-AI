@@ -29,6 +29,10 @@ def create_app():
     # Create tables
     with app.app_context():
         db.create_all()
+        
+        # Initialize adaptive quiz engine
+        app.adaptive_engine = question_generator.adaptive_engine
+        
         initialize_topics()
     
     return app
@@ -303,6 +307,12 @@ def start_quiz(current_user_id):
         if custom_topic:
             print(f"📝 Custom topic content: {custom_topic[:100]}...")
         
+        # Initialize adaptive profile for user
+        adaptive_profile = question_generator.adaptive_engine.initialize_user_profile(
+            user_id=str(current_user_id), 
+            initial_skill_level=data['skill_level']
+        )
+        
         # Create quiz session
         quiz_session = QuizSession(
             user_id=current_user_id,
@@ -390,9 +400,33 @@ def submit_answer(current_user_id, quiz_id):
         if question.is_correct is not None:
             return jsonify({'error': 'Question already answered'}), 400
         
-        # Check answer
+        # Check answer using advanced evaluator
         is_correct = question.check_answer(data['answer'])
         question.time_taken = data.get('time_taken', 0)
+        
+        # Get enhanced feedback from the advanced evaluator
+        enhanced_feedback = question.get_enhanced_feedback()
+        
+        # Record answer in adaptive engine
+        answer_record = question_generator.adaptive_engine.record_answer(
+            user_id=str(current_user_id),
+            question_difficulty=question.difficulty_level,
+            is_correct=is_correct,
+            response_time=question.time_taken,
+            question_metadata={
+                'question_type': question.question_type,
+                'topic': quiz_session.topic,
+                'evaluation_method': enhanced_feedback.get('evaluation_method', 'basic'),
+                'confidence': enhanced_feedback.get('confidence', 1.0)
+            }
+        )
+        
+        # Get adaptive recommendation for next question
+        adaptive_recommendation = question_generator.adaptive_engine.determine_next_difficulty(
+            user_id=str(current_user_id),
+            current_question_difficulty=question.difficulty_level,
+            is_correct=is_correct
+        )
         
         # Update quiz session stats
         quiz_session.completed_questions += 1
@@ -410,8 +444,25 @@ def submit_answer(current_user_id, quiz_id):
         return jsonify({
             'is_correct': is_correct,
             'correct_answer': question.correct_answer,
-            'explanation': question.explanation,
+            'explanation': enhanced_feedback.get('explanation', question.explanation),
             'time_taken': question.time_taken,
+            'enhanced_feedback': {
+                'result_message': enhanced_feedback.get('result_message', ''),
+                'evaluation_method': enhanced_feedback.get('evaluation_method', 'basic'),
+                'confidence': enhanced_feedback.get('confidence', 1.0 if is_correct else 0.0),
+                'hint': enhanced_feedback.get('hint', ''),
+                'learning_tip': enhanced_feedback.get('learning_tip', ''),
+                'semantic_score': enhanced_feedback.get('semantic_score', 0.0),
+                'keyword_overlap': enhanced_feedback.get('keyword_overlap', 0.0)
+            },
+            'adaptive_insights': {
+                'next_difficulty': adaptive_recommendation['next_difficulty'],
+                'difficulty_change': adaptive_recommendation['difficulty_change'],
+                'performance_trend': adaptive_recommendation['performance_metrics']['trend'],
+                'confidence_level': adaptive_recommendation['confidence'],
+                'consecutive_correct': adaptive_recommendation['performance_metrics']['consecutive_correct'],
+                'adaptation_reason': adaptive_recommendation['reason']
+            },
             'quiz_progress': {
                 'completed': quiz_session.completed_questions,
                 'total': quiz_session.total_questions,
@@ -423,6 +474,107 @@ def submit_answer(current_user_id, quiz_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+# Adaptive Learning Analytics Routes
+@app.route('/api/user/adaptive-analytics', methods=['GET'])
+@auth_required
+def get_adaptive_analytics(current_user_id):
+    """Get comprehensive adaptive learning analytics for the current user"""
+    try:
+        # Get adaptive recommendation and performance insights
+        recommendation = question_generator.adaptive_engine.get_adaptive_question_recommendation(
+            user_id=str(current_user_id),
+            topic="general",  # General analytics
+            question_type="mixed"
+        )
+        
+        # Get performance metrics
+        metrics = question_generator.adaptive_engine.calculate_performance_metrics(str(current_user_id))
+        
+        # Get user profile from adaptive engine
+        user_profile = question_generator.adaptive_engine.user_performance_history.get(str(current_user_id))
+        
+        if not user_profile:
+            return jsonify({
+                'message': 'No adaptive data available yet. Take a quiz to start tracking.',
+                'current_difficulty': 'medium',
+                'performance_metrics': {
+                    'accuracy': 0.0,
+                    'confidence': 0.0,
+                    'trend': 0.0,
+                    'difficulty_performance': {'easy': 0.0, 'medium': 0.0, 'hard': 0.0},
+                    'consecutive_correct': 0
+                },
+                'learning_insights': {
+                    'learning_trend': 'stable',
+                    'confidence_level': 'low',
+                    'strength_area': 'unknown',
+                    'improvement_area': 'unknown'
+                },
+                'session_stats': {
+                    'total_questions': 0,
+                    'correct_answers': 0,
+                    'consecutive_correct': 0,
+                    'difficulty_changes': 0
+                },
+                'adaptation_metadata': {},
+                'difficulty_distribution': {
+                    'easy_accuracy': 0.0,
+                    'medium_accuracy': 0.0,
+                    'hard_accuracy': 0.0
+                },
+                'progress_indicators': {
+                    'learning_trend': 'stable',
+                    'confidence_level': 'low',
+                    'strength_area': 'unknown',
+                    'improvement_area': 'unknown'
+                },
+                'has_quiz_data': False
+            }), 200
+        
+        return jsonify({
+            'current_difficulty': user_profile['current_difficulty'],
+            'performance_metrics': metrics,
+            'learning_insights': recommendation['learning_insights'],
+            'session_stats': user_profile['session_stats'],
+            'adaptation_metadata': user_profile['adaptation_metadata'],
+            'long_term_stats': user_profile['long_term_stats'],
+            'difficulty_distribution': {
+                'easy_accuracy': metrics['difficulty_performance'].get('easy', 0),
+                'medium_accuracy': metrics['difficulty_performance'].get('medium', 0),
+                'hard_accuracy': metrics['difficulty_performance'].get('hard', 0)
+            },
+            'progress_indicators': {
+                'learning_trend': recommendation['learning_insights']['learning_trend'],
+                'confidence_level': recommendation['learning_insights']['confidence_level'],
+                'strength_area': recommendation['learning_insights']['strength_area'],
+                'improvement_area': recommendation['learning_insights']['improvement_area']
+            },
+            'has_quiz_data': True
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to get adaptive analytics: {str(e)}'}), 500
+
+@app.route('/api/user/difficulty-recommendation', methods=['POST'])
+@auth_required
+def get_difficulty_recommendation(current_user_id):
+    """Get difficulty recommendation for specific topic and question type"""
+    try:
+        data = request.get_json()
+        topic = data.get('topic', 'general')
+        question_type = data.get('question_type', 'multiple_choice')
+        
+        recommendation = question_generator.adaptive_engine.get_adaptive_question_recommendation(
+            user_id=str(current_user_id),
+            topic=topic,
+            question_type=question_type
+        )
+        
+        return jsonify(recommendation), 200
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to get difficulty recommendation: {str(e)}'}), 500
 
 @app.route('/api/quiz/<int:quiz_id>/results', methods=['GET'])
 @auth_required
@@ -488,6 +640,8 @@ if __name__ == '__main__':
     print("   - POST /api/quiz/<id>/answer - Submit answer")
     print("   - GET  /api/quiz/<id>/results - Quiz results")
     print("   - GET  /api/quiz/history - Quiz history")
+    print("   - GET  /api/user/adaptive-analytics - Adaptive learning analytics")
+    print("   - POST /api/user/difficulty-recommendation - Get difficulty recommendation")
     print("   - GET  /api/health - Health check")
     
     app.run(debug=True, host='0.0.0.0', port=5000)

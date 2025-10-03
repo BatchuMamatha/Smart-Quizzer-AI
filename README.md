@@ -16,6 +16,15 @@ An intelligent, adaptive quiz generation platform powered by AI that creates per
 - Adaptive difficulty scaling based on user skill level
 - Multiple question types: MCQ, True/False, Short Answer
 
+### Adaptive Learning Engine
+- Real-time difficulty adjustment based on user performance
+- Correct answers → harder questions, Incorrect answers → easier questions
+- User-specific difficulty level history and tracking
+- Advanced difficulty classification using Bloom's Taxonomy
+- Performance metrics: accuracy, confidence, learning trends
+- Streak tracking and consecutive correct answer bonuses
+- Semantic analysis for question complexity assessment
+
 ### Secure Authentication
 - JWT-based authentication with bcrypt password hashing
 - User profiles with skill level tracking
@@ -187,9 +196,58 @@ Smart-Quizzer-AI/
 ### Quiz Management
 - `GET /api/topics` - Get available topics
 - `POST /api/quiz/start` - Start a new quiz
-- `POST /api/quiz/{id}/answer` - Submit quiz answer
+- `POST /api/quiz/{id}/answer` - Submit quiz answer (includes adaptive insights)
 - `GET /api/quiz/{id}/results` - Get quiz results
 - `GET /api/quiz/history` - Get quiz history
+
+### Adaptive Learning
+- `GET /api/user/adaptive-analytics` - Get comprehensive learning analytics
+- `POST /api/user/difficulty-recommendation` - Get difficulty recommendation for topics
+
+## Adaptive Quiz Engine
+
+The Smart Quizzer AI features an advanced Adaptive Quiz Engine that personalizes the learning experience:
+
+### Key Features
+
+**Real-time Difficulty Adjustment:**
+- Monitors user performance on each question
+- Automatically adjusts next question difficulty based on success rate
+- Uses weighted scoring combining multiple analysis methods
+
+**Multi-layered Difficulty Classification:**
+- **Bloom's Taxonomy Integration**: Maps questions to cognitive levels (Remember, Understand, Apply, Analyze, Evaluate, Create)
+- **Text Complexity Analysis**: Evaluates readability, vocabulary difficulty, sentence structure
+- **Semantic Structure Analysis**: Recognizes technical terminology and conceptual depth
+
+**Performance Tracking:**
+- Tracks accuracy trends and confidence levels
+- Maintains user-specific difficulty history
+- Provides streak tracking and consecutive correct bonuses
+- Generates learning insights and recommendations
+
+**Adaptive Parameters:**
+- Performance window size: 5 recent questions
+- Confidence threshold: 70% for difficulty adjustments
+- Promotion threshold: 80% accuracy to increase difficulty
+- Demotion threshold: 40% accuracy to decrease difficulty
+
+### User Experience
+
+1. **Initial Assessment**: Users select skill level (Beginner/Intermediate/Advanced)
+2. **Real-time Adaptation**: Each answer is analyzed for performance metrics
+3. **Instant Feedback**: Users see adaptive insights after each question
+4. **Analytics Dashboard**: Comprehensive performance analytics and learning trends
+5. **Difficulty Recommendations**: AI suggests optimal difficulty for topics
+
+### Technical Implementation
+
+The adaptive engine integrates seamlessly with the quiz flow:
+- Initializes user profiles with skill-based difficulty levels
+- Records detailed answer metadata including response time
+- Calculates multi-factor performance scores
+- Provides adaptive recommendations for question selection
+- Maintains long-term learning statistics
 
 ## Contributing
 

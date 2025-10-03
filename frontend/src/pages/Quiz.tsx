@@ -255,6 +255,51 @@ const Quiz: React.FC = () => {
                         <p className="text-gray-700 leading-relaxed">
                           💡 <span className="font-medium">Explanation:</span> {feedback.explanation}
                         </p>
+                        
+                        {/* Enhanced Feedback */}
+                        {feedback.enhanced_feedback && (
+                          <div className="mt-3 space-y-2">
+                            {feedback.enhanced_feedback.result_message && (
+                              <p className="text-sm font-medium text-blue-700">
+                                {feedback.enhanced_feedback.result_message}
+                              </p>
+                            )}
+                            
+                            {feedback.enhanced_feedback.hint && (
+                              <p className="text-sm text-orange-600 italic">
+                                {feedback.enhanced_feedback.hint}
+                              </p>
+                            )}
+                            
+                            {feedback.enhanced_feedback.learning_tip && (
+                              <p className="text-sm text-green-600">
+                                {feedback.enhanced_feedback.learning_tip}
+                              </p>
+                            )}
+                            
+                            {/* Evaluation Method Indicator */}
+                            {feedback.enhanced_feedback.evaluation_method !== 'basic' && (
+                              <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                <span>Evaluated using:</span>
+                                <span className="font-medium capitalize">
+                                  {feedback.enhanced_feedback.evaluation_method.replace(/_/g, ' ')}
+                                </span>
+                                {feedback.enhanced_feedback.confidence && (
+                                  <span>
+                                    ({Math.round(feedback.enhanced_feedback.confidence * 100)}% confidence)
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Semantic Analysis for Short Answers */}
+                            {feedback.enhanced_feedback.semantic_score > 0 && (
+                              <div className="text-xs text-purple-600">
+                                Semantic similarity: {Math.round(feedback.enhanced_feedback.semantic_score * 100)}%
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                         <div className="bg-white bg-opacity-60 rounded-lg p-3 text-center">
@@ -272,6 +317,59 @@ const Quiz: React.FC = () => {
                           </div>
                         )}
                       </div>
+                      
+                      {/* Adaptive Learning Insights */}
+                      {feedback.adaptive_insights && (
+                        <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+                          <h5 className="text-sm font-bold text-blue-800 mb-3 flex items-center">
+                            🧠 Adaptive Learning Insights
+                          </h5>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Next Difficulty:</span>
+                              <span className={`font-semibold px-2 py-1 rounded-full text-xs ${
+                                feedback.adaptive_insights.next_difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                                feedback.adaptive_insights.next_difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {feedback.adaptive_insights.next_difficulty.toUpperCase()}
+                              </span>
+                            </div>
+                            
+                            {feedback.adaptive_insights.difficulty_change && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Adjusted:</span>
+                                <span className="font-semibold text-blue-700">
+                                  {feedback.adaptive_insights.performance_trend > 0 ? '📈 Level Up!' : 
+                                   feedback.adaptive_insights.performance_trend < 0 ? '📉 Adjusted Down' : '➡️ Stable'}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {feedback.adaptive_insights.consecutive_correct > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Streak:</span>
+                                <span className="font-semibold text-green-700">
+                                  🔥 {feedback.adaptive_insights.consecutive_correct} correct
+                                </span>
+                              </div>
+                            )}
+                            
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Confidence:</span>
+                              <span className="font-semibold text-purple-700">
+                                {Math.round(feedback.adaptive_insights.confidence_level * 100)}%
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {feedback.adaptive_insights.adaptation_reason && (
+                            <div className="mt-2 text-xs text-gray-600 italic">
+                              Reason: {feedback.adaptive_insights.adaptation_reason.replace(/_/g, ' ')}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

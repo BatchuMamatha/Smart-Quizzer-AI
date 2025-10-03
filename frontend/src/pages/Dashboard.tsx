@@ -360,13 +360,22 @@ const Dashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="mt-6">
+                  <div className="mt-6 space-y-3">
                     <button
                       onClick={() => navigate('/history')}
                       className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 group"
                     >
                       <span className="mr-2">📈</span>
                       View Quiz History
+                      <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => navigate('/analytics')}
+                      className="w-full bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 group"
+                    >
+                      <span className="mr-2">🧠</span>
+                      Adaptive Analytics
                       <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
                     </button>
                   </div>

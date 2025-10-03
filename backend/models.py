@@ -3,6 +3,18 @@ from datetime import datetime
 import bcrypt
 import json
 
+# Import the advanced answer evaluator
+try:
+    from answer_evaluator_simple import answer_evaluator
+    EVALUATOR_AVAILABLE = True
+except ImportError:
+    EVALUATOR_AVAILABLE = False
+    print("⚠️ Advanced answer evaluator not available, using basic evaluation")
+except Exception as e:
+    EVALUATOR_AVAILABLE = False
+    print(f"⚠️ Error loading advanced answer evaluator: {e}")
+    print("Using basic evaluation instead.")
+
 db = SQLAlchemy()
 
 class User(db.Model):
@@ -108,6 +120,7 @@ class Question(db.Model):
     is_correct = db.Column(db.Boolean, nullable=True)  # True, False, or None if not answered
     answered_at = db.Column(db.DateTime, nullable=True)
     time_taken = db.Column(db.Integer, nullable=True)  # Time in seconds
+    # evaluation_metadata = db.Column(db.Text, nullable=True)  # JSON string for evaluation details - temporarily disabled
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def set_options(self, options_list):
@@ -122,18 +135,74 @@ class Question(db.Model):
         return []
     
     def check_answer(self, user_answer):
-        """Check if user answer is correct"""
+        """Check if user answer is correct using advanced evaluation"""
         self.user_answer = user_answer
         self.answered_at = datetime.utcnow()
         
-        if self.question_type == 'MCQ':
-            self.is_correct = user_answer.strip().lower() == self.correct_answer.strip().lower()
-        elif self.question_type == 'True/False':
-            self.is_correct = user_answer.strip().lower() == self.correct_answer.strip().lower()
-        else:  # Short Answer - simple contains check (can be enhanced)
-            self.is_correct = self.correct_answer.strip().lower() in user_answer.strip().lower()
+        if EVALUATOR_AVAILABLE:
+            # Use advanced answer evaluator
+            evaluation_result = answer_evaluator.evaluate_answer(
+                question_text=self.question_text,
+                user_answer=user_answer,
+                correct_answer=self.correct_answer,
+                question_type=self.question_type,
+                options=self.get_options()
+            )
+            
+            self.is_correct = evaluation_result['is_correct']
+            
+            # Store evaluation metadata
+            # Store detailed evaluation results (temporarily disabled)
+            # self.evaluation_metadata = json.dumps({
+            #     'confidence': evaluation_result.get('confidence', 0.0),
+            #     'evaluation_method': evaluation_result.get('evaluation_method', 'enhanced_text_analysis'),
+            #     'answer_type': evaluation_result.get('answer_type', 'general'),
+            #     'exact_match': evaluation_result.get('exact_match', False),
+            #     'contains_match': evaluation_result.get('contains_match', False),
+            #     'keyword_overlap': evaluation_result.get('keyword_overlap', 0.0),
+            #     'feedback': evaluation_result.get('feedback', {}),
+            #     'evaluation_timestamp': evaluation_result.get('evaluation_timestamp')
+            # })
+            
+            return self.is_correct
+        else:
+            # Fallback to basic evaluation
+            if self.question_type == 'MCQ':
+                self.is_correct = user_answer.strip().lower() == self.correct_answer.strip().lower()
+            elif self.question_type == 'True/False':
+                self.is_correct = user_answer.strip().lower() == self.correct_answer.strip().lower()
+            else:  # Short Answer - basic contains check
+                self.is_correct = self.correct_answer.strip().lower() in user_answer.strip().lower()
+            
+            return self.is_correct
+    
+    def get_evaluation_details(self):
+        """Get detailed evaluation metadata"""
+        # Temporarily return empty dict
+        return {}
+        # if self.evaluation_metadata:
+        #     try:
+        #         return json.loads(self.evaluation_metadata)
+        #     except json.JSONDecodeError:
+        #         return {}
+        # return {}
+    
+    def get_enhanced_feedback(self):
+        """Get enhanced feedback from evaluation"""
+        evaluation_details = self.get_evaluation_details()
+        feedback = evaluation_details.get('feedback', {})
         
-        return self.is_correct
+        return {
+            'is_correct': self.is_correct,
+            'confidence': evaluation_details.get('confidence', 1.0 if self.is_correct else 0.0),
+            'evaluation_method': evaluation_details.get('evaluation_method', 'basic'),
+            'result_message': feedback.get('result_message', ''),
+            'explanation': feedback.get('explanation', self.explanation or ''),
+            'hint': feedback.get('hint', ''),
+            'learning_tip': feedback.get('learning_tip', ''),
+            'semantic_score': evaluation_details.get('semantic_score', 0.0),
+            'keyword_overlap': evaluation_details.get('keyword_overlap', 0.0)
+        }
     
     def to_dict(self, include_correct_answer=False):
         result = {
@@ -147,7 +216,8 @@ class Question(db.Model):
             'difficulty_level': self.difficulty_level,
             'is_correct': self.is_correct,
             'answered_at': self.answered_at.isoformat() if self.answered_at else None,
-            'time_taken': self.time_taken
+            'time_taken': self.time_taken,
+            'evaluation_details': self.get_evaluation_details()
         }
         
         if include_correct_answer:

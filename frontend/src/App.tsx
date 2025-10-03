@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Quiz from './pages/Quiz';
 import Results from './pages/Results';
 import History from './pages/History';
+import Analytics from './pages/Analytics';
 
 const userManager = UserManager.getInstance();
 
@@ -84,6 +85,14 @@ const App: React.FC = () => {
             element={
               <PrivateRoute>
                 <History />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/analytics" 
+            element={
+              <PrivateRoute>
+                <Analytics />
               </PrivateRoute>
             } 
           />
