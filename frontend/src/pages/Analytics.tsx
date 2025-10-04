@@ -45,6 +45,8 @@ interface AdaptiveAnalytics {
 const Analytics: React.FC = () => {
     const [analytics, setAnalytics] = useState<AdaptiveAnalytics | null>(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [refreshSuccess, setRefreshSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -70,8 +72,15 @@ const Analytics: React.FC = () => {
         fetchAnalytics();
     }, []);
 
-    const fetchAnalytics = async () => {
+    const fetchAnalytics = async (isRefresh = false) => {
         try {
+            if (isRefresh) {
+                setRefreshing(true);
+                setError(null);
+            } else {
+                setLoading(true);
+            }
+
             const token = localStorage.getItem('access_token');
             if (!token) {
                 throw new Error('No authentication token found');
@@ -81,6 +90,13 @@ const Analytics: React.FC = () => {
             const response = await api.get('/user/adaptive-analytics');
             console.log('Analytics response:', response.data);
             setAnalytics(response.data);
+            setError(null);
+            
+            // Show success message for refresh
+            if (isRefresh) {
+                setRefreshSuccess(true);
+                setTimeout(() => setRefreshSuccess(false), 3000);
+            }
         } catch (err: any) {
             console.error('Analytics fetch error:', err);
             console.error('Error response:', err.response);
@@ -95,7 +111,11 @@ const Analytics: React.FC = () => {
                 setError('Failed to load analytics');
             }
         } finally {
-            setLoading(false);
+            if (isRefresh) {
+                setRefreshing(false);
+            } else {
+                setLoading(false);
+            }
         }
     };
 
@@ -190,6 +210,14 @@ const Analytics: React.FC = () => {
                     {analytics.has_quiz_data && (
                         <div className="mt-4 inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                             ✅ Real Data - Based on {analytics.session_stats.total_questions || 0} questions answered
+                        </div>
+                    )}
+                    
+                    {/* Success Message */}
+                    {refreshSuccess && (
+                        <div className="mt-4 inline-flex items-center px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm font-medium animate-fade-in-up">
+                            <span className="mr-2">✅</span>
+                            Analytics refreshed successfully!
                         </div>
                     )}
                 </div>
@@ -460,10 +488,22 @@ const Analytics: React.FC = () => {
                         Take Another Quiz
                     </button>
                     <button
-                        onClick={fetchAnalytics}
-                        className="bg-gray-600 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors"
+                        onClick={() => fetchAnalytics(true)}
+                        disabled={refreshing}
+                        className={`px-8 py-3 rounded-lg transition-colors ${
+                            refreshing 
+                                ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                                : 'bg-gray-600 text-white hover:bg-gray-700'
+                        }`}
                     >
-                        Refresh Analytics
+                        {refreshing ? (
+                            <div className="flex items-center">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Refreshing...
+                            </div>
+                        ) : (
+                            'Refresh Analytics'
+                        )}
                     </button>
                 </div>
             </div>
