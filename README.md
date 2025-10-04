@@ -150,43 +150,6 @@ Smart-Quizzer-AI/
 - **Self-Learning**: Individual study with adaptive feedback
 - **Content Creators**: Transform any material into interactive quizzes
 
-## 🛠️ Troubleshooting
-
-## 🆕 Recent Updates (October 2025)
-
-### ✨ **New Features Added**
-- **� Forgot Password System**: Complete password recovery with email-based reset functionality
-- **�👤 User Profile Management**: Complete profile editing system with personal information updates
-- **📁 Enhanced Content Upload**: Improved AI analysis of uploaded files for better question generation
-- **🎯 Content-Focused Quizzing**: AI now generates questions specifically about uploaded content, not about the upload process
-- **🧹 Streamlined Dashboard**: Removed Quick Stats for cleaner, more focused user interface
-- **🔗 Universal Profile Access**: Update Profile button now available on both Dashboard and Content Upload pages
-
-### 🔧 **Technical Improvements**
-- **Enhanced Authentication**: Added comprehensive forgot password functionality with modal interface
-- **Better UX Flow**: Success messages display prominently on main login page for better user feedback
-- **Clean Modal Design**: Removed dark background blur for improved accessibility and modern appearance
-- **TypeScript Error Resolution**: Fixed skill level selection type safety
-- **Better Content Processing**: Enhanced file analysis and metadata extraction
-- **Improved AI Prompts**: Specialized prompts for custom content vs standard topics
-- **Enhanced User Experience**: Consistent navigation and profile management across all pages
-
-### 🎨 **UI/UX Enhancements**
-- **Modern Authentication Flow**: Clean forgot password modal with glass-morphism design
-- **Professional Success Messaging**: Clear, time-limited feedback for user actions
-- **Modern Profile Interface**: Glass-morphism design with smooth animations
-- **Better Visual Hierarchy**: Cleaner dashboard layout without clutter
-- **Consistent Button Placement**: Standardized navigation elements across pages
-- **Responsive Design**: Improved mobile experience for profile management and authentication
-
-## 🛠️ Troubleshooting
-
-### Common Issues
-- **Quiz Start Error**: Ensure backend is running on port 5000
-- **Port Conflicts**: Frontend configured for port 8081 (configurable)
-- **Missing Dependencies**: Run `pip install -r requirements.txt`
-- **API Issues**: Verify Gemini API key in `.env` file
-
 ## 🤝 Contributing
 
 1. Fork the repository
