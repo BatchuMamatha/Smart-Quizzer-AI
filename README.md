@@ -36,6 +36,18 @@ Traditional quiz and assessment systems face several critical challenges:
 - **Personalized Explanations** - Context-aware feedback tailored to user responses
 - **Learning Tips & Hints** - Targeted suggestions for improvement
 
+### 👤 **User Profile Management**
+- **Editable User Profiles** - Update personal information and learning preferences
+- **Skill Level Customization** - Beginner, Intermediate, Advanced settings
+- **Progress Tracking** - View quiz statistics and learning history
+- **Seamless Access** - Profile management available from all main pages
+
+### 📁 **Enhanced Content Processing**
+- **Smart File Analysis** - AI reads and understands uploaded content context
+- **Multi-Format Support** - PDF, DOCX, TXT, JSON, CSV file processing
+- **Content-Focused Questions** - Questions generated specifically about uploaded material
+- **Metadata Extraction** - Automatic title, word count, and reading time analysis
+
 ### 📈 **Advanced Analytics**
 - **Real-Time Performance Tracking** - Live accuracy, confidence, and progress metrics
 - **Learning Insights** - Detailed analytics showing strengths and improvement areas
@@ -51,10 +63,12 @@ Traditional quiz and assessment systems face several critical challenges:
 - ✅ **AI Question Generation** with Google Gemini
 - ✅ **Adaptive Difficulty** based on performance
 - ✅ **Custom Content Upload** (PDF, DOCX, TXT, JSON, CSV)
+- ✅ **User Profile Management** with editable preferences
 - ✅ **Real-Time Feedback** with detailed explanations
 - ✅ **Performance Analytics** and learning insights
 - ✅ **Responsive Design** for all devices
 - ✅ **Secure Authentication** and user management
+- ✅ **Content-Focused Quiz Generation** - AI analyzes uploaded files for relevant questions
 
 ## 🛠️ Technology Stack
 
@@ -76,9 +90,9 @@ Smart-Quizzer-AI/
 │   └── requirements.txt      # Dependencies
 ├── frontend/                  # React application
 │   ├── src/
-│   │   ├── pages/           # Main pages
+│   │   ├── pages/           # Main pages (Dashboard, Profile, ContentUpload)
 │   │   ├── components/      # Reusable components
-│   │   └── lib/            # API utilities
+│   │   └── lib/            # API utilities & user management
 │   └── package.json        # Dependencies
 └── README.md               # Documentation
 ```
@@ -135,6 +149,27 @@ Smart-Quizzer-AI/
 - **Corporate Training**: Skill evaluation and development programs
 - **Self-Learning**: Individual study with adaptive feedback
 - **Content Creators**: Transform any material into interactive quizzes
+
+## 🆕 Recent Updates (October 2025)
+
+### ✨ **New Features Added**
+- **👤 User Profile Management**: Complete profile editing system with personal information updates
+- **📁 Enhanced Content Upload**: Improved AI analysis of uploaded files for better question generation
+- **🎯 Content-Focused Quizzing**: AI now generates questions specifically about uploaded content, not about the upload process
+- **🧹 Streamlined Dashboard**: Removed Quick Stats for cleaner, more focused user interface
+- **🔗 Universal Profile Access**: Update Profile button now available on both Dashboard and Content Upload pages
+
+### 🔧 **Technical Improvements**
+- **TypeScript Error Resolution**: Fixed skill level selection type safety
+- **Better Content Processing**: Enhanced file analysis and metadata extraction
+- **Improved AI Prompts**: Specialized prompts for custom content vs standard topics
+- **Enhanced User Experience**: Consistent navigation and profile management across all pages
+
+### 🎨 **UI/UX Enhancements**
+- **Modern Profile Interface**: Glass-morphism design with smooth animations
+- **Better Visual Hierarchy**: Cleaner dashboard layout without clutter
+- **Consistent Button Placement**: Standardized navigation elements across pages
+- **Responsive Design**: Improved mobile experience for profile management
 
 ## 🛠️ Troubleshooting
 

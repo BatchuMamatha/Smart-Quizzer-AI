@@ -154,11 +154,18 @@ const Dashboard: React.FC = () => {
               </h1>
               <p className="text-gray-600 font-medium">AI-Powered Learning Platform</p>
             </div>
-            <div className="flex items-center space-x-6 animate-slide-in-right">
+            <div className="flex items-center space-x-4 animate-slide-in-right">
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-700">Welcome back,</p>
                 <p className="text-lg font-bold text-gradient">{user?.full_name}</p>
               </div>
+              <button
+                onClick={() => navigate('/profile')}
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200"
+              >
+                <span className="mr-2">👤</span>
+                Update Profile
+              </button>
               <button
                 onClick={handleLogout}
                 className="btn btn-secondary"
@@ -362,6 +369,15 @@ const Dashboard: React.FC = () => {
 
                   <div className="mt-6 space-y-3">
                     <button
+                      onClick={() => navigate('/content-upload')}
+                      className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 group"
+                    >
+                      <span className="mr-2">📁</span>
+                      Custom Content Upload
+                      <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
+                    </button>
+                    
+                    <button
                       onClick={() => navigate('/history')}
                       className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 group"
                     >
@@ -382,41 +398,7 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Quick Stats Card */}
-              <div className="bg-white bg-opacity-90 backdrop-blur-lg border border-white border-opacity-30 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/25 animate-fade-in-scale" style={{animationDelay: '400ms'}}>
-                <div className="mb-4">
-                  <h3 className="text-xl font-bold text-gray-900 mb-1 flex items-center">
-                    <span className="mr-3 text-2xl">⚡</span>
-                    Quick Stats
-                  </h3>
-                </div>
-                
-                <div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-3 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {user?.total_quizzes ?? 0}
-                      </div>
-                      <div className="text-xs text-blue-800">Quizzes Taken</div>
-                    </div>
-                    <div className="text-center p-3 bg-gradient-to-br from-green-50 to-green-100 rounded-xl">
-                      <div className="text-2xl font-bold text-green-600">
-                        {user?.average_score ?? 0}%
-                      </div>
-                      <div className="text-xs text-green-800">Avg Score</div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl text-center">
-                    <div className="text-lg font-bold text-purple-600">
-                      {(user?.total_quizzes ?? 0) > 0 ? 'Keep Learning!' : 'Ready to Start!'}
-                    </div>
-                    <div className="text-xs text-purple-800">
-                      {(user?.total_quizzes ?? 0) > 0 ? 'Continue your learning journey' : 'Take your first quiz to see stats'}
-                    </div>
-                  </div>
-                </div>
-              </div>
+
             </div>
           </div>
 

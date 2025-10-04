@@ -1102,7 +1102,30 @@ Your question MUST be completely different in:
 - Wording and phrasing
 """
         
-        prompt = f"""You are an expert educational content creator using Gemini AI. Create a {skill_level}-level {question_type} question about {topic}.
+        # Determine if this is custom content
+        is_custom_content = context and len(context) > 100 and context not in self.topic_content.get(topic, {})
+        
+        if is_custom_content:
+            prompt = f"""You are an expert educational content creator using Gemini AI. Create a {skill_level}-level {question_type} question based on the following uploaded content.
+
+🎯 GENERATION SOURCE: This question MUST be generated using Gemini AI model capabilities.
+
+📚 UPLOADED CONTENT TO ANALYZE:
+{context}
+
+{uniqueness_prompt}
+
+Requirements:
+- Create questions SPECIFICALLY about the content provided above
+- The question should be appropriate for {skill_level} level students
+- Focus on the key concepts, facts, and ideas from the uploaded content
+- DO NOT ask about "custom content upload" - ask about the actual content itself
+- Question type: {question_type}
+- Be creative and ensure uniqueness from any previous questions
+- Use varied vocabulary and different approaches to the content
+- Generate fresh, original content every time"""
+        else:
+            prompt = f"""You are an expert educational content creator using Gemini AI. Create a {skill_level}-level {question_type} question about {topic}.
 
 🎯 GENERATION SOURCE: This question MUST be generated using Gemini AI model capabilities.
 

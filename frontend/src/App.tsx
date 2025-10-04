@@ -10,6 +10,8 @@ import Quiz from './pages/Quiz';
 import Results from './pages/Results';
 import History from './pages/History';
 import Analytics from './pages/Analytics';
+import ContentUploadPage from './pages/ContentUploadPage';
+import ProfilePage from './pages/ProfilePage';
 
 const userManager = UserManager.getInstance();
 
@@ -93,6 +95,22 @@ const App: React.FC = () => {
             element={
               <PrivateRoute>
                 <Analytics />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/content-upload" 
+            element={
+              <PrivateRoute>
+                <ContentUploadPage />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/profile" 
+            element={
+              <PrivateRoute>
+                <ProfilePage />
               </PrivateRoute>
             } 
           />

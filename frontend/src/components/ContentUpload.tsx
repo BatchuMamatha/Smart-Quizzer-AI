@@ -50,8 +50,8 @@ const ContentUpload: React.FC<ContentUploadProps> = ({ onContentProcessed, onErr
       const formData = new FormData();
       formData.append('file', file);
 
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/content/upload', {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('http://localhost:5000/api/content/upload', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -86,8 +86,8 @@ const ContentUpload: React.FC<ContentUploadProps> = ({ onContentProcessed, onErr
     setProcessingResult(null);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/content/process-url', {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('http://localhost:5000/api/content/process-url', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,8 +123,8 @@ const ContentUpload: React.FC<ContentUploadProps> = ({ onContentProcessed, onErr
     setProcessingResult(null);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/content/analyze', {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('http://localhost:5000/api/content/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
