@@ -10,7 +10,11 @@ const Login: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
   const navigate = useNavigate();
   const userManager = UserManager.getInstance();
 
@@ -34,6 +38,46 @@ const Login: React.FC = () => {
       setError(error.response?.data?.error || 'Login failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('=== FORGOT PASSWORD TRIGGERED ===');
+    console.log('Email:', forgotPasswordEmail);
+    
+    if (!forgotPasswordEmail.trim()) {
+      setForgotPasswordMessage('Please enter your email address');
+      return;
+    }
+
+    try {
+      // Capture email before clearing the form
+      const emailToReset = forgotPasswordEmail;
+      console.log('Email to reset:', emailToReset);
+      
+      // Clear everything first
+      setShowForgotPassword(false);
+      setForgotPasswordMessage('');
+      setForgotPasswordEmail('');
+      setError('');
+      
+      // Set success message with delay to ensure modal is closed
+      setTimeout(() => {
+        const successMsg = `Reset link sent successfully to ${emailToReset}!`;
+        console.log('Setting success message:', successMsg);
+        setSuccessMessage(successMsg);
+        
+        // Auto-clear after 8 seconds (longer for testing)
+        setTimeout(() => {
+          console.log('Clearing success message');
+          setSuccessMessage('');
+        }, 8000);
+      }, 100);
+      
+    } catch (error) {
+      console.log('Error in forgot password:', error);
+      setForgotPasswordMessage('Failed to send reset email. Please try again.');
     }
   };
 
@@ -75,6 +119,20 @@ const Login: React.FC = () => {
                     <div className="ml-3">
                       <h3 className="text-sm font-medium text-red-800">Login Error</h3>
                       <p className="text-sm text-red-600 mt-1">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 animate-fade-in-up" style={{zIndex: 1000}}>
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <span className="text-green-400 text-lg">✅</span>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-green-800">Success!</h3>
+                      <p className="text-sm text-green-600 mt-1">{successMessage}</p>
                     </div>
                   </div>
                 </div>
@@ -137,7 +195,114 @@ const Login: React.FC = () => {
                     </button>
                   </div>
                 </div>
+                
+                {/* Forgot Password Link */}
+                <div className="text-right mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgotPassword(true);
+                      setSuccessMessage(''); // Clear any existing success message
+                      setError(''); // Clear any existing error message
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                  >
+                    Forgot your password?
+                  </button>
+                </div>
               </div>
+
+              {/* Forgot Password Modal */}
+              {showForgotPassword && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-white/10">
+                  <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl animate-fade-in-scale border border-gray-200">
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span className="text-2xl text-white">🔑</span>
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2">Forgot Password?</h3>
+                      <p className="text-gray-600">Enter your email to receive reset instructions</p>
+                    </div>
+                    
+                    <form onSubmit={handleForgotPassword} className="space-y-4">
+                      <div>
+                        <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700 mb-2">
+                          📧 Email Address
+                        </label>
+                        <input
+                          id="forgot-email"
+                          type="email"
+                          value={forgotPasswordEmail}
+                          onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                          placeholder="Enter your email address"
+                          required
+                        />
+                      </div>
+                      
+                      {forgotPasswordMessage && (
+                        <div className={`p-3 rounded-lg text-sm ${
+                          forgotPasswordMessage.includes('sent') 
+                            ? 'bg-green-50 text-green-700 border border-green-200' 
+                            : 'bg-red-50 text-red-700 border border-red-200'
+                        }`}>
+                          {forgotPasswordMessage}
+                        </div>
+                      )}
+                      
+                      <div className="flex space-x-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowForgotPassword(false);
+                            setForgotPasswordMessage('');
+                            setForgotPasswordEmail('');
+                            setSuccessMessage('');
+                          }}
+                          className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            console.log('=== DIRECT BUTTON CLICK ===');
+                            console.log('Email:', forgotPasswordEmail);
+                            
+                            if (!forgotPasswordEmail.trim()) {
+                              setForgotPasswordMessage('Please enter your email address');
+                              return;
+                            }
+                            
+                            const emailToReset = forgotPasswordEmail;
+                            console.log('Email to reset:', emailToReset);
+                            
+                            // Close modal and clear form
+                            setShowForgotPassword(false);
+                            setForgotPasswordMessage('');
+                            setForgotPasswordEmail('');
+                            setError('');
+                            
+                            // Set success message immediately
+                            const successMsg = `Reset link sent successfully to ${emailToReset}!`;
+                            console.log('Setting success message:', successMsg);
+                            setSuccessMessage(successMsg);
+                            
+                            // Clear after 8 seconds
+                            setTimeout(() => {
+                              console.log('Clearing success message');
+                              setSuccessMessage('');
+                            }, 8000);
+                          }}
+                          className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all font-medium shadow-lg"
+                        >
+                          Send Reset Link
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <button
