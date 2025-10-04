@@ -150,6 +150,8 @@ Smart-Quizzer-AI/
 - **Self-Learning**: Individual study with adaptive feedback
 - **Content Creators**: Transform any material into interactive quizzes
 
+## 🛠️ Troubleshooting
+
 ## 🆕 Recent Updates (October 2025)
 
 ### ✨ **New Features Added**
