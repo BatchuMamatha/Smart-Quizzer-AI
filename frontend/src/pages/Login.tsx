@@ -15,14 +15,17 @@ const Login: React.FC = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
+
   const navigate = useNavigate();
   const userManager = UserManager.getInstance();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    if (error) setError(''); // Clear error when user types
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,10 +35,20 @@ const Login: React.FC = () => {
 
     try {
       const response = await authAPI.login(formData);
+      
+      // Store tokens and user data
       userManager.login(response.user, response.tokens.access_token);
-      navigate('/dashboard');
+      
+      setSuccessMessage('Login successful! Redirecting...');
+      
+      // Redirect to dashboard
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
+      
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Login failed');
+      const errorMessage = error.response?.data?.error || 'Invalid credentials. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -43,8 +56,6 @@ const Login: React.FC = () => {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('=== FORGOT PASSWORD TRIGGERED ===');
-    console.log('Email:', forgotPasswordEmail);
     
     if (!forgotPasswordEmail.trim()) {
       setForgotPasswordMessage('Please enter your email address');
@@ -52,307 +63,247 @@ const Login: React.FC = () => {
     }
 
     try {
-      // Capture email before clearing the form
-      const emailToReset = forgotPasswordEmail;
-      console.log('Email to reset:', emailToReset);
+      const response = await authAPI.forgotPassword({ email: forgotPasswordEmail });
       
-      // Clear everything first
-      setShowForgotPassword(false);
-      setForgotPasswordMessage('');
-      setForgotPasswordEmail('');
-      setError('');
-      
-      // Set success message with delay to ensure modal is closed
-      setTimeout(() => {
-        const successMsg = `Reset link sent successfully to ${emailToReset}!`;
-        console.log('Setting success message:', successMsg);
-        setSuccessMessage(successMsg);
+      if (response.success) {
+        setShowForgotPassword(false);
+        setForgotPasswordMessage('');
+        setForgotPasswordEmail('');
         
-        // Auto-clear after 8 seconds (longer for testing)
+        setSuccessMessage(`Reset instructions sent to ${forgotPasswordEmail}!`);
+        
+        // Auto-clear after 8 seconds
         setTimeout(() => {
-          console.log('Clearing success message');
           setSuccessMessage('');
         }, 8000);
-      }, 100);
+        
+      } else {
+        setForgotPasswordMessage(response.message || 'Failed to process reset request');
+      }
       
-    } catch (error) {
-      console.log('Error in forgot password:', error);
+    } catch (error: any) {
+      console.error('Forgot password error:', error);
       setForgotPasswordMessage('Failed to send reset email. Please try again.');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
       {/* Background Decorations */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full opacity-20 blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-indigo-400 to-blue-500 rounded-full opacity-10 blur-3xl"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full opacity-10 blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-green-400 to-blue-500 rounded-full opacity-10 blur-3xl"></div>
       </div>
 
-      <div className="relative max-w-md w-full space-y-8">
+      <div className="relative w-full max-w-md space-y-8">
         {/* Header */}
         <div className="text-center animate-fade-in-up">
-          <div className="mx-auto h-20 w-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl hover-glow">
-            <span className="text-3xl text-white">🧠</span>
+          <div className="flex justify-center mb-4">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-full p-3 shadow-lg">
+              <span className="text-white text-3xl">🧠</span>
+            </div>
           </div>
-          <h2 className="text-4xl font-bold text-gradient mb-2">
+          <h1 className="text-4xl font-bold text-gradient mb-2">
             Smart Quizzer
-          </h2>
-          <p className="text-gray-600 text-lg font-medium">
-            AI-Powered Learning Platform
-          </p>
-          <p className="text-gray-500 mt-2">
-            Sign in to continue your learning journey
-          </p>
+          </h1>
+          <p className="text-gray-600 font-medium">AI-Powered Learning Platform</p>
         </div>
 
-        {/* Login Form */}
-        <div className="card animate-fade-in-scale">
-          <div className="card-body space-y-6">
+        {/* Success Message */}
+        {successMessage && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 animate-fade-in-up">
+            <div className="flex items-start">
+              <span className="text-green-500 text-xl mr-3 mt-1">✅</span>
+              <div>
+                <h4 className="font-semibold text-green-800 mb-1">Success</h4>
+                <p className="text-green-700">{successMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 animate-fade-in-up">
+            <div className="flex items-start">
+              <span className="text-red-500 text-xl mr-3 mt-1">❌</span>
+              <div>
+                <h4 className="font-semibold text-red-800 mb-1">Error</h4>
+                <p className="text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Login Form */}
+        {!showForgotPassword && (
+          <div className="bg-white bg-opacity-90 backdrop-blur-lg border border-white border-opacity-30 rounded-2xl shadow-xl p-8 animate-fade-in-scale">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
+              <p className="text-gray-600">Please sign in to continue your learning journey</p>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 animate-fade-in-up">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <span className="text-red-400 text-lg">⚠️</span>
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">Login Error</h3>
-                      <p className="text-sm text-red-600 mt-1">{error}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Username */}
+              <div>
+                <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2">
+                  👤 Username
+                </label>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  className="form-input"
+                  placeholder="Enter your username"
+                />
+              </div>
 
-              {successMessage && (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4 animate-fade-in-up" style={{zIndex: 1000}}>
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <span className="text-green-400 text-lg">✅</span>
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-green-800">Success!</h3>
-                      <p className="text-sm text-green-600 mt-1">{successMessage}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-5">
-                <div>
-                  <label htmlFor="username" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">👤</span>
-                      Username
-                    </span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="username"
-                      name="username"
-                      type="text"
-                      autoComplete="username"
-                      required
-                      value={formData.username}
-                      onChange={handleChange}
-                      className="form-input pl-12 focus-ring"
-                      placeholder="Enter your username"
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">👤</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">🔒</span>
-                      Password
-                    </span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      required
-                      value={formData.password}
-                      onChange={handleChange}
-                      className="form-input pl-12 pr-12 focus-ring"
-                      placeholder="Enter your password"
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">🔒</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      <span className="text-lg">{showPassword ? '🙈' : '👁️'}</span>
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Forgot Password Link */}
-                <div className="text-right mt-2">
+              {/* Password */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                  🔒 Password
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    required
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="form-input pr-12"
+                    placeholder="Enter your password"
+                  />
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowForgotPassword(true);
-                      setSuccessMessage(''); // Clear any existing success message
-                      setError(''); // Clear any existing error message
-                    }}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700 transition-colors"
                   >
-                    Forgot your password?
+                    <span className="text-lg">
+                      {showPassword ? '🙈' : '👁️'}
+                    </span>
                   </button>
                 </div>
               </div>
 
-              {/* Forgot Password Modal */}
-              {showForgotPassword && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 bg-white/10">
-                  <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl animate-fade-in-scale border border-gray-200">
-                    <div className="text-center mb-6">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-2xl text-white">🔑</span>
-                      </div>
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">Forgot Password?</h3>
-                      <p className="text-gray-600">Enter your email to receive reset instructions</p>
-                    </div>
-                    
-                    <form onSubmit={handleForgotPassword} className="space-y-4">
-                      <div>
-                        <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700 mb-2">
-                          📧 Email Address
-                        </label>
-                        <input
-                          id="forgot-email"
-                          type="email"
-                          value={forgotPasswordEmail}
-                          onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                          placeholder="Enter your email address"
-                          required
-                        />
-                      </div>
-                      
-                      {forgotPasswordMessage && (
-                        <div className={`p-3 rounded-lg text-sm ${
-                          forgotPasswordMessage.includes('sent') 
-                            ? 'bg-green-50 text-green-700 border border-green-200' 
-                            : 'bg-red-50 text-red-700 border border-red-200'
-                        }`}>
-                          {forgotPasswordMessage}
-                        </div>
-                      )}
-                      
-                      <div className="flex space-x-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowForgotPassword(false);
-                            setForgotPasswordMessage('');
-                            setForgotPasswordEmail('');
-                            setSuccessMessage('');
-                          }}
-                          className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            console.log('=== DIRECT BUTTON CLICK ===');
-                            console.log('Email:', forgotPasswordEmail);
-                            
-                            if (!forgotPasswordEmail.trim()) {
-                              setForgotPasswordMessage('Please enter your email address');
-                              return;
-                            }
-                            
-                            const emailToReset = forgotPasswordEmail;
-                            console.log('Email to reset:', emailToReset);
-                            
-                            // Close modal and clear form
-                            setShowForgotPassword(false);
-                            setForgotPasswordMessage('');
-                            setForgotPasswordEmail('');
-                            setError('');
-                            
-                            // Set success message immediately
-                            const successMsg = `Reset link sent successfully to ${emailToReset}!`;
-                            console.log('Setting success message:', successMsg);
-                            setSuccessMessage(successMsg);
-                            
-                            // Clear after 8 seconds
-                            setTimeout(() => {
-                              console.log('Clearing success message');
-                              setSuccessMessage('');
-                            }, 8000);
-                          }}
-                          className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all font-medium shadow-lg"
-                        >
-                          Send Reset Link
-                        </button>
-                      </div>
-                    </form>
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-3"></div>
+                    Signing In...
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="flex items-center justify-center">
+                    <span className="mr-2">🚀</span>
+                    Sign In
+                  </div>
+                )}
+              </button>
 
-              <div>
+              {/* Forgot Password Link */}
+              <div className="text-center">
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn btn-primary btn-lg w-full group"
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-blue-600 hover:text-blue-800 font-medium transition-colors underline"
                 >
-                  {loading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="spinner mr-3"></div>
-                      Signing in...
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center">
-                      <span className="mr-2">🚀</span>
-                      Sign In
-                      <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
-                    </div>
-                  )}
+                  Forgot your password?
                 </button>
               </div>
             </form>
 
-            <div className="text-center">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500 font-medium">Don't have an account?</span>
-                </div>
-              </div>
-              
-              <div className="mt-4">
+            {/* Register Link */}
+            <div className="mt-6 text-center border-t border-gray-200 pt-6">
+              <p className="text-gray-600">
+                Don't have an account?{' '}
                 <Link
                   to="/register"
-                  className="btn btn-secondary w-full group"
+                  className="text-blue-600 hover:text-blue-800 font-semibold transition-colors"
                 >
-                  <span className="mr-2">✨</span>
                   Create Account
-                  <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
                 </Link>
-              </div>
+              </p>
             </div>
           </div>
-        </div>
+        )}
 
-        <p className="text-center text-xs text-gray-500 mt-8">
-          By signing in, you agree to our terms of service and privacy policy
-        </p>
+        {/* Forgot Password Form */}
+        {showForgotPassword && (
+          <div className="bg-white bg-opacity-90 backdrop-blur-lg border border-white border-opacity-30 rounded-2xl shadow-xl p-8 animate-fade-in-scale">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
+                <button
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setForgotPasswordMessage('');
+                    setForgotPasswordEmail('');
+                  }}
+                  className="mr-3 text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  ←
+                </button>
+                Reset Password
+              </h2>
+              <p className="text-gray-600">Enter your email to receive reset instructions</p>
+            </div>
+
+            {/* Forgot Password Message */}
+            {forgotPasswordMessage && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-yellow-800 text-sm">{forgotPasswordMessage}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleForgotPassword} className="space-y-6">
+              <div>
+                <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700 mb-2">
+                  📧 Email Address
+                </label>
+                <input
+                  id="forgot-email"
+                  type="email"
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  className="form-input"
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <div className="flex space-x-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+                >
+                  <span className="mr-2">📧</span>
+                  Send Reset Link
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setForgotPasswordMessage('');
+                    setForgotPasswordEmail('');
+                  }}
+                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );

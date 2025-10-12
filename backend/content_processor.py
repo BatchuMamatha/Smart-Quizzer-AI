@@ -12,7 +12,12 @@ from datetime import datetime
 import PyPDF2
 import docx
 from bs4 import BeautifulSoup
-import magic
+try:
+    import magic
+    MAGIC_AVAILABLE = True
+except ImportError:
+    MAGIC_AVAILABLE = False
+    print("Warning: python-magic not available. File type detection will be limited.")
 import hashlib
 
 class ContentProcessor:
@@ -70,11 +75,12 @@ class ContentProcessor:
             return validation_result
         
         # Detect MIME type for security
-        try:
-            mime_type = magic.from_file(file_path, mime=True)
-            validation_result['file_info']['mime_type'] = mime_type
-        except:
-            pass  # magic library might not be available
+        if MAGIC_AVAILABLE:
+            try:
+                mime_type = magic.from_file(file_path, mime=True)
+                validation_result['file_info']['mime_type'] = mime_type
+            except:
+                pass  # magic library might not be available
         
         validation_result['is_valid'] = True
         validation_result['file_type'] = file_type

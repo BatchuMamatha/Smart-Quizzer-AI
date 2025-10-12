@@ -27,6 +27,7 @@ const ContentUpload: React.FC<ContentUploadProps> = ({ onContentProcessed, onErr
     
     const file = acceptedFiles[0];
     await uploadFile(file);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

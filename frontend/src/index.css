@@ -352,3 +352,51 @@ code {
     --text-secondary: #cbd5e1;
   }
 }
+
+/* Live Caption Animations */
+.live-caption-word {
+  opacity: 0;
+  animation: fadeInWord 0.3s ease-in-out forwards;
+}
+
+@keyframes fadeInWord {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.caption-cursor {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.live-caption-container {
+  background: linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(20,20,20,0.95) 100%);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255,193,7,0.6);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.speaking-indicator {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 5px rgba(239,68,68,0.5);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 20px rgba(239,68,68,0.8);
+    transform: scale(1.1);
+  }
+}

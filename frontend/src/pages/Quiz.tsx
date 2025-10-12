@@ -167,7 +167,7 @@ const Quiz: React.FC = () => {
               <p className="text-gray-600 font-medium">AI-Generated Questions</p>
             </div>
             <div className="text-right animate-slide-in-right">
-              <div className="flex items-center space-x-2 mb-1">
+              <div className="flex items-center justify-end space-x-2 mb-2">
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                   Question {currentQuestionIndex + 1} of {questions.length}
                 </span>

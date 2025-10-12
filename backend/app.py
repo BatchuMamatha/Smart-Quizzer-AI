@@ -333,6 +333,111 @@ def test_auth(current_user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/auth/forgot-password', methods=['POST'])
+def forgot_password():
+    """Handle forgot password request - simulate password reset"""
+    try:
+        data = request.get_json()
+        if not data or 'email' not in data:
+            return jsonify({'error': 'Email is required'}), 400
+        
+        email = data['email'].strip()
+        if not email:
+            return jsonify({'error': 'Email cannot be empty'}), 400
+        
+        # Check if user exists
+        user = User.query.filter_by(email=email).first()
+        
+        if not user:
+            # Return success even if user doesn't exist for security
+            return jsonify({
+                'success': True,
+                'message': 'If the email exists, a reset link has been sent',
+                'user_exists': False
+            }), 200
+        
+        # Generate a simple reset token (in production, use secure tokens)
+        import uuid
+        reset_token = str(uuid.uuid4())
+        
+        # For demo purposes, we'll just return success
+        # In production, you would store the token and send an email
+        return jsonify({
+            'success': True,
+            'message': 'Reset link sent successfully',
+            'user_exists': True,
+            'reset_token': reset_token
+        }), 200
+        
+    except Exception as e:
+        print(f"Forgot password error: {e}")
+        return jsonify({'error': 'Failed to process request'}), 500
+
+@app.route('/api/auth/verify-reset-token', methods=['POST'])
+def verify_reset_token():
+    """Verify password reset token"""
+    try:
+        data = request.get_json()
+        if not data or 'token' not in data:
+            return jsonify({'error': 'Token is required'}), 400
+        
+        token = data['token']
+        
+        # For demo purposes, accept any non-empty token
+        # In production, you would validate against stored tokens
+        if not token or len(token) < 10:
+            return jsonify({
+                'valid': False,
+                'message': 'Invalid or expired token'
+            }), 400
+        
+        # For demo, return a dummy user
+        return jsonify({
+            'valid': True,
+            'message': 'Token is valid',
+            'user': {
+                'username': 'demo_user',
+                'email': 'demo@example.com'
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"Token verification error: {e}")
+        return jsonify({'error': 'Failed to verify token'}), 500
+
+@app.route('/api/auth/reset-password', methods=['POST'])
+def reset_password():
+    """Reset user password"""
+    try:
+        data = request.get_json()
+        if not data or 'token' not in data or 'new_password' not in data:
+            return jsonify({'error': 'Token and new password are required'}), 400
+        
+        token = data['token']
+        new_password = data['new_password']
+        
+        # Validate password
+        if len(new_password) < 6:
+            return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+        
+        # For demo purposes, accept any valid token
+        # In production, you would validate the token and update the user's password
+        if not token or len(token) < 10:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid or expired token'
+            }), 400
+        
+        # Simulate successful password reset
+        return jsonify({
+            'success': True,
+            'message': 'Password reset successfully'
+        }), 200
+        
+    except Exception as e:
+        print(f"Password reset error: {e}")
+        return jsonify({'error': 'Failed to reset password'}), 500
+
 # Topic Routes
 @app.route('/api/topics', methods=['GET'])
 def get_topics():
@@ -411,7 +516,10 @@ def start_quiz(current_user_id):
         
         print(f"🎯 Starting quiz for user {current_user_id}: {topic} ({data['skill_level']}) - {num_questions} questions")
         if custom_topic:
-            print(f"📝 Custom topic content: {custom_topic[:100]}...")
+            print(f"📝 Custom topic content ({len(custom_topic)} chars): {custom_topic[:100]}...")
+            print(f"🔍 Is custom content detected: {len(custom_topic) > 100}")
+        else:
+            print(f"📚 Using predefined topic: {topic}")
         
         # Initialize adaptive profile for user
         try:
@@ -794,6 +902,101 @@ def get_quiz_history(current_user_id):
         ).all()
         
         return jsonify([qs.to_dict() for qs in quiz_sessions]), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quiz/analytics', methods=['GET'])
+@auth_required
+def get_quiz_analytics(current_user_id):
+    """Get detailed question analytics for the current user"""
+    try:
+        # Get all quiz sessions for the user
+        quiz_sessions = QuizSession.query.filter_by(
+            user_id=current_user_id, 
+            status='completed'
+        ).all()
+        
+        # Get all questions from completed quizzes
+        all_questions = []
+        for session in quiz_sessions:
+            questions = Question.query.filter_by(quiz_session_id=session.id).all()
+            all_questions.extend(questions)
+        
+        # Calculate question type performance
+        question_type_stats = {
+            'mcq': {'total': 0, 'correct': 0, 'accuracy': 0},
+            'true_false': {'total': 0, 'correct': 0, 'accuracy': 0},
+            'short_answer': {'total': 0, 'correct': 0, 'accuracy': 0}
+        }
+        
+        # Calculate difficulty analysis
+        difficulty_stats = {
+            'easy': {'total': 0, 'correct': 0, 'accuracy': 0},
+            'medium': {'total': 0, 'correct': 0, 'accuracy': 0},
+            'hard': {'total': 0, 'correct': 0, 'accuracy': 0}
+        }
+        
+        for question in all_questions:
+            if question.user_answer is not None:  # Only count answered questions
+                # Question type analysis
+                question_type = question.question_type.lower()
+                if question_type == 'mcq':
+                    question_type_stats['mcq']['total'] += 1
+                    if question.is_correct:
+                        question_type_stats['mcq']['correct'] += 1
+                elif question_type == 'true/false':
+                    question_type_stats['true_false']['total'] += 1
+                    if question.is_correct:
+                        question_type_stats['true_false']['correct'] += 1
+                elif question_type == 'short answer':
+                    question_type_stats['short_answer']['total'] += 1
+                    if question.is_correct:
+                        question_type_stats['short_answer']['correct'] += 1
+                
+                # Difficulty analysis - handle different difficulty formats
+                difficulty = question.difficulty_level.lower() if question.difficulty_level else 'medium'
+                
+                # Map different difficulty values to standard ones
+                difficulty_mapping = {
+                    'beginner': 'easy',
+                    'easy': 'easy',
+                    'intermediate': 'medium', 
+                    'medium': 'medium',
+                    'advanced': 'hard',
+                    'hard': 'hard'
+                }
+                
+                # Use mapping or default to medium
+                mapped_difficulty = difficulty_mapping.get(difficulty, 'medium')
+                
+                if mapped_difficulty in difficulty_stats:
+                    difficulty_stats[mapped_difficulty]['total'] += 1
+                    if question.is_correct:
+                        difficulty_stats[mapped_difficulty]['correct'] += 1
+        
+        print(f"Analytics Debug - Total questions: {len(all_questions)}")
+        print(f"Question type stats: {question_type_stats}")
+        print(f"Difficulty stats: {difficulty_stats}")
+        
+        # Calculate accuracy percentages
+        for question_type in question_type_stats:
+            stats = question_type_stats[question_type]
+            if stats['total'] > 0:
+                stats['accuracy'] = (stats['correct'] / stats['total']) * 100
+        
+        for difficulty in difficulty_stats:
+            stats = difficulty_stats[difficulty]
+            if stats['total'] > 0:
+                stats['accuracy'] = (stats['correct'] / stats['total']) * 100
+        
+        return jsonify({
+            'question_type_performance': question_type_stats,
+            'difficulty_analysis': difficulty_stats,
+            'total_questions': len(all_questions),
+            'total_answered': len([q for q in all_questions if q.user_answer is not None]),
+            'total_correct': len([q for q in all_questions if q.is_correct])
+        }), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

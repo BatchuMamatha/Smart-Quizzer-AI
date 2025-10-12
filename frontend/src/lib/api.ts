@@ -147,6 +147,43 @@ export const authAPI = {
     const response = await api.get('/auth/profile');
     return response.data;
   },
+
+  forgotPassword: async (data: {
+    email: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    user_exists: boolean;
+    reset_token?: string;
+  }> => {
+    const response = await api.post('/auth/forgot-password', data);
+    return response.data;
+  },
+
+  verifyResetToken: async (data: {
+    token: string;
+  }): Promise<{
+    valid: boolean;
+    message: string;
+    user?: {
+      username: string;
+      email: string;
+    };
+  }> => {
+    const response = await api.post('/auth/verify-reset-token', data);
+    return response.data;
+  },
+
+  resetPassword: async (data: {
+    token: string;
+    new_password: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    const response = await api.post('/auth/reset-password', data);
+    return response.data;
+  },
 };
 
 export const topicsAPI = {
@@ -186,6 +223,11 @@ export const quizAPI = {
 
   getHistory: async (): Promise<QuizSession[]> => {
     const response = await api.get('/quiz/history');
+    return response.data;
+  },
+
+  getAnalytics: async () => {
+    const response = await api.get('/quiz/analytics');
     return response.data;
   },
 };

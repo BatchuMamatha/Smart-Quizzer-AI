@@ -1103,27 +1103,33 @@ Your question MUST be completely different in:
 """
         
         # Determine if this is custom content
-        is_custom_content = context and len(context) > 100 and context not in self.topic_content.get(topic, {})
+        # Check both context length/content and if custom_topic was provided
+        is_custom_content = (context and len(context) > 100 and 
+                           (context not in self.topic_content.get(topic, {}) or 
+                            topic in ['Custom Topic', 'Custom Uploaded Content'] or
+                            'custom' in topic.lower()))
+        
+        print(f"🔍 Custom content detection - Topic: '{topic}', Context length: {len(context) if context else 0}, Is custom: {is_custom_content}")
         
         if is_custom_content:
-            prompt = f"""You are an expert educational content creator using Gemini AI. Create a {skill_level}-level {question_type} question based on the following uploaded content.
+            prompt = f"""You are an expert educational content creator. Create a {skill_level}-level {question_type} question from the following content.
 
-🎯 GENERATION SOURCE: This question MUST be generated using Gemini AI model capabilities.
-
-📚 UPLOADED CONTENT TO ANALYZE:
+CONTENT TO USE:
 {context}
 
 {uniqueness_prompt}
 
-Requirements:
-- Create questions SPECIFICALLY about the content provided above
-- The question should be appropriate for {skill_level} level students
-- Focus on the key concepts, facts, and ideas from the uploaded content
-- DO NOT ask about "custom content upload" - ask about the actual content itself
+CRITICAL REQUIREMENTS:
+- Create questions directly from the specific content provided
+- Use EXACT facts, concepts, names, dates, or details mentioned in the content
+- Do NOT use phrases like "Based on the uploaded content" or "According to the content"
+- Ask the question naturally as if it's about the subject matter itself
+- Focus on different aspects: main ideas, specific details, relationships, implications
 - Question type: {question_type}
-- Be creative and ensure uniqueness from any previous questions
-- Use varied vocabulary and different approaches to the content
-- Generate fresh, original content every time"""
+- Difficulty: {skill_level} level
+- Make each question focus on DIFFERENT parts of the content to ensure variety
+- Extract unique information from different sentences or paragraphs
+- VARY the focus: sometimes ask about facts, sometimes about concepts, sometimes about relationships"""
         else:
             prompt = f"""You are an expert educational content creator using Gemini AI. Create a {skill_level}-level {question_type} question about {topic}.
 
@@ -1281,13 +1287,16 @@ Explanation: [what makes a good answer and why this topic is important]
             
             return fallback
     
-    def _is_question_unique(self, new_question: str, existing_questions: List[str]) -> bool:
+    def _is_question_unique(self, new_question: str, existing_questions: List[str], is_custom_content: bool = False) -> bool:
         """Check if a question is sufficiently unique"""
         if not existing_questions:
             return True
         
         new_question_lower = new_question.lower()
         new_words = set(new_question_lower.split())
+        
+        # For custom content, be much more lenient since content variety should come from different parts of the text
+        similarity_threshold = 0.8 if is_custom_content else 0.6
         
         for existing in existing_questions:
             existing_lower = existing.lower()
@@ -1297,19 +1306,112 @@ Explanation: [what makes a good answer and why this topic is important]
             common_words = new_words.intersection(existing_words)
             similarity_ratio = len(common_words) / max(len(new_words), len(existing_words), 1)
             
-            # If more than 60% of words are common, consider it too similar
-            if similarity_ratio > 0.6:
+            # If more than threshold of words are common, consider it too similar
+            if similarity_ratio > similarity_threshold:
                 return False
             
-            # Check for identical key phrases
-            if len(new_question_lower) > 20 and new_question_lower[:20] in existing_lower:
-                return False
+            # For custom content, only reject if questions are nearly identical
+            if is_custom_content:
+                # Only reject if 90% or more of the question is identical
+                if similarity_ratio > 0.9:
+                    return False
+            else:
+                # Check for identical key phrases in regular content
+                if len(new_question_lower) > 20 and new_question_lower[:20] in existing_lower:
+                    return False
         
         return True
     
-    def _create_unique_fallback_question(self, question_type: str, difficulty: str, topic: str, question_number: int) -> Dict:
-        """Create a unique fallback question when API fails"""
+    def _segment_custom_content(self, content: str, num_questions: int) -> List[str]:
+        """Segment custom content into different parts for varied question generation"""
+        if not content or len(content) < 100:
+            return [content] * num_questions
         
+        # Split content into sentences and paragraphs
+        paragraphs = [p.strip() for p in content.split('\n') if p.strip()]
+        sentences = []
+        
+        for paragraph in paragraphs:
+            # Split by sentence endings
+            sent_endings = re.split(r'[.!?]+', paragraph)
+            sentences.extend([s.strip() for s in sent_endings if s.strip()])
+        
+        if len(sentences) < num_questions:
+            # If we don't have enough sentences, use paragraphs or repeat content
+            if len(paragraphs) >= num_questions:
+                return paragraphs[:num_questions]
+            else:
+                # Cycle through available content
+                segments = []
+                for i in range(num_questions):
+                    if paragraphs:
+                        segments.append(paragraphs[i % len(paragraphs)])
+                    else:
+                        segments.append(content)
+                return segments
+        
+        # Distribute sentences across questions
+        segment_size = max(1, len(sentences) // num_questions)
+        segments = []
+        
+        for i in range(num_questions):
+            start_idx = i * segment_size
+            end_idx = start_idx + segment_size + 1  # Add overlap for context
+            
+            if i == num_questions - 1:  # Last segment gets remaining sentences
+                segment_sentences = sentences[start_idx:]
+            else:
+                segment_sentences = sentences[start_idx:end_idx]
+            
+            segment = '. '.join(segment_sentences)
+            segments.append(segment if segment else content)
+        
+        return segments
+
+    def _create_unique_fallback_question(self, question_type: str, difficulty: str, topic: str, question_number: int, context: str = None) -> Dict:
+        """Create a unique fallback question when API fails, using custom content if available"""
+        
+        # Check if we have custom content to work with
+        is_custom_content = context and len(context) > 100 and context not in self.topic_content.get(topic, {})
+        
+        if is_custom_content:
+            # Extract key information from custom content for fallback questions
+            content_words = context.split()
+            content_preview = ' '.join(content_words[:30])  # First 30 words
+            
+            # Create content-specific questions based on the actual uploaded content
+            if question_type == "MCQ":
+                return {
+                    'question_text': f"Based on the uploaded content, what is a key concept discussed in: '{content_preview}...'?",
+                    'question_type': 'MCQ',
+                    'options': [
+                        "A. The main topic as described in the content", 
+                        "B. Unrelated external concepts", 
+                        "C. General knowledge not from the content", 
+                        "D. Information not present in the uploaded material"
+                    ],
+                    'correct_answer': 'A',
+                    'explanation': f"This question is based on your uploaded content. The correct answer relates to the main concepts discussed in your material.",
+                    'difficulty_level': difficulty
+                }
+            elif question_type == "True/False":
+                # Create a statement based on the content
+                key_phrases = [phrase.strip() for phrase in context[:200].split('.') if len(phrase.strip()) > 10]
+                if key_phrases:
+                    statement = f"The uploaded content discusses: {key_phrases[0].strip()}."
+                else:
+                    statement = f"The uploaded content contains information relevant to {difficulty}-level learning."
+                
+                return {
+                    'question_text': statement,
+                    'question_type': 'True/False',
+                    'options': ["True", "False"],
+                    'correct_answer': 'True',
+                    'explanation': f"This statement is based on the content you uploaded. It accurately reflects information from your material.",
+                    'difficulty_level': difficulty
+                }
+        
+        # Original fallback logic for non-custom content
         # Unique question starters based on question number
         starters = [
             "What is the primary concept",
@@ -1369,6 +1471,13 @@ Explanation: [what makes a good answer and why this topic is important]
         # Get context for the topic
         context = self.get_context_for_topic(topic, skill_level, custom_topic)
         
+        # For custom content, segment it to create varied questions
+        is_custom_content = custom_topic and len(custom_topic.strip()) > 10
+        content_segments = []
+        if is_custom_content:
+            content_segments = self._segment_custom_content(context, num_questions)
+            print(f"📝 Segmented custom content into {len(content_segments)} parts for question variety")
+        
         questions = []
         question_types = ['MCQ', 'True/False', 'MCQ', 'MCQ', 'True/False']  # More MCQs for better interaction
         
@@ -1379,6 +1488,9 @@ Explanation: [what makes a good answer and why this topic is important]
         for i in range(num_questions):
             question_type = question_types[i % len(question_types)]
             
+            # Use specific content segment for this question if available
+            current_context = content_segments[i] if content_segments else context
+            
             # Try multiple attempts to get a unique question
             max_attempts = 3
             question = None
@@ -1387,9 +1499,13 @@ Explanation: [what makes a good answer and why this topic is important]
                 try:
                     # Create enhanced prompt with uniqueness requirements
                     prompt = self.create_question_prompt(
-                        topic, skill_level, question_type, context, 
+                        topic, skill_level, question_type, current_context, 
                         previous_questions + [q['question_text'] for q in questions]
                     )
+                    
+                    # Add segment-specific instruction for custom content
+                    if is_custom_content:
+                        prompt += f"\n\nFOCUS AREA: This question should focus specifically on the content segment provided above. Question {i+1} of {num_questions}."
                     
                     # Add attempt-specific uniqueness
                     if attempt > 0:
@@ -1407,12 +1523,18 @@ Explanation: [what makes a good answer and why this topic is important]
                     # Parse response into structured format with difficulty classification
                     question = self.parse_gemini_response(gemini_response, question_type, skill_level, topic)
                     
+                    # Add debugging for custom content
+                    if is_custom_content:
+                        print(f"    📝 Generated question for custom content segment {i+1}: {question['question_text'][:100]}...")
+                    
                     # Check for uniqueness
-                    if self._is_question_unique(question['question_text'], previous_questions + [q['question_text'] for q in questions]):
+                    if self._is_question_unique(question['question_text'], previous_questions + [q['question_text'] for q in questions], is_custom_content):
                         print(f"  ✅ UNIQUE question {i+1} generated successfully via Gemini AI")
                         break
                     else:
                         print(f"    🔄 Question too similar to previous ones, retrying...")
+                        if is_custom_content:
+                            print(f"    📄 Custom content being used, similarity check may be too strict")
                         question = None
                         
                 except Exception as e:
@@ -1422,7 +1544,7 @@ Explanation: [what makes a good answer and why this topic is important]
             # If we couldn't generate a unique question, create a fallback
             if question is None:
                 print(f"  🔄 Creating fallback question {i+1} with enhanced uniqueness")
-                question = self._create_unique_fallback_question(question_type, skill_level, topic, len(questions))
+                question = self._create_unique_fallback_question(question_type, skill_level, topic, len(questions), current_context)
             
             questions.append(question)
             print(f"  📝 Question {i+1} added to quiz")
