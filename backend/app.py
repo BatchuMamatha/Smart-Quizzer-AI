@@ -7,15 +7,28 @@ from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 import tempfile
 import uuid
+import sys
 
-# Load environment variables
-load_dotenv()
+# Ensure stdout/stderr use utf-8 to avoid Windows charmap encoding errors during prints
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
+# Load environment variables from parent directory
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 # Import our modules
-from models import db, User, QuizSession, Question, Topic
+from models import db, User, QuizSession, Question, Topic, PasswordResetToken
 from auth import init_jwt, generate_tokens, auth_required
 from question_gen import question_generator
 from content_processor import ContentProcessor
+from email_service import send_password_reset_email, send_welcome_email
+from oauth2_email_service import oauth2_email_service, send_password_reset_email_oauth
+import logging
 
 # Import error handling system
 from error_handler import (
@@ -137,6 +150,300 @@ def detailed_health_check():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/api/admin/test-email', methods=['POST'])
+@auth_required
+def test_email(current_user_id):
+    """Test email configuration"""
+    try:
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        data = request.get_json() or {}
+        test_email_address = data.get('email', user.email)
+        
+        # Try OAuth2 first (more secure), then fallback to SMTP
+        email_result = None
+        email_method = "unknown"
+        
+        if oauth2_email_service.is_configured:
+            print(f"📧 Testing OAuth2 email to {test_email_address}")
+            email_method = "OAuth2"
+            try:
+                oauth2_email_service.send_test_email(test_email_address, user.full_name)
+                email_result = {'success': True}
+            except Exception as oauth_error:
+                print(f"[ERROR] OAuth2 test failed: {oauth_error}")
+                email_result = {'success': False, 'error': str(oauth_error)}
+        else:
+            # Fallback to SMTP
+            print(f"📧 OAuth2 not configured, testing SMTP for {test_email_address}")
+            email_method = "SMTP"
+            try:
+                from email_service import email_service
+                
+                if not email_service or not email_service.is_configured:
+                    return jsonify({
+                        'success': False,
+                        'error': 'No email service configured',
+                        'message': 'Please configure either OAuth2 or SMTP email service'
+                    }), 500
+                
+                email_service.send_test_email(test_email_address, user.full_name)
+                email_result = {'success': True}
+            except Exception as smtp_error:
+                print(f"[ERROR] SMTP test failed: {smtp_error}")
+                email_result = {'success': False, 'error': str(smtp_error)}
+        
+        if email_result and email_result['success']:
+            return jsonify({
+                'success': True,
+                'message': f'Test email sent successfully to {test_email_address} via {email_method}',
+                'email_method': email_method,
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': email_result.get('error', 'Unknown error') if email_result else 'Email service failed',
+                'message': f'Failed to send test email via {email_method}',
+                'email_method': email_method,
+                'error_type': type(email_result.get('error')).__name__ if email_result and email_result.get('error') else 'Unknown'
+            }), 500
+            
+    except Exception as e:
+        print(f"[ERROR] Test email endpoint error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/admin/gmail-auth', methods=['GET'])
+@auth_required
+def gmail_auth(current_user_id):
+    """Get Gmail OAuth2 authorization URL"""
+    try:
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # For now, allow any authenticated user (in production, add admin check)
+        try:
+            auth_url = oauth2_email_service.get_auth_url()
+            
+            return jsonify({
+                'success': True,
+                'auth_url': auth_url,
+                'message': 'Visit the auth_url to authorize Gmail access',
+                'instructions': [
+                    '1. Click the auth_url link',
+                    '2. Sign in to your Gmail account',
+                    '3. Grant Smart Quizzer permission to send emails',
+                    '4. Copy the authorization code from the callback',
+                    '5. Use POST /api/admin/gmail-callback with the code'
+                ]
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': 'Failed to generate OAuth2 authorization URL'
+            }), 500
+            
+    except Exception as e:
+        print(f"[ERROR] Gmail auth endpoint error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/admin/gmail-callback', methods=['POST'])
+@auth_required
+def gmail_callback(current_user_id):
+    """Handle Gmail OAuth2 callback with authorization code"""
+    try:
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        data = request.get_json()
+        auth_code = data.get('code')
+        
+        if not auth_code:
+            return jsonify({
+                'success': False,
+                'error': 'Authorization code is required',
+                'message': 'Please provide the authorization code from Google'
+            }), 400
+        
+        # Handle OAuth2 callback
+        result = oauth2_email_service.handle_auth_callback(auth_code)
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': 'Gmail OAuth2 authentication successful!',
+                'email': result.get('email'),
+                'next_steps': [
+                    'Gmail is now configured for Smart Quizzer',
+                    'You can test email sending with POST /api/admin/test-email',
+                    'Password reset emails will now be sent via OAuth2'
+                ]
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error'),
+                'message': 'OAuth2 authentication failed'
+            }), 400
+            
+    except Exception as e:
+        print(f"[ERROR] Gmail callback endpoint error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+# GET callback for OAuth2 redirect handling
+@app.route('/auth/google/callback', methods=['GET'])
+@app.route('/oauth/callback', methods=['GET'])
+@app.route('/callback', methods=['GET'])
+@app.route('/api/admin/gmail-callback', methods=['GET'])
+def oauth_redirect_handler():
+    """Handle OAuth2 redirect and display authorization code"""
+    try:
+        auth_code = request.args.get('code')
+        error = request.args.get('error')
+        
+        if error:
+            return f"""
+            <html>
+            <head><title>OAuth2 Error</title></head>
+            <body style="font-family: Arial; padding: 40px; background: #f5f5f5;">
+                <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto;">
+                    <h1 style="color: #dc3545;">❌ OAuth2 Authorization Failed</h1>
+                    <p><strong>Error:</strong> {error}</p>
+                    <p>Please try the authorization process again.</p>
+                    <a href="http://localhost:9000" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Back to OAuth2 Setup</a>
+                </div>
+            </body>
+            </html>
+            """, 400
+        
+        if auth_code:
+            return f"""
+            <html>
+            <head><title>OAuth2 Success</title></head>
+            <body style="font-family: Arial; padding: 40px; background: #f5f5f5;">
+                <div style="background: white; padding: 30px; border-radius: 10px; max-width: 800px; margin: 0 auto;">
+                    <h1 style="color: #28a745;">✅ OAuth2 Authorization Successful!</h1>
+                    <p>Google has provided the authorization code. Copy it below:</p>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border: 1px solid #ddd; border-radius: 5px; margin: 20px 0;">
+                        <strong>Authorization Code:</strong><br>
+                        <code style="font-size: 12px; word-break: break-all; display: block; margin-top: 10px; padding: 10px; background: #ffffff; border: 1px solid #ccc; border-radius: 3px;">{auth_code}</code>
+                    </div>
+                    
+                    <button onclick="copyCode()" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px 5px;">
+                        📋 Copy Code
+                    </button>
+                    
+                    <button onclick="completeSetup()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px 5px;">
+                        🔧 Complete Setup
+                    </button>
+                    
+                    <div id="result" style="margin-top: 20px;"></div>
+                    
+                    <script>
+                        const authCode = "{auth_code}";
+                        const jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2MDYyOTUwNCwianRpIjoiOTg4NmE4MTEtYWVjZi00NDE3LTgyMjItZmJkOWQ4OTA1OGQ2IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3NjA2Mjk1MDQsImNzcmYiOiI3NGM0NzBjYy00NTQyLTRhOTMtYjYxZi01MmI0YmM0OTI1NDgiLCJleHAiOjE3NjA3MTU5MDR9.-vFQ0HBcfIm-yioaIRygQ_aNykmojME5fmSdleV_9x4";
+                        
+                        function copyCode() {{
+                            navigator.clipboard.writeText(authCode).then(function() {{
+                                document.getElementById('result').innerHTML = '<div style="color: #28a745; padding: 10px; background: #d4edda; border-radius: 5px;">✅ Authorization code copied to clipboard!</div>';
+                            }});
+                        }}
+                        
+                        async function completeSetup() {{
+                            try {{
+                                document.getElementById('result').innerHTML = '<div style="color: #007bff; padding: 10px; background: #d1ecf1; border-radius: 5px;">🔄 Completing OAuth2 setup...</div>';
+                                
+                                const response = await fetch('/api/admin/gmail-callback', {{
+                                    method: 'POST',
+                                    headers: {{
+                                        'Content-Type': 'application/json',
+                                        'Authorization': 'Bearer ' + jwtToken
+                                    }},
+                                    body: JSON.stringify({{ code: authCode }})
+                                }});
+                                
+                                const result = await response.json();
+                                
+                                if (result.success) {{
+                                    document.getElementById('result').innerHTML = '<div style="color: #28a745; padding: 15px; background: #d4edda; border-radius: 5px;"><h3>🎉 OAuth2 Setup Complete!</h3><p>' + result.message + '</p><p><strong>Email:</strong> ' + (result.email || 'Configured') + '</p></div>';
+                                }} else {{
+                                    document.getElementById('result').innerHTML = '<div style="color: #dc3545; padding: 15px; background: #f8d7da; border-radius: 5px;"><h3>❌ Setup Failed</h3><p>' + (result.error || 'Unknown error') + '</p></div>';
+                                }}
+                            }} catch (error) {{
+                                document.getElementById('result').innerHTML = '<div style="color: #dc3545; padding: 15px; background: #f8d7da; border-radius: 5px;"><h3>❌ Network Error</h3><p>Make sure the backend server is running on localhost:5000</p></div>';
+                            }}
+                        }}
+                    </script>
+                </div>
+            </body>
+            </html>
+            """
+        else:
+            return """
+            <html>
+            <head><title>OAuth2 Callback</title></head>
+            <body style="font-family: Arial; padding: 40px; background: #f5f5f5;">
+                <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto;">
+                    <h1 style="color: #dc3545;">❌ No Authorization Code</h1>
+                    <p>No authorization code was provided in the callback.</p>
+                    <p>Please try the OAuth2 authorization process again.</p>
+                    <a href="http://localhost:9000" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Back to OAuth2 Setup</a>
+                </div>
+            </body>
+            </html>
+            """, 400
+            
+    except Exception as e:
+        print(f"[ERROR] OAuth redirect handler error: {e}")
+        return f"""
+        <html>
+        <head><title>OAuth2 Error</title></head>
+        <body style="font-family: Arial; padding: 40px; background: #f5f5f5;">
+            <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto;">
+                <h1 style="color: #dc3545;">❌ OAuth2 Handler Error</h1>
+                <p><strong>Error:</strong> {str(e)}</p>
+                <a href="http://localhost:9000" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Back to OAuth2 Setup</a>
+            </div>
+        </body>
+        </html>
+        """, 500
+
+@app.route('/api/admin/gmail-status', methods=['GET'])
+@auth_required
+def gmail_status(current_user_id):
+    """Get Gmail OAuth2 service status"""
+    try:
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        status = oauth2_email_service.get_status()
+        
+        return jsonify({
+            'success': True,
+            'oauth2_status': status,
+            'recommendations': [
+                'Use OAuth2 for better security' if not status['is_configured'] else 'OAuth2 is configured',
+                'Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env' if not status['client_id_configured'] else 'OAuth2 credentials configured',
+                'Authenticate with /api/admin/gmail-auth' if not status['credentials_valid'] else 'OAuth2 authenticated'
+            ]
+        })
+        
+    except Exception as e:
+        print(f"[ERROR] Gmail status endpoint error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 @app.route('/api/admin/reset-health', methods=['POST'])
 @auth_required
 def reset_service_health(current_user_id):
@@ -200,6 +507,16 @@ def register():
         # Generate tokens
         tokens = generate_tokens(user.id)
         print(f"✅ User '{user.username}' registered successfully")
+        
+        # Send welcome email (optional - don't fail registration if email fails)
+        try:
+            email_result = send_welcome_email(user.email, user.full_name)
+            if email_result['success']:
+                print(f"📧 Welcome email sent to {user.email}")
+            else:
+                print(f"⚠️ Welcome email failed: {email_result.get('error', 'Unknown error')}")
+        except Exception as e:
+            print(f"⚠️ Welcome email error: {e}")
         
         # Add stats to user data
         user_dict = user.to_dict()
@@ -335,7 +652,7 @@ def test_auth(current_user_id):
 
 @app.route('/api/auth/forgot-password', methods=['POST'])
 def forgot_password():
-    """Handle forgot password request - simulate password reset"""
+    """Handle forgot password request with real email sending"""
     try:
         data = request.get_json()
         if not data or 'email' not in data:
@@ -356,26 +673,95 @@ def forgot_password():
                 'user_exists': False
             }), 200
         
-        # Generate a simple reset token (in production, use secure tokens)
-        import uuid
-        reset_token = str(uuid.uuid4())
+        # Clean up expired tokens
+        PasswordResetToken.cleanup_expired()
         
-        # For demo purposes, we'll just return success
-        # In production, you would store the token and send an email
-        return jsonify({
-            'success': True,
-            'message': 'Reset link sent successfully',
-            'user_exists': True,
-            'reset_token': reset_token
-        }), 200
+        # Generate secure reset token
+        import secrets
+        reset_token = secrets.token_urlsafe(32)
+        
+        # Create and store reset token (expires in 24 hours)
+        reset_token_record = PasswordResetToken(
+            user_id=user.id,
+            token=reset_token,
+            expires_in_hours=24
+        )
+        
+        db.session.add(reset_token_record)
+        db.session.commit()
+        
+        # Send actual password reset email
+        try:
+            frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+            reset_url = f"{frontend_url}/reset-password"
+            
+            # Try OAuth2 first (more secure), then fallback to SMTP
+            email_result = None
+            email_method = "unknown"
+            
+            if oauth2_email_service.is_configured:
+                print(f"📧 Attempting OAuth2 email to {user.email}")
+                email_method = "OAuth2"
+                email_result = send_password_reset_email_oauth(
+                    user_email=user.email,
+                    user_name=user.full_name,
+                    reset_token=reset_token,
+                    reset_url=reset_url
+                )
+            else:
+                print(f"📧 OAuth2 not configured, using SMTP for {user.email}")
+                email_method = "SMTP"
+                email_result = send_password_reset_email(
+                    user_email=user.email,
+                    user_name=user.full_name,
+                    reset_token=reset_token,
+                    reset_url=reset_url
+                )
+            
+            if email_result and email_result['success']:
+                print(f"📧 Password reset email sent via {email_method} to {user.email}")
+                return jsonify({
+                    'success': True,
+                    'message': 'Password reset link sent to your email address',
+                    'user_exists': True,
+                    'email_sent': True,
+                    'email_method': email_method
+                }), 200
+            else:
+                # Email failed but token was created - log error but don't expose to user
+                print(f"❌ Failed to send reset email to {user.email}: {email_result.get('error')}")
+                
+                # Still return the token for development/testing purposes
+                return jsonify({
+                    'success': True,
+                    'message': 'Password reset initiated. Email service unavailable.',
+                    'user_exists': True,
+                    'email_sent': False,
+                    'reset_token': reset_token,  # For development only
+                    'debug_info': email_result.get('error') if os.getenv('DEBUG') else None
+                }), 200
+                
+        except Exception as email_error:
+            print(f"❌ Email service error: {email_error}")
+            
+            # Return token for development if email fails
+            return jsonify({
+                'success': True,
+                'message': 'Password reset initiated. Email service temporarily unavailable.',
+                'user_exists': True,
+                'email_sent': False,
+                'reset_token': reset_token,  # For development only
+                'debug_info': str(email_error) if os.getenv('DEBUG') else None
+            }), 200
         
     except Exception as e:
+        db.session.rollback()
         print(f"Forgot password error: {e}")
         return jsonify({'error': 'Failed to process request'}), 500
 
 @app.route('/api/auth/verify-reset-token', methods=['POST'])
 def verify_reset_token():
-    """Verify password reset token"""
+    """Verify password reset token against database"""
     try:
         data = request.get_json()
         if not data or 'token' not in data:
@@ -383,22 +769,38 @@ def verify_reset_token():
         
         token = data['token']
         
-        # For demo purposes, accept any non-empty token
-        # In production, you would validate against stored tokens
-        if not token or len(token) < 10:
+        # Clean up expired tokens first
+        PasswordResetToken.cleanup_expired()
+        
+        # Find valid token
+        reset_token_record = PasswordResetToken.query.filter_by(
+            token=token,
+            used=False
+        ).first()
+        
+        if not reset_token_record or not reset_token_record.is_valid():
             return jsonify({
                 'valid': False,
                 'message': 'Invalid or expired token'
             }), 400
         
-        # For demo, return a dummy user
+        # Get user information
+        user = User.query.get(reset_token_record.user_id)
+        if not user:
+            return jsonify({
+                'valid': False,
+                'message': 'Invalid token - user not found'
+            }), 400
+        
         return jsonify({
             'valid': True,
             'message': 'Token is valid',
             'user': {
-                'username': 'demo_user',
-                'email': 'demo@example.com'
-            }
+                'username': user.username,
+                'email': user.email,
+                'full_name': user.full_name
+            },
+            'expires_at': reset_token_record.expires_at.isoformat()
         }), 200
         
     except Exception as e:
@@ -407,7 +809,7 @@ def verify_reset_token():
 
 @app.route('/api/auth/reset-password', methods=['POST'])
 def reset_password():
-    """Reset user password"""
+    """Reset user password using valid token"""
     try:
         data = request.get_json()
         if not data or 'token' not in data or 'new_password' not in data:
@@ -420,23 +822,98 @@ def reset_password():
         if len(new_password) < 6:
             return jsonify({'error': 'Password must be at least 6 characters long'}), 400
         
-        # For demo purposes, accept any valid token
-        # In production, you would validate the token and update the user's password
-        if not token or len(token) < 10:
+        # Clean up expired tokens
+        PasswordResetToken.cleanup_expired()
+        
+        # Find valid token
+        reset_token_record = PasswordResetToken.query.filter_by(
+            token=token,
+            used=False
+        ).first()
+        
+        if not reset_token_record or not reset_token_record.is_valid():
             return jsonify({
                 'success': False,
                 'message': 'Invalid or expired token'
             }), 400
         
-        # Simulate successful password reset
+        # Get user and update password
+        user = User.query.get(reset_token_record.user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 400
+        
+        # Update user password
+        user.set_password(new_password)
+        
+        # Mark token as used
+        reset_token_record.mark_as_used()
+        
+        # Commit changes
+        db.session.commit()
+        
+        print(f"✅ Password reset successful for user: {user.username}")
+        
         return jsonify({
             'success': True,
-            'message': 'Password reset successfully'
+            'message': 'Password reset successfully',
+            'user': {
+                'username': user.username,
+                'email': user.email
+            }
         }), 200
         
     except Exception as e:
+        db.session.rollback()
         print(f"Password reset error: {e}")
         return jsonify({'error': 'Failed to reset password'}), 500
+
+@app.route('/api/admin/test-email', methods=['POST'])
+@auth_required
+def test_email_config(current_user_id):
+    """Test email configuration (admin only)"""
+    try:
+        from email_service import test_email_service
+        
+        # In a real app, you'd check if user is admin
+        # For now, any authenticated user can test email
+        
+        result = test_email_service()
+        
+        return jsonify({
+            'email_test_result': result,
+            'timestamp': datetime.now().isoformat()
+        }), 200 if result.get('success') else 500
+        
+    except Exception as e:
+        return jsonify({
+            'error': f'Email test failed: {str(e)}',
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/admin/email-status', methods=['GET'])
+@auth_required  
+def get_email_status(current_user_id):
+    """Get email service configuration status"""
+    try:
+        from email_service import email_service
+        
+        return jsonify({
+            'email_configured': email_service.is_configured,
+            'smtp_server': email_service.smtp_server if email_service.is_configured else None,
+            'smtp_port': email_service.smtp_port if email_service.is_configured else None,
+            'from_email': email_service.from_email if email_service.is_configured else None,
+            'configuration_check': {
+                'smtp_server': bool(email_service.smtp_server),
+                'smtp_username': bool(email_service.smtp_username),
+                'smtp_password': bool(email_service.smtp_password)
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Topic Routes
 @app.route('/api/topics', methods=['GET'])
@@ -890,6 +1367,58 @@ def get_quiz_results(current_user_id, quiz_id):
             }
         }), 200
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/questions/generate', methods=['POST'])
+@auth_required
+def api_generate_questions(current_user_id):
+    """API endpoint to generate questions from topic or custom content"""
+    try:
+        data = request.get_json() or {}
+        topic = data.get('topic', 'General')
+        skill_level = data.get('skill_level', 'Intermediate')
+        num_questions = int(data.get('num_questions', 5))
+        custom_topic = data.get('custom_topic')
+
+        questions = question_generator.generate_quiz_questions(
+            topic=topic,
+            skill_level=skill_level,
+            num_questions=num_questions,
+            custom_topic=custom_topic,
+            user_id=current_user_id
+        )
+
+        return jsonify({'success': True, 'questions': questions}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/quiz/next', methods=['POST'])
+@auth_required
+def api_next_question(current_user_id):
+    """Return next adaptive question for user based on recent answer"""
+    try:
+        data = request.get_json() or {}
+        topic = data.get('topic', 'General')
+        question_type = data.get('question_type', 'MCQ')
+        previous_answer_correct = data.get('previous_answer_correct')
+
+        # Use adaptive generator
+        questions = question_generator.generate_adaptive_question(
+            user_id=str(current_user_id),
+            topic=topic,
+            question_type=question_type,
+            num_questions=1,
+            previous_answer_correct=previous_answer_correct
+        )
+
+        if questions:
+            return jsonify({'success': True, 'question': questions[0]}), 200
+        else:
+            return jsonify({'success': False, 'message': 'No question generated'}), 500
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

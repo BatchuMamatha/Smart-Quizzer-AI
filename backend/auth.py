@@ -2,10 +2,11 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from datetime import timedelta
 from functools import wraps
 from flask import jsonify
+import os
 
 def init_jwt(app):
-    """Initialize JWT with the Flask app"""
-    app.config['JWT_SECRET_KEY'] = 'smart-quizzer-secret-key-2024'  # Change this in production!
+    """Initialize JWT with the app"""
+    app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key-here-change-in-production')
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
     app.config['JWT_ALGORITHM'] = 'HS256'
     app.config['JWT_CSRF_CHECK_FORM'] = False

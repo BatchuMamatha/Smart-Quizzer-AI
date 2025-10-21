@@ -8,6 +8,30 @@ import math
 from collections import Counter, deque
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+
+# Optional local model support
+try:
+    from transformers import pipeline
+    import torch
+    TRANSFORMERS_AVAILABLE = True
+except Exception:
+    TRANSFORMERS_AVAILABLE = False
+
+# Safe print wrapper to avoid Unicode encode errors on some consoles (Windows)
+def _safe_print(*args, **kwargs):
+    try:
+        __builtins__['print'](*args, **kwargs)
+    except Exception:
+        try:
+            # Fallback: encode to utf-8 then decode replacing errors
+            msg = ' '.join(str(a) for a in args)
+            encoded = msg.encode('utf-8', errors='replace')
+            __builtins__['print'](encoded.decode('utf-8', errors='replace'), **kwargs)
+        except Exception:
+            pass
+
+# Override module-level print with safe variant
+print = _safe_print
 import time
 import hashlib
 
@@ -666,16 +690,34 @@ class GeminiQuestionGenerator:
         self.error_handler = ErrorHandler()
         self.fallback_manager = FallbackManager()
         
-        # Get API key from environment variables with validation
+        # Get API key from environment variables
         self.api_key = os.getenv('GEMINI_API_KEY')
+
+        # If Gemini API key is not provided, attempt to use a local Hugging Face model
+        self.use_local_model = False
+        self.local_generator = None
+        self.local_model_name = os.getenv('LOCAL_AI_MODEL', 't5-small')
+
         if not self.api_key:
-            raise SmartQuizzerError(
-                message="GEMINI_API_KEY environment variable is not set",
-                category=ErrorCategory.SYSTEM,
-                severity=ErrorSeverity.CRITICAL,
-                details={'config_file': '.env', 'required_key': 'GEMINI_API_KEY'},
-                user_message="AI service configuration error. Please contact support."
-            )
+            print("⚠️ GEMINI_API_KEY not set - attempting to initialize local Hugging Face model fallback")
+            if TRANSFORMERS_AVAILABLE:
+                try:
+                    device = 0 if torch.cuda.is_available() else -1
+                    # Use text2text-generation pipeline (T5/BART compatible)
+                    self.local_generator = pipeline('text2text-generation', model=self.local_model_name, device=device)
+                    self.use_local_model = True
+                    print(f"✅ Local model '{self.local_model_name}' loaded for question generation (device={device})")
+                except Exception as e:
+                    print(f"⚠️ Failed to initialize local model '{self.local_model_name}': {e}")
+                    self.use_local_model = False
+            else:
+                print("⚠️ transformers/torch not available - local model fallback disabled")
+
+        # If Gemini API key exists, set base URL for Gemini
+        if self.api_key:
+            self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+        else:
+            self.base_url = None
         
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
         
@@ -877,7 +919,17 @@ Explanation: This question tests fundamental understanding of {topic}."""
     
     def generate_with_gemini(self, prompt: str, max_retries: int = 3, timeout: int = 30) -> str:
         """Enhanced Gemini API call with comprehensive error handling and fallback"""
-        
+        # If no Gemini API key, use local generator if available
+        if not self.api_key:
+            if self.use_local_model and self.local_generator:
+                return self.generate_with_local_model(prompt)
+            else:
+                raise AIServiceError(
+                    message="No Gemini API key configured and no local model available",
+                    service_name='local_or_gemini',
+                    error_code='NO_AI_PROVIDER',
+                    retry_count=0
+                )
         # Check circuit breaker
         if self._should_use_circuit_breaker('gemini_api'):
             failures = self.service_health['gemini_api'].get('consecutive_failures', 0)
@@ -1058,6 +1110,36 @@ Explanation: This question tests fundamental understanding of {topic}."""
                 service_name='gemini',
                 error_code='UNKNOWN_FAILURE',
                 retry_count=max_retries
+            )
+
+    def generate_with_local_model(self, prompt: str, max_length: int = 256) -> str:
+        """Generate text using a local Hugging Face text2text model (T5/BART)."""
+        if not self.use_local_model or not self.local_generator:
+            raise AIServiceError(
+                message="Local model is not available",
+                service_name='local_model',
+                error_code='LOCAL_MODEL_UNAVAILABLE',
+                retry_count=0
+            )
+
+        try:
+            # Some local pipelines expect a short prompt; enforce minimal length
+            prompt = prompt.strip()
+            if len(prompt) < 10:
+                prompt = prompt + '\nGenerate a concise educational question.'
+
+            outputs = self.local_generator(prompt, max_length=max_length, num_return_sequences=1)
+            if isinstance(outputs, list) and len(outputs) > 0:
+                generated = outputs[0].get('generated_text') or outputs[0].get('text') or ''
+                return generated.strip()
+            return ''
+        except Exception as e:
+            print(f"⚠️ Local model generation failed: {e}")
+            raise AIServiceError(
+                message=f"Local model generation failed: {str(e)}",
+                service_name='local_model',
+                error_code='LOCAL_GEN_FAILED',
+                retry_count=0
             )
     
     def get_context_for_topic(self, topic: str, skill_level: str, custom_topic: str = None) -> str:
