@@ -21,6 +21,11 @@ const Quiz: React.FC = () => {
   const [feedback, setFeedback] = useState<any>(null);
   const [startTime, setStartTime] = useState(Date.now());
   const [completedQuestions, setCompletedQuestions] = useState(0);
+  const [showFlagDialog, setShowFlagDialog] = useState(false);
+  const [flagReason, setFlagReason] = useState('');
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackRating, setFeedbackRating] = useState(0);
 
   useEffect(() => {
     if (!quizData) {
@@ -83,6 +88,44 @@ const Quiz: React.FC = () => {
     } else {
       // Quiz completed, navigate to results
       navigate('/results', { state: { quizId: quiz_session.id } });
+    }
+  };
+
+  const handleFlagQuestion = async () => {
+    if (!flagReason.trim()) {
+      alert('Please provide a reason for flagging this question');
+      return;
+    }
+
+    try {
+      await quizAPI.flagQuestion(currentQuestion.id, flagReason);
+      alert('Question flagged successfully. Thank you for your feedback!');
+      setShowFlagDialog(false);
+      setFlagReason('');
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Failed to flag question');
+    }
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (feedbackRating === 0) {
+      alert('Please select a rating');
+      return;
+    }
+    
+    if (!feedbackText.trim()) {
+      alert('Please provide some feedback');
+      return;
+    }
+
+    try {
+      await quizAPI.submitFeedback(currentQuestion.id, feedbackText, feedbackRating);
+      alert('Thank you for your feedback! It helps us improve.');
+      setShowFeedbackDialog(false);
+      setFeedbackText('');
+      setFeedbackRating(0);
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Failed to submit feedback');
     }
   };
 
@@ -377,14 +420,34 @@ const Quiz: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 justify-between">
-                <button
-                  onClick={() => navigate('/dashboard')}
-                  className="btn btn-secondary group"
-                >
-                  <span className="mr-2">🏠</span>
-                  Back to Dashboard
-                  <span className="ml-2 transform group-hover:-translate-x-1 transition-transform">←</span>
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    className="btn btn-secondary group"
+                  >
+                    <span className="mr-2">🏠</span>
+                    Back to Dashboard
+                    <span className="ml-2 transform group-hover:-translate-x-1 transition-transform">←</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowFlagDialog(true)}
+                    className="btn btn-secondary group flex items-center justify-center"
+                    title="Flag this question if it seems inappropriate or incorrect"
+                  >
+                    <span className="mr-2">🚩</span>
+                    Flag Question
+                  </button>
+
+                  <button
+                    onClick={() => setShowFeedbackDialog(true)}
+                    className="btn btn-secondary group flex items-center justify-center"
+                    title="Share your thoughts about this question"
+                  >
+                    <span className="mr-2">💬</span>
+                    Feedback
+                  </button>
+                </div>
                 
                 {!showFeedback ? (
                   <button
@@ -419,6 +482,106 @@ const Quiz: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Flag Dialog */}
+          {showFlagDialog && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fade-in-scale">
+                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                  <span className="mr-2">🚩</span>
+                  Flag Question
+                </h3>
+                <p className="text-gray-600 mb-4 text-sm">
+                  Help us improve! Please tell us why this question needs review:
+                </p>
+                <textarea
+                  value={flagReason}
+                  onChange={(e) => setFlagReason(e.target.value)}
+                  placeholder="e.g., Incorrect answer, unclear wording, inappropriate content..."
+                  rows={4}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 mb-4"
+                />
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => {
+                      setShowFlagDialog(false);
+                      setFlagReason('');
+                    }}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleFlagQuestion}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center"
+                  >
+                    <span className="mr-2">🚩</span>
+                    Submit Flag
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Feedback Dialog */}
+          {showFeedbackDialog && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fade-in-scale">
+                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                  <span className="mr-2">💬</span>
+                  Share Your Feedback
+                </h3>
+                <p className="text-gray-600 mb-4 text-sm">
+                  Your feedback helps us create better questions!
+                </p>
+                
+                {/* Rating Stars */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rate this question:
+                  </label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onClick={() => setFeedbackRating(star)}
+                        className="text-3xl focus:outline-none transition-transform hover:scale-110"
+                      >
+                        {star <= feedbackRating ? '⭐' : '☆'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <textarea
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder="Share your thoughts about this question (optional)..."
+                  rows={4}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 mb-4"
+                />
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => {
+                      setShowFeedbackDialog(false);
+                      setFeedbackText('');
+                      setFeedbackRating(0);
+                    }}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmitFeedback}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                  >
+                    <span className="mr-2">💬</span>
+                    Submit Feedback
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

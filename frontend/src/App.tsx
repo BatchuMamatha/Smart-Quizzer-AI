@@ -12,6 +12,7 @@ import History from './pages/History';
 import Analytics from './pages/Analytics';
 import ContentUploadPage from './pages/ContentUploadPage';
 import ProfilePage from './pages/ProfilePage';
+import AdminDashboard from './pages/AdminDashboard';
 
 const userManager = UserManager.getInstance();
 
@@ -51,6 +52,94 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const authenticated = userManager.isAuthenticated();
+      const admin = userManager.isAdmin();
+      setIsAuthenticated(authenticated);
+      setIsAdmin(admin);
+    };
+
+    checkAuth();
+
+    const handleStorageChange = () => {
+      checkAuth();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  if (isAuthenticated === null || isAdmin === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const UserRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const authenticated = userManager.isAuthenticated();
+      const admin = userManager.isAdmin();
+      setIsAuthenticated(authenticated);
+      setIsAdmin(admin);
+    };
+
+    checkAuth();
+
+    const handleStorageChange = () => {
+      checkAuth();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  if (isAuthenticated === null || isAdmin === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (isAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const App: React.FC = () => {
   return (
     <Router>
@@ -61,57 +150,65 @@ const App: React.FC = () => {
           <Route 
             path="/dashboard" 
             element={
-              <PrivateRoute>
+              <UserRoute>
                 <Dashboard />
-              </PrivateRoute>
+              </UserRoute>
             } 
           />
           <Route 
             path="/quiz" 
             element={
-              <PrivateRoute>
+              <UserRoute>
                 <Quiz />
-              </PrivateRoute>
+              </UserRoute>
             } 
           />
           <Route 
             path="/results" 
             element={
-              <PrivateRoute>
+              <UserRoute>
                 <Results />
-              </PrivateRoute>
+              </UserRoute>
             } 
           />
           <Route 
             path="/history" 
             element={
-              <PrivateRoute>
+              <UserRoute>
                 <History />
-              </PrivateRoute>
+              </UserRoute>
             } 
           />
           <Route 
             path="/analytics" 
             element={
-              <PrivateRoute>
+              <UserRoute>
                 <Analytics />
-              </PrivateRoute>
+              </UserRoute>
             } 
           />
           <Route 
             path="/content-upload" 
             element={
-              <PrivateRoute>
+              <UserRoute>
                 <ContentUploadPage />
-              </PrivateRoute>
+              </UserRoute>
             } 
           />
           <Route 
             path="/profile" 
             element={
-              <PrivateRoute>
+              <UserRoute>
                 <ProfilePage />
-              </PrivateRoute>
+              </UserRoute>
+            } 
+          />
+          <Route 
+            path="/admin" 
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
             } 
           />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

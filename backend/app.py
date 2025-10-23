@@ -27,7 +27,6 @@ from auth import init_jwt, generate_tokens, auth_required
 from question_gen import question_generator
 from content_processor import ContentProcessor
 from email_service import send_password_reset_email, send_welcome_email
-from oauth2_email_service import oauth2_email_service, send_password_reset_email_oauth
 import logging
 
 # Import error handling system
@@ -163,286 +162,47 @@ def test_email(current_user_id):
         data = request.get_json() or {}
         test_email_address = data.get('email', user.email)
         
-        # Try OAuth2 first (more secure), then fallback to SMTP
-        email_result = None
-        email_method = "unknown"
+        # Use SMTP email service
+        print(f"📧 Testing SMTP email to {test_email_address}")
         
-        if oauth2_email_service.is_configured:
-            print(f"📧 Testing OAuth2 email to {test_email_address}")
-            email_method = "OAuth2"
-            try:
-                oauth2_email_service.send_test_email(test_email_address, user.full_name)
-                email_result = {'success': True}
-            except Exception as oauth_error:
-                print(f"[ERROR] OAuth2 test failed: {oauth_error}")
-                email_result = {'success': False, 'error': str(oauth_error)}
-        else:
-            # Fallback to SMTP
-            print(f"📧 OAuth2 not configured, testing SMTP for {test_email_address}")
-            email_method = "SMTP"
-            try:
-                from email_service import email_service
-                
-                if not email_service or not email_service.is_configured:
-                    return jsonify({
-                        'success': False,
-                        'error': 'No email service configured',
-                        'message': 'Please configure either OAuth2 or SMTP email service'
-                    }), 500
-                
-                email_service.send_test_email(test_email_address, user.full_name)
-                email_result = {'success': True}
-            except Exception as smtp_error:
-                print(f"[ERROR] SMTP test failed: {smtp_error}")
-                email_result = {'success': False, 'error': str(smtp_error)}
-        
-        if email_result and email_result['success']:
+        try:
+            from email_service import email_service
+            
+            if not email_service or not email_service.is_configured:
+                return jsonify({
+                    'success': False,
+                    'error': 'No email service configured',
+                    'message': 'Please configure SMTP email service in .env file'
+                }), 500
+            
+            email_service.send_test_email(test_email_address, user.full_name)
+            
             return jsonify({
                 'success': True,
-                'message': f'Test email sent successfully to {test_email_address} via {email_method}',
-                'email_method': email_method,
+                'message': f'Test email sent successfully to {test_email_address}',
+                'email_method': 'SMTP',
                 'timestamp': datetime.utcnow().isoformat()
             })
-        else:
+            
+        except Exception as e:
+            print(f"[ERROR] SMTP test failed: {e}")
             return jsonify({
                 'success': False,
-                'error': email_result.get('error', 'Unknown error') if email_result else 'Email service failed',
-                'message': f'Failed to send test email via {email_method}',
-                'email_method': email_method,
-                'error_type': type(email_result.get('error')).__name__ if email_result and email_result.get('error') else 'Unknown'
+                'error': str(e),
+                'message': 'Failed to send test email',
+                'email_method': 'SMTP',
+                'error_type': type(e).__name__
             }), 500
             
     except Exception as e:
         print(f"[ERROR] Test email endpoint error: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/api/admin/gmail-auth', methods=['GET'])
-@auth_required
-def gmail_auth(current_user_id):
-    """Get Gmail OAuth2 authorization URL"""
-    try:
-        user = User.query.get(current_user_id)
-        
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
-        
-        # For now, allow any authenticated user (in production, add admin check)
-        try:
-            auth_url = oauth2_email_service.get_auth_url()
-            
-            return jsonify({
-                'success': True,
-                'auth_url': auth_url,
-                'message': 'Visit the auth_url to authorize Gmail access',
-                'instructions': [
-                    '1. Click the auth_url link',
-                    '2. Sign in to your Gmail account',
-                    '3. Grant Smart Quizzer permission to send emails',
-                    '4. Copy the authorization code from the callback',
-                    '5. Use POST /api/admin/gmail-callback with the code'
-                ]
-            })
-            
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'error': str(e),
-                'message': 'Failed to generate OAuth2 authorization URL'
-            }), 500
-            
-    except Exception as e:
-        print(f"[ERROR] Gmail auth endpoint error: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+# OAuth2 endpoints removed - using SMTP email service only
 
-@app.route('/api/admin/gmail-callback', methods=['POST'])
-@auth_required
-def gmail_callback(current_user_id):
-    """Handle Gmail OAuth2 callback with authorization code"""
-    try:
-        user = User.query.get(current_user_id)
-        
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
-        
-        data = request.get_json()
-        auth_code = data.get('code')
-        
-        if not auth_code:
-            return jsonify({
-                'success': False,
-                'error': 'Authorization code is required',
-                'message': 'Please provide the authorization code from Google'
-            }), 400
-        
-        # Handle OAuth2 callback
-        result = oauth2_email_service.handle_auth_callback(auth_code)
-        
-        if result['success']:
-            return jsonify({
-                'success': True,
-                'message': 'Gmail OAuth2 authentication successful!',
-                'email': result.get('email'),
-                'next_steps': [
-                    'Gmail is now configured for Smart Quizzer',
-                    'You can test email sending with POST /api/admin/test-email',
-                    'Password reset emails will now be sent via OAuth2'
-                ]
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': result.get('error'),
-                'message': 'OAuth2 authentication failed'
-            }), 400
-            
-    except Exception as e:
-        print(f"[ERROR] Gmail callback endpoint error: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+# OAuth2 callback endpoint removed - using SMTP email service only
 
-# GET callback for OAuth2 redirect handling
-@app.route('/auth/google/callback', methods=['GET'])
-@app.route('/oauth/callback', methods=['GET'])
-@app.route('/callback', methods=['GET'])
-@app.route('/api/admin/gmail-callback', methods=['GET'])
-def oauth_redirect_handler():
-    """Handle OAuth2 redirect and display authorization code"""
-    try:
-        auth_code = request.args.get('code')
-        error = request.args.get('error')
-        
-        if error:
-            return f"""
-            <html>
-            <head><title>OAuth2 Error</title></head>
-            <body style="font-family: Arial; padding: 40px; background: #f5f5f5;">
-                <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto;">
-                    <h1 style="color: #dc3545;">❌ OAuth2 Authorization Failed</h1>
-                    <p><strong>Error:</strong> {error}</p>
-                    <p>Please try the authorization process again.</p>
-                    <a href="http://localhost:9000" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Back to OAuth2 Setup</a>
-                </div>
-            </body>
-            </html>
-            """, 400
-        
-        if auth_code:
-            return f"""
-            <html>
-            <head><title>OAuth2 Success</title></head>
-            <body style="font-family: Arial; padding: 40px; background: #f5f5f5;">
-                <div style="background: white; padding: 30px; border-radius: 10px; max-width: 800px; margin: 0 auto;">
-                    <h1 style="color: #28a745;">✅ OAuth2 Authorization Successful!</h1>
-                    <p>Google has provided the authorization code. Copy it below:</p>
-                    
-                    <div style="background: #f8f9fa; padding: 15px; border: 1px solid #ddd; border-radius: 5px; margin: 20px 0;">
-                        <strong>Authorization Code:</strong><br>
-                        <code style="font-size: 12px; word-break: break-all; display: block; margin-top: 10px; padding: 10px; background: #ffffff; border: 1px solid #ccc; border-radius: 3px;">{auth_code}</code>
-                    </div>
-                    
-                    <button onclick="copyCode()" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px 5px;">
-                        📋 Copy Code
-                    </button>
-                    
-                    <button onclick="completeSetup()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 10px 5px;">
-                        🔧 Complete Setup
-                    </button>
-                    
-                    <div id="result" style="margin-top: 20px;"></div>
-                    
-                    <script>
-                        const authCode = "{auth_code}";
-                        const jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2MDYyOTUwNCwianRpIjoiOTg4NmE4MTEtYWVjZi00NDE3LTgyMjItZmJkOWQ4OTA1OGQ2IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3NjA2Mjk1MDQsImNzcmYiOiI3NGM0NzBjYy00NTQyLTRhOTMtYjYxZi01MmI0YmM0OTI1NDgiLCJleHAiOjE3NjA3MTU5MDR9.-vFQ0HBcfIm-yioaIRygQ_aNykmojME5fmSdleV_9x4";
-                        
-                        function copyCode() {{
-                            navigator.clipboard.writeText(authCode).then(function() {{
-                                document.getElementById('result').innerHTML = '<div style="color: #28a745; padding: 10px; background: #d4edda; border-radius: 5px;">✅ Authorization code copied to clipboard!</div>';
-                            }});
-                        }}
-                        
-                        async function completeSetup() {{
-                            try {{
-                                document.getElementById('result').innerHTML = '<div style="color: #007bff; padding: 10px; background: #d1ecf1; border-radius: 5px;">🔄 Completing OAuth2 setup...</div>';
-                                
-                                const response = await fetch('/api/admin/gmail-callback', {{
-                                    method: 'POST',
-                                    headers: {{
-                                        'Content-Type': 'application/json',
-                                        'Authorization': 'Bearer ' + jwtToken
-                                    }},
-                                    body: JSON.stringify({{ code: authCode }})
-                                }});
-                                
-                                const result = await response.json();
-                                
-                                if (result.success) {{
-                                    document.getElementById('result').innerHTML = '<div style="color: #28a745; padding: 15px; background: #d4edda; border-radius: 5px;"><h3>🎉 OAuth2 Setup Complete!</h3><p>' + result.message + '</p><p><strong>Email:</strong> ' + (result.email || 'Configured') + '</p></div>';
-                                }} else {{
-                                    document.getElementById('result').innerHTML = '<div style="color: #dc3545; padding: 15px; background: #f8d7da; border-radius: 5px;"><h3>❌ Setup Failed</h3><p>' + (result.error || 'Unknown error') + '</p></div>';
-                                }}
-                            }} catch (error) {{
-                                document.getElementById('result').innerHTML = '<div style="color: #dc3545; padding: 15px; background: #f8d7da; border-radius: 5px;"><h3>❌ Network Error</h3><p>Make sure the backend server is running on localhost:5000</p></div>';
-                            }}
-                        }}
-                    </script>
-                </div>
-            </body>
-            </html>
-            """
-        else:
-            return """
-            <html>
-            <head><title>OAuth2 Callback</title></head>
-            <body style="font-family: Arial; padding: 40px; background: #f5f5f5;">
-                <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto;">
-                    <h1 style="color: #dc3545;">❌ No Authorization Code</h1>
-                    <p>No authorization code was provided in the callback.</p>
-                    <p>Please try the OAuth2 authorization process again.</p>
-                    <a href="http://localhost:9000" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Back to OAuth2 Setup</a>
-                </div>
-            </body>
-            </html>
-            """, 400
-            
-    except Exception as e:
-        print(f"[ERROR] OAuth redirect handler error: {e}")
-        return f"""
-        <html>
-        <head><title>OAuth2 Error</title></head>
-        <body style="font-family: Arial; padding: 40px; background: #f5f5f5;">
-            <div style="background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto;">
-                <h1 style="color: #dc3545;">❌ OAuth2 Handler Error</h1>
-                <p><strong>Error:</strong> {str(e)}</p>
-                <a href="http://localhost:9000" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Back to OAuth2 Setup</a>
-            </div>
-        </body>
-        </html>
-        """, 500
-
-@app.route('/api/admin/gmail-status', methods=['GET'])
-@auth_required
-def gmail_status(current_user_id):
-    """Get Gmail OAuth2 service status"""
-    try:
-        user = User.query.get(current_user_id)
-        
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
-        
-        status = oauth2_email_service.get_status()
-        
-        return jsonify({
-            'success': True,
-            'oauth2_status': status,
-            'recommendations': [
-                'Use OAuth2 for better security' if not status['is_configured'] else 'OAuth2 is configured',
-                'Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env' if not status['client_id_configured'] else 'OAuth2 credentials configured',
-                'Authenticate with /api/admin/gmail-auth' if not status['credentials_valid'] else 'OAuth2 authenticated'
-            ]
-        })
-        
-    except Exception as e:
-        print(f"[ERROR] Gmail status endpoint error: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+# OAuth2 status endpoint removed - using SMTP email service only
 
 @app.route('/api/admin/reset-health', methods=['POST'])
 @auth_required
@@ -632,6 +392,73 @@ def get_profile(current_user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/auth/profile/skill-level', methods=['PUT'])
+@auth_required
+def update_skill_level(current_user_id):
+    """Update user's skill level based on adaptive learning performance"""
+    try:
+        data = request.get_json()
+        if not data or 'skill_level' not in data:
+            return jsonify({'error': 'Skill level is required'}), 400
+        
+        skill_level = data['skill_level']
+        valid_levels = ['Beginner', 'Intermediate', 'Advanced']
+        
+        if skill_level not in valid_levels:
+            return jsonify({'error': f'Invalid skill level. Must be one of: {", ".join(valid_levels)}'}), 400
+        
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        old_level = user.skill_level
+        user.skill_level = skill_level
+        user.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        print(f"📊 User {user.username} skill level updated: {old_level} → {skill_level}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Skill level updated from {old_level} to {skill_level}',
+            'old_skill_level': old_level,
+            'new_skill_level': skill_level,
+            'updated_at': user.updated_at.isoformat()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/adaptive/skill-level-recommendation', methods=['GET'])
+@auth_required
+def get_skill_level_recommendation(current_user_id):
+    """Get recommendation for skill level update based on performance"""
+    try:
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        user_id_str = str(current_user_id)
+        
+        # Check if user has adaptive performance history
+        if user_id_str not in question_generator.adaptive_engine.user_performance_history:
+            return jsonify({
+                'should_update': False,
+                'reason': 'no_adaptive_history',
+                'message': 'Complete more quizzes to receive skill level recommendations',
+                'current_skill_level': user.skill_level
+            }), 200
+        
+        # Get recommendation from adaptive engine
+        recommendation = question_generator.adaptive_engine.should_update_skill_level(user_id_str)
+        recommendation['current_skill_level'] = user.skill_level
+        
+        return jsonify(recommendation), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/auth/test', methods=['GET'])
 @auth_required
 def test_auth(current_user_id):
@@ -695,37 +522,23 @@ def forgot_password():
             frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
             reset_url = f"{frontend_url}/reset-password"
             
-            # Try OAuth2 first (more secure), then fallback to SMTP
-            email_result = None
-            email_method = "unknown"
-            
-            if oauth2_email_service.is_configured:
-                print(f"📧 Attempting OAuth2 email to {user.email}")
-                email_method = "OAuth2"
-                email_result = send_password_reset_email_oauth(
-                    user_email=user.email,
-                    user_name=user.full_name,
-                    reset_token=reset_token,
-                    reset_url=reset_url
-                )
-            else:
-                print(f"📧 OAuth2 not configured, using SMTP for {user.email}")
-                email_method = "SMTP"
-                email_result = send_password_reset_email(
-                    user_email=user.email,
-                    user_name=user.full_name,
-                    reset_token=reset_token,
-                    reset_url=reset_url
-                )
+            # Use SMTP email service
+            print(f"📧 Sending password reset email to {user.email}")
+            email_result = send_password_reset_email(
+                user_email=user.email,
+                user_name=user.full_name,
+                reset_token=reset_token,
+                reset_url=reset_url
+            )
             
             if email_result and email_result['success']:
-                print(f"📧 Password reset email sent via {email_method} to {user.email}")
+                print(f"📧 Password reset email sent via SMTP to {user.email}")
                 return jsonify({
                     'success': True,
                     'message': 'Password reset link sent to your email address',
                     'user_exists': True,
                     'email_sent': True,
-                    'email_method': email_method
+                    'email_method': 'SMTP'
                 }), 200
             else:
                 # Email failed but token was created - log error but don't expose to user
@@ -1201,11 +1014,13 @@ def submit_answer(current_user_id, quiz_id):
         if is_correct:
             quiz_session.correct_answers += 1
         
+        # Calculate score after each answer to show real-time progress
+        quiz_session.calculate_score()
+        
         # Check if quiz is completed
         if quiz_session.completed_questions >= quiz_session.total_questions:
             quiz_session.status = 'completed'
             quiz_session.completed_at = datetime.utcnow()
-            quiz_session.calculate_score()
         
         db.session.commit()
         
@@ -1352,6 +1167,10 @@ def get_quiz_results(current_user_id, quiz_id):
         quiz_session = QuizSession.query.filter_by(id=quiz_id, user_id=current_user_id).first()
         if not quiz_session:
             return jsonify({'error': 'Quiz session not found'}), 404
+        
+        # Recalculate score to ensure it's up to date
+        quiz_session.calculate_score()
+        db.session.commit()
         
         # Get all questions with answers
         questions = Question.query.filter_by(quiz_session_id=quiz_id).all()
@@ -1829,6 +1648,250 @@ def handle_internal_error(error):
         'error_code': 'INTERNAL_ERROR',
         'timestamp': datetime.now().isoformat()
     }), 500
+
+# ==================== ADMIN & MODERATION ENDPOINTS ====================
+
+@app.route('/api/admin/stats', methods=['GET'])
+@auth_required
+def get_admin_stats(current_user_id):
+    """Get admin dashboard statistics"""
+    try:
+        from models import FlaggedQuestion
+        
+        # In production, add admin role check here
+        total_users = User.query.count()
+        total_quizzes = QuizSession.query.count()
+        total_questions = Question.query.count()
+        
+        # Get flagged questions count
+        flagged_count = FlaggedQuestion.query.filter_by(status='pending').count()
+        
+        # Active users today
+        today = datetime.utcnow().date()
+        active_today = QuizSession.query.filter(
+            db.func.date(QuizSession.started_at) == today
+        ).distinct(QuizSession.user_id).count()
+        
+        # Average quiz score
+        completed_quizzes = QuizSession.query.filter_by(status='completed').all()
+        avg_score = sum([q.score_percentage for q in completed_quizzes]) / len(completed_quizzes) if completed_quizzes else 0
+        
+        return jsonify({
+            'total_users': total_users,
+            'total_quizzes': total_quizzes,
+            'total_questions': total_questions,
+            'flagged_questions': flagged_count,
+            'active_users_today': active_today,
+            'avg_quiz_score': avg_score
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users', methods=['GET'])
+@auth_required
+def get_admin_users(current_user_id):
+    """Get all users for admin dashboard"""
+    try:
+        users = User.query.all()
+        users_data = []
+        
+        for user in users:
+            user_dict = user.to_dict()
+            user_dict['quiz_count'] = len(user.quiz_sessions)
+            users_data.append(user_dict)
+        
+        return jsonify({'users': users_data}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/<int:user_id>/skill-level', methods=['PUT'])
+@auth_required
+def admin_update_user_skill(current_user_id, user_id):
+    """Admin endpoint to update user skill level"""
+    try:
+        data = request.get_json()
+        skill_level = data.get('skill_level')
+        
+        if skill_level not in ['Beginner', 'Intermediate', 'Advanced']:
+            return jsonify({'error': 'Invalid skill level'}), 400
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        user.skill_level = skill_level
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'User {user.username} updated to {skill_level}'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/flagged-questions', methods=['GET'])
+@auth_required
+def get_flagged_questions(current_user_id):
+    """Get all flagged questions for moderation"""
+    try:
+        from models import FlaggedQuestion
+        flagged = FlaggedQuestion.query.filter_by(status='pending').all()
+        return jsonify({
+            'flagged_questions': [f.to_dict() for f in flagged]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/resolve-flag/<int:question_id>', methods=['POST'])
+@auth_required
+def resolve_flag(current_user_id, question_id):
+    """Resolve all flags for a question"""
+    try:
+        from models import FlaggedQuestion
+        flags = FlaggedQuestion.query.filter_by(question_id=question_id, status='pending').all()
+        
+        for flag in flags:
+            flag.status = 'resolved'
+            flag.resolved_at = datetime.utcnow()
+            flag.resolved_by_user_id = current_user_id
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Resolved {len(flags)} flags for question {question_id}'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/question/<int:question_id>', methods=['DELETE'])
+@auth_required
+def admin_delete_question(current_user_id, question_id):
+    """Admin delete a question"""
+    try:
+        question = Question.query.get(question_id)
+        if not question:
+            return jsonify({'error': 'Question not found'}), 404
+        
+        db.session.delete(question)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Question deleted successfully'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/feedback', methods=['GET'])
+@auth_required
+def get_admin_feedback(current_user_id):
+    """Get all user feedback"""
+    try:
+        from models import QuestionFeedback
+        feedbacks = QuestionFeedback.query.order_by(QuestionFeedback.created_at.desc()).limit(100).all()
+        return jsonify({
+            'feedbacks': [f.to_dict() for f in feedbacks]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== FEEDBACK & FLAGGING ENDPOINTS ====================
+
+@app.route('/api/feedback/question/<int:question_id>', methods=['POST'])
+@auth_required
+def submit_question_feedback(current_user_id, question_id):
+    """Submit feedback for a question"""
+    try:
+        from models import QuestionFeedback
+        data = request.get_json()
+        feedback_text = data.get('feedback')
+        rating = data.get('rating', 3)
+        
+        if not feedback_text:
+            return jsonify({'error': 'Feedback text is required'}), 400
+        
+        if not (1 <= rating <= 5):
+            return jsonify({'error': 'Rating must be between 1 and 5'}), 400
+        
+        feedback = QuestionFeedback(
+            question_id=question_id,
+            user_id=current_user_id,
+            feedback_text=feedback_text,
+            rating=rating
+        )
+        
+        db.session.add(feedback)
+        db.session.commit()
+        
+        print(f"📝 Feedback saved from user {current_user_id} on question {question_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Thank you for your feedback!',
+            'feedback_id': feedback.id
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/flag/question/<int:question_id>', methods=['POST'])
+@auth_required
+def flag_question(current_user_id, question_id):
+    """Flag a question for review"""
+    try:
+        from models import FlaggedQuestion
+        data = request.get_json()
+        reason = data.get('reason', 'No reason provided')
+        
+        question = Question.query.get(question_id)
+        if not question:
+            return jsonify({'error': 'Question not found'}), 404
+        
+        # Check if user already flagged this question
+        existing_flag = FlaggedQuestion.query.filter_by(
+            question_id=question_id,
+            flagged_by_user_id=current_user_id
+        ).first()
+        
+        if existing_flag:
+            return jsonify({
+                'success': False,
+                'message': 'You have already flagged this question'
+            }), 400
+        
+        flag = FlaggedQuestion(
+            question_id=question_id,
+            flagged_by_user_id=current_user_id,
+            reason=reason,
+            status='pending'
+        )
+        
+        db.session.add(flag)
+        db.session.commit()
+        
+        print(f"🚩 Question {question_id} flagged by user {current_user_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Question flagged for review. Thank you for helping improve our content!',
+            'flag_id': flag.id
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     print("🚀 Starting Smart Quizzer API...")

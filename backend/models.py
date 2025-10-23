@@ -26,6 +26,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(128), nullable=False)
     full_name = db.Column(db.String(100), nullable=False)
     skill_level = db.Column(db.String(20), nullable=False, default='Beginner')  # Beginner, Intermediate, Advanced
+    role = db.Column(db.String(20), nullable=False, default='user')  # user or admin
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -47,6 +48,7 @@ class User(db.Model):
             'email': self.email,
             'full_name': self.full_name,
             'skill_level': self.skill_level,
+            'role': self.role,
             'created_at': self.created_at.isoformat(),
             'quiz_count': len(self.quiz_sessions)
         }
@@ -290,4 +292,67 @@ class PasswordResetToken(db.Model):
             'expires_at': self.expires_at.isoformat(),
             'used': self.used,
             'used_at': self.used_at.isoformat() if self.used_at else None
+        }
+
+class QuestionFeedback(db.Model):
+    __tablename__ = 'question_feedback'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    feedback_text = db.Column(db.Text, nullable=False)
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 stars
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    question = db.relationship('Question', backref='feedbacks')
+    user = db.relationship('User', backref='question_feedbacks')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'question_id': self.question_id,
+            'user_id': self.user_id,
+            'username': self.user.username if self.user else 'Unknown',
+            'feedback_text': self.feedback_text,
+            'rating': self.rating,
+            'created_at': self.created_at.isoformat()
+        }
+
+class FlaggedQuestion(db.Model):
+    __tablename__ = 'flagged_questions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
+    flagged_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    reason = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')  # pending, reviewed, resolved
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+    resolved_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    
+    # Relationships
+    question = db.relationship('Question', backref='flags')
+    flagged_by = db.relationship('User', foreign_keys=[flagged_by_user_id], backref='flagged_questions')
+    resolved_by = db.relationship('User', foreign_keys=[resolved_by_user_id], backref='resolved_flags')
+    
+    def to_dict(self):
+        # Count total flags for this question
+        total_flags = FlaggedQuestion.query.filter_by(question_id=self.question_id).count()
+        
+        # Get all users who flagged this question
+        all_flags = FlaggedQuestion.query.filter_by(question_id=self.question_id).all()
+        flagged_by_users = [flag.flagged_by.username for flag in all_flags if flag.flagged_by]
+        
+        return {
+            'id': self.id,
+            'question_id': self.question_id,
+            'question_text': self.question.question_text if self.question else 'Unknown',
+            'question_type': self.question.question_type if self.question else 'Unknown',
+            'flag_reason': self.reason,
+            'flag_count': total_flags,
+            'flagged_by': flagged_by_users,
+            'status': self.status,
+            'created_at': self.created_at.isoformat(),
+            'resolved_at': self.resolved_at.isoformat() if self.resolved_at else None
         }

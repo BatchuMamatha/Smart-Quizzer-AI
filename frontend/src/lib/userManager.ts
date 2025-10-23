@@ -57,4 +57,8 @@ export class UserManager {
   public getToken(): string | null {
     return localStorage.getItem('access_token');
   }
+
+  public isAdmin(): boolean {
+    return this.currentUser !== null && this.currentUser.role === 'admin';
+  }
 }

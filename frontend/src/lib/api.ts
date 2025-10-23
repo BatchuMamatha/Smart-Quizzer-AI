@@ -39,6 +39,7 @@ export interface User {
   email: string;
   full_name: string;
   skill_level: 'Beginner' | 'Intermediate' | 'Advanced';
+  role: 'user' | 'admin';
   created_at: string;
   quiz_count?: number;
   total_quizzes?: number;
@@ -228,6 +229,16 @@ export const quizAPI = {
 
   getAnalytics: async () => {
     const response = await api.get('/quiz/analytics');
+    return response.data;
+  },
+
+  flagQuestion: async (questionId: number, reason: string): Promise<{ message: string }> => {
+    const response = await api.post(`/flag/question/${questionId}`, { reason });
+    return response.data;
+  },
+
+  submitFeedback: async (questionId: number, feedback_text: string, rating: number): Promise<{ message: string }> => {
+    const response = await api.post(`/feedback/question/${questionId}`, { feedback_text, rating });
     return response.data;
   },
 };

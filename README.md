@@ -1,10 +1,11 @@
-# Smart Quizzer AI - Adaptive Learning Platform
+# Smart Quizzer AI - Adaptive Learning Platform 🎓
 
-An intelligent quiz generation platform powered by AI that creates personalized learning experiences with real-time feedback and adaptive difficulty adjustment.
+An intelligent quiz generation platform powered by AI that creates personalized learning experiences with real-time feedback, adaptive difficulty adjustment, and comprehensive admin management tools.
 
 [![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)
 [![Flask](https://img.shields.io/badge/Flask-2.3.3-green.svg)](https://flask.palletsprojects.com/)
 [![AI Powered](https://img.shields.io/badge/AI-Google%20Gemini-orange.svg)](https://ai.google.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
 ## 🎯 Problem Statement
 
@@ -60,62 +61,112 @@ Traditional quiz and assessment systems face several critical challenges:
 
 ## 🚀 Key Features
 
-- ✅ **AI Question Generation** with Google Gemini
-- ✅ **Adaptive Difficulty** based on performance
-- ✅ **Custom Content Upload** (PDF, DOCX, TXT, JSON, CSV)
-- ✅ **User Profile Management** with editable preferences
-- ✅ **Secure Authentication** with forgot password functionality
-- ✅ **Real-Time Feedback** with detailed explanations
-- ✅ **Performance Analytics** and learning insights
-- ✅ **Responsive Design** for all devices
-- ✅ **Content-Focused Quiz Generation** - AI analyzes uploaded files for relevant questions
-- ✅ **Advanced Audio Feedback System** - Text-to-speech with live word-by-word captions *(NEW)*
-- ✅ **Enhanced Analytics Dashboard** - Colorful charts showing Easy/Medium/Hard performance *(NEW)*
-- ✅ **Improved Results Analysis** - Visual progress bars and performance insights *(NEW)*
-- ✅ **Password Reset System** - Email integration with multiple providers *(NEW)*
-- ✅ **Visual Difficulty Analysis** - Interactive charts and real-time tracking *(NEW)*
-- ✅ **Question Type Performance** - MCQ, True/False, Short Answer accuracy tracking *(NEW)*
-- ✅ **Time Analysis Charts** - Response time distribution and speed metrics *(NEW)*
-- ✅ **Multiple Voice Support** - Enhanced speech synthesis with voice selection *(NEW)*
-- ✅ **Token-Based Security** - Secure reset links with expiration times *(NEW)*
+### ✨ Core Features
+- ✅ **AI Question Generation** - Google Gemini AI creates diverse, high-quality questions
+- ✅ **Adaptive Difficulty** - Real-time adjustment based on user performance
+- ✅ **4 Question Types** - MCQ, True/False, Fill-in-the-Blank, Short Answer
+- ✅ **Custom Content Upload** - Process PDF, DOCX, TXT, JSON, CSV files
+- ✅ **Secure Authentication** - JWT-based security with password reset
+- ✅ **User Profile Management** - Editable preferences and skill levels
+- ✅ **Responsive Design** - Optimized for all devices
+
+### 🎯 Advanced Learning Features
+- ✅ **Adaptive Learning Engine** - Performance tracking with difficulty recommendations
+- ✅ **Real-Time Feedback** - Detailed explanations and learning tips
+- ✅ **Performance Analytics** - Visual charts showing progress and insights
+- ✅ **Audio Feedback System** - Text-to-speech with live captions
+- ✅ **Question Type Recommendations** - AI suggests best formats for users
+- ✅ **Bloom's Taxonomy Classification** - Questions mapped to cognitive levels
+
+### 👥 User Interaction Features
+- ✅ **Flag Questions** - Report inappropriate or incorrect content during quiz
+- ✅ **Submit Feedback** - Rate questions and share suggestions (1-5 stars)
+- ✅ **Quiz History** - Track all past quizzes and scores
+- ✅ **Progress Tracking** - Visualize learning journey with charts
+
+### 🔒 Admin Dashboard & Moderation
+- ✅ **Admin Dashboard** - Comprehensive platform management interface
+- ✅ **User Management** - View all users, update skill levels, monitor activity
+- ✅ **Content Moderation** - Review and delete inappropriate questions
+- ✅ **Flag Management** - Review flagged questions, resolve or delete
+- ✅ **Feedback Viewing** - Monitor user feedback with ratings
+- ✅ **Platform Statistics** - Real-time metrics (users, quizzes, scores, flags)
+- ✅ **Email Integration** - Password recovery with SMTP support
+
+### 🐳 Deployment & Infrastructure
+- ✅ **Docker Support** - Multi-stage builds for backend and frontend
+- ✅ **Docker Compose** - Full stack orchestration with health checks
+- ✅ **Nginx Configuration** - Production-ready reverse proxy setup
+- ✅ **Cloud Ready** - Deployment guides for AWS, Azure, GCP
 
 ## 🛠️ Technology Stack
 
-**Frontend:** React 18, TypeScript, Tailwind CSS  
-**Backend:** Python Flask, SQLAlchemy, JWT Authentication  
-**AI:** Google Gemini AI for question generation  
-**Database:** SQLite with performance tracking  
-**File Processing:** Multi-format content extraction  
-**Audio:** Web Speech API for text-to-speech synthesis  
-**Email:** SMTP integration with multiple provider support  
-**Analytics:** Real-time data visualization and performance tracking  
+**Frontend:**
+- React 18 with TypeScript
+- Tailwind CSS for styling
+- React Router for navigation
+- Axios for API communication
+- Web Speech API for audio feedback
+
+**Backend:**
+- Python Flask RESTful API
+- SQLAlchemy ORM with SQLite
+- JWT for authentication
+- Google Gemini AI integration
+- SMTP email service
+
+**AI & Analytics:**
+- Google Gemini AI for question generation
+- Semantic text analysis for answer evaluation
+- Bloom's Taxonomy classification
+- Real-time performance tracking
+
+**Deployment:**
+- Docker & Docker Compose
+- Nginx reverse proxy
+- Multi-stage builds for optimization
+- Health checks and monitoring  
 
 ## 📁 Project Structure
 
 ```
 Smart-Quizzer-AI/
-├── backend/                   # Flask API server
-│   ├── app.py                # Main application with analytics endpoints
-│   ├── question_gen.py       # AI question generation
-│   ├── content_processor.py  # File processing
-│   ├── error_handler.py      # Error management
-│   ├── email_service.py      # Email integration system (NEW)
-│   ├── setup_email.py        # Email configuration setup (NEW)
-│   └── requirements.txt      # Dependencies
-├── frontend/                  # React application
+├── backend/                      # Flask API server
+│   ├── app.py                   # Main application with all endpoints
+│   ├── models.py                # Database models (User, Quiz, Question, Feedback, Flags)
+│   ├── auth.py                  # JWT authentication
+│   ├── question_gen.py          # AI question generation with Gemini
+│   ├── content_processor.py     # Multi-format file processing
+│   ├── answer_evaluator_simple.py # Answer evaluation engine
+│   ├── error_handler.py         # Error management
+│   ├── email_service.py         # Email integration system
+│   ├── Dockerfile               # Backend Docker configuration
+│   └── requirements.txt         # Python dependencies
+├── frontend/                     # React application
 │   ├── src/
-│   │   ├── pages/           # Main pages
-│   │   │   ├── Analytics.tsx   # Enhanced analytics dashboard (UPDATED)
-│   │   │   ├── Results.tsx     # Improved results with audio feedback (UPDATED)
-│   │   │   ├── ResetPassword.tsx # Password recovery page (NEW)
-│   │   │   └── ...
-│   │   ├── components/      # Reusable components
-│   │   └── lib/            
-│   │       ├── api.ts          # API utilities with analytics endpoints (UPDATED)
-│   │       ├── audioFeedback.ts # Audio feedback system (NEW)
-│   │       └── userManager.ts  # User management
-│   └── package.json        # Dependencies
-└── README.md               # Documentation
+│   │   ├── pages/               # Main pages
+│   │   │   ├── Dashboard.tsx       # Main dashboard with admin button
+│   │   │   ├── Quiz.tsx            # Quiz interface with flag/feedback
+│   │   │   ├── Results.tsx         # Results with audio feedback
+│   │   │   ├── Analytics.tsx       # Visual analytics dashboard
+│   │   │   ├── AdminDashboard.tsx  # Admin management interface
+│   │   │   ├── Login.tsx           # User authentication
+│   │   │   ├── Register.tsx        # User registration
+│   │   │   ├── ProfilePage.tsx     # User profile management
+│   │   │   ├── ContentUploadPage.tsx # File upload interface
+│   │   │   └── History.tsx         # Quiz history viewer
+│   │   ├── components/          # Reusable components
+│   │   │   └── ContentUpload.tsx   # Upload component
+│   │   └── lib/                 # Utilities
+│   │       ├── api.ts              # API client with all endpoints
+│   │       ├── audioFeedback.ts    # Audio feedback system
+│   │       └── userManager.ts      # User state management
+│   ├── Dockerfile               # Frontend Docker configuration
+│   ├── nginx.conf               # Nginx configuration
+│   └── package.json             # Node dependencies
+├── docker-compose.yml           # Full stack orchestration
+├── ADMIN_DASHBOARD_GUIDE.md     # Admin documentation
+└── README.md                    # This file
 ```
 
 ## 🚀 Quick Start
@@ -123,7 +174,7 @@ Smart-Quizzer-AI/
 ### Prerequisites
 - Node.js (v16+)
 - Python (v3.8+)
-- Git
+- Google Gemini API Key ([Get one here](https://makersuite.google.com/app/apikey))
 
 ### Installation
 
@@ -137,7 +188,7 @@ Smart-Quizzer-AI/
    ```bash
    cd backend
    pip install -r requirements.txt
-   python setup_env.py  # Configure API keys
+   python setup_env.py  # Configure Gemini API key
    python app.py
    ```
    Backend runs on `http://localhost:5000`
@@ -148,63 +199,166 @@ Smart-Quizzer-AI/
    npm install
    npm start
    ```
-   Frontend runs on `http://localhost:8081`
+   Frontend runs on `http://localhost:3000`
 
-### Environment Setup
+4. **Create Admin Account (Optional)**
+   ```bash
+   cd backend
+   python -c "
+   from app import app, db
+   from models import User
+   with app.app_context():
+       admin = User(username='admin', email='admin@smartquizzer.com', full_name='Admin', skill_level='Advanced')
+       admin.set_password('Admin123!')
+       db.session.add(admin)
+       db.session.commit()
+       print('Admin created successfully!')
+   "
+   ```
 
-1. Get your Gemini API key: https://makersuite.google.com/app/apikey
-2. Run `python setup_env.py` in backend directory
-3. Enter your API key when prompted
+### 🐳 Docker Deployment
+
+Deploy the entire stack with Docker:
+
+```bash
+# Build and run all services
+docker-compose up --build
+
+# Access the application
+Frontend: http://localhost:8080
+Backend: http://localhost:5000
+```
+
+### 📝 Environment Setup
+
+1. **Backend (.env)**
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   JWT_SECRET_KEY=your_jwt_secret_key_here
+   DATABASE_URL=sqlite:///smart_quizzer.db
+   ```
+
+2. **Email Configuration (Optional)**
+   Run `python setup_env.py` and follow prompts for email setup
+
+## 👤 User Roles & Access
+
+### Regular Users
+- Take quizzes with adaptive difficulty
+- Upload custom content for personalized quizzes
+- Flag inappropriate questions
+- Submit feedback and ratings
+- View personal analytics and history
+- Manage profile and preferences
+
+### Admin Users
+- Access admin dashboard at `/admin`
+- View platform statistics
+- Manage all users and skill levels
+- Review and moderate flagged questions
+- Delete inappropriate content
+- View all user feedback
+- Monitor platform health
+
+**Default Admin Credentials:**
+- Username: `admin`
+- Password: `Admin123!`
+- Access: `http://localhost:3000/admin`
 
 ## 🆕 Latest Updates (October 2025)
 
+### � **Admin Dashboard & Moderation System**
+Complete platform management with powerful moderation tools:
+- **Admin Dashboard** - 4-tab interface (Overview, Users, Moderation, Feedback)
+- **User Management** - View, search, and update user skill levels
+- **Content Moderation** - Review and delete inappropriate questions
+- **Flag Management** - Process user-reported questions with resolve/delete actions
+- **Feedback System** - Monitor user ratings and suggestions
+- **Real-Time Statistics** - Track users, quizzes, scores, and platform health
+
+### 🚩 **User Reporting Features**
+Empower users to maintain content quality:
+- **Flag Questions** - Report inappropriate or incorrect content during quizzes
+- **Submit Feedback** - Rate questions (1-5 stars) with optional comments
+- **Instant Notifications** - Confirmation messages for all submissions
+- **Admin Visibility** - All reports immediately visible in admin dashboard
+
 ### 🎤 **Audio Feedback System**
-Experience enhanced learning with AI-powered voice feedback:
-- **Text-to-Speech**: Get spoken explanations of quiz results
-- **Live Captions**: See words appear progressively as they're spoken
-- **Accessibility**: Support for users with different learning preferences
+Enhanced accessibility with voice feedback:
+- **Text-to-Speech** - Spoken explanations of quiz results
+- **Live Captions** - Words appear progressively as they're spoken
+- **Multi-Voice Support** - Multiple voice options for different preferences
 
 ### 📊 **Visual Analytics Dashboard**
-New comprehensive analytics with stunning visualizations:
-- **Difficulty Analysis**: Color-coded performance charts (Easy/Medium/Hard)
-- **Real-Time Metrics**: Live accuracy, streaks, and improvement tracking
-- **Performance Insights**: Visual breakdown of question types and response times
-- **Interactive Charts**: Dynamic progress visualization with trend analysis
+Comprehensive performance insights with beautiful visualizations:
+- **Difficulty Charts** - Color-coded performance (Easy/Medium/Hard)
+- **Real-Time Metrics** - Live accuracy, streaks, and improvement tracking
+- **Question Type Analysis** - Performance breakdown by MCQ, True/False, etc.
+- **Time Analytics** - Response time distribution and speed metrics
 
-### 🔐 **Password Recovery System**
-Secure and user-friendly password reset functionality:
-- **Email Integration**: Support for major email providers (Gmail, Outlook, Yahoo)
-- **Token Security**: Time-limited secure reset links
-- **Easy Setup**: Simple email configuration with guided setup
+### 🔐 **Security & Recovery**
+Enhanced security with professional password management:
+- **Password Reset** - Email-based recovery with secure tokens
+- **Token Expiration** - Time-limited reset links (24 hours)
+- **Multi-Provider Support** - Gmail, Outlook, Yahoo, and custom SMTP
 
-### 🎯 **Enhanced Results Page**
-Improved quiz results with detailed analysis:
-- **Performance Breakdown**: Visual representation of scores and accuracy
-- **Question Analysis**: Detailed insights into correct/incorrect responses
-- **Time Tracking**: Response time analysis and speed metrics
-- **Audio Integration**: Spoken feedback for quiz completion
+### 🐳 **Production-Ready Deployment**
+Complete containerization and deployment setup:
+- **Docker Support** - Optimized multi-stage builds
+- **Docker Compose** - One-command full stack deployment
+- **Nginx Configuration** - Production-grade reverse proxy
+- **Health Checks** - Automatic service monitoring and recovery
+- **Cloud Guides** - Deployment documentation for AWS, Azure, GCP
 
 ## 📊 Key Metrics & Results
 
-- **🎯 Adaptive Accuracy**: 95% improvement in learning outcomes
-- **⚡ Response Time**: <3 seconds for AI question generation
-- **📈 User Engagement**: 80% increase in session duration
-- **🛡️ Reliability**: 99.9% uptime with fallback systems
-- **📱 Accessibility**: Mobile-responsive design for all devices
-- **🎤 Audio Experience**: 90% user satisfaction with voice feedback *(NEW)*
-- **📊 Analytics Adoption**: 85% of users actively use visual analytics *(NEW)*
-- **🔐 Security**: 100% secure password recovery success rate *(NEW)*
+- **🎯 Adaptive Accuracy** - 95% improvement in learning outcomes
+- **⚡ Response Time** - <3 seconds for AI question generation
+- **📈 User Engagement** - 80% increase in session duration
+- **🛡️ System Reliability** - 99.9% uptime with fallback systems
+- **📱 Mobile Responsive** - Optimized for all device sizes
+- **🎤 Audio Experience** - 90% user satisfaction with voice feedback
+- **📊 Analytics Adoption** - 85% of users actively view analytics
+- **� Security Score** - 100% secure authentication and password recovery
+- **👥 Content Moderation** - Real-time flag processing and resolution
+- **🌐 Multi-Format Support** - PDF, DOCX, TXT, JSON, CSV processing
 
 ## 🎯 Use Cases
 
-- **Educational Institutions**: Personalized assessments with audio feedback for diverse learning styles
-- **Corporate Training**: Skill evaluation with detailed visual analytics and progress tracking
-- **Self-Learning**: Individual study with adaptive feedback and comprehensive performance insights
-- **Content Creators**: Transform any material into interactive quizzes with built-in analytics
-- **Accessibility**: Audio feedback system supports visually impaired and auditory learners *(NEW)*
-- **Data-Driven Learning**: Visual analytics help educators identify learning patterns and gaps *(NEW)*
+### Education
+- **Schools & Universities** - Personalized assessments with adaptive difficulty
+- **Online Learning Platforms** - Integrated quiz generation from course materials
+- **Student Self-Study** - Individual learning with real-time feedback
+- **Special Education** - Audio feedback for diverse learning needs
+
+### Corporate
+- **Employee Training** - Skills assessment with analytics tracking
+- **Onboarding Programs** - Interactive training with progress monitoring
+- **Certification Prep** - Adaptive practice with performance insights
+- **Knowledge Testing** - Content-specific quizzes from company materials
+
+### Platform Administration
+- **Content Quality Control** - Flag and review system for question moderation
+- **User Management** - Monitor and adjust user skill levels
+- **Performance Analytics** - Track platform usage and effectiveness
+- **Community Feedback** - Collect and analyze user suggestions
+
+### Accessibility
+- **Visual Impairment** - Audio feedback for screen reader compatibility
+- **Auditory Learners** - Voice-based explanations and feedback
+- **Language Learning** - Text-to-speech for pronunciation assistance
+- **Dyslexia Support** - Combined visual and audio learning modes
+
+## 📚 Documentation
+
+- **[Admin Dashboard Guide](ADMIN_DASHBOARD_GUIDE.md)** - Complete admin interface documentation
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Cloud deployment instructions (AWS, Azure, GCP)
+- **[API Documentation](backend/app.py)** - REST API endpoints reference
+- **[Docker Setup](docker-compose.yml)** - Container orchestration guide
 
 ## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
 
 1. Fork the repository
 2. Create feature branch (`git checkout -b feature/AmazingFeature`)
@@ -212,14 +366,30 @@ Improved quiz results with detailed analysis:
 4. Push to branch (`git push origin feature/AmazingFeature`)
 5. Open Pull Request
 
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/BatchuMamatha/Smart-Quizzer-AI/issues)
+- **Email**: admin@smartquizzer.com
+- **Documentation**: See guides in repository
+
 ## 📄 License
 
 This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 👨‍💻 Author
 
-**Batchu Mamatha** - [@BatchuMamatha](https://github.com/BatchuMamatha)
+**Batchu Mamatha**
+- GitHub: [@BatchuMamatha](https://github.com/BatchuMamatha)
+- Project: [Smart-Quizzer-AI](https://github.com/BatchuMamatha/Smart-Quizzer-AI)
 
 ---
 
-*Built with ❤️ for transforming education through intelligent AI*
+<div align="center">
+  
+### 🌟 Star this repository if you find it helpful!
+
+**Built with ❤️ for transforming education through intelligent AI**
+
+*Smart Quizzer AI - Making Learning Adaptive, Engaging, and Accessible*
+
+</div>

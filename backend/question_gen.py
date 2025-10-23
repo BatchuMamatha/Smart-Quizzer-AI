@@ -653,9 +653,89 @@ class AdaptiveQuizEngine:
         print(f"🎯 Next difficulty: {next_difficulty} (reason: {reason}, confidence: {confidence:.2f})")
         return adaptation_result
     
+    def should_update_skill_level(self, user_id: str) -> Dict[str, Any]:
+        """Determine if user's skill level should be updated based on sustained performance"""
+        if user_id not in self.user_performance_history:
+            return {'should_update': False, 'reason': 'insufficient_data'}
+        
+        profile = self.user_performance_history[user_id]
+        metrics = self.calculate_performance_metrics(user_id)
+        
+        # Require minimum number of questions for skill level change
+        min_questions_required = 20
+        total_questions = profile['session_stats']['total_questions']
+        
+        if total_questions < min_questions_required:
+            return {
+                'should_update': False, 
+                'reason': 'insufficient_questions',
+                'questions_completed': total_questions,
+                'questions_required': min_questions_required
+            }
+        
+        current_difficulty = profile['current_difficulty']
+        difficulty_mapping = {'easy': 'Beginner', 'medium': 'Intermediate', 'hard': 'Advanced'}
+        current_skill_level = difficulty_mapping[current_difficulty]
+        
+        # Check for consistent performance at higher difficulty
+        if current_difficulty == 'hard' and metrics['adjusted_accuracy'] >= 0.75:
+            # Already at Advanced, maintain it
+            return {
+                'should_update': True,
+                'recommended_skill_level': 'Advanced',
+                'reason': 'excellent_performance_at_advanced',
+                'confidence': metrics['confidence']
+            }
+        
+        # Check for promotion to next level
+        if (current_difficulty == 'easy' and metrics['adjusted_accuracy'] >= 0.80 and
+            metrics['confidence'] >= 0.7 and total_questions >= 15):
+            return {
+                'should_update': True,
+                'recommended_skill_level': 'Intermediate',
+                'reason': 'consistent_mastery_at_beginner',
+                'confidence': metrics['confidence']
+            }
+        
+        if (current_difficulty == 'medium' and metrics['adjusted_accuracy'] >= 0.75 and
+            metrics['confidence'] >= 0.7 and total_questions >= 20):
+            return {
+                'should_update': True,
+                'recommended_skill_level': 'Advanced',
+                'reason': 'consistent_mastery_at_intermediate',
+                'confidence': metrics['confidence']
+            }
+        
+        # Check for demotion (struggling significantly)
+        if (current_difficulty == 'hard' and metrics['adjusted_accuracy'] < 0.4 and
+            total_questions >= 15):
+            return {
+                'should_update': True,
+                'recommended_skill_level': 'Intermediate',
+                'reason': 'struggling_at_advanced',
+                'confidence': metrics['confidence']
+            }
+        
+        if (current_difficulty == 'medium' and metrics['adjusted_accuracy'] < 0.35 and
+            total_questions >= 15):
+            return {
+                'should_update': True,
+                'recommended_skill_level': 'Beginner',
+                'reason': 'struggling_at_intermediate',
+                'confidence': metrics['confidence']
+            }
+        
+        # No update needed
+        return {
+            'should_update': False,
+            'reason': 'performance_stable_at_current_level',
+            'current_skill_level': current_skill_level,
+            'accuracy': metrics['adjusted_accuracy']
+        }
+    
     def get_adaptive_question_recommendation(self, user_id: str, topic: str, 
                                            question_type: str, available_questions: List[Dict] = None) -> Dict[str, Any]:
-        """Comprehensive adaptive question recommendation"""
+        """Comprehensive adaptive question recommendation with question type analysis"""
         if user_id not in self.user_performance_history:
             self.initialize_user_profile(user_id)
         
@@ -665,8 +745,14 @@ class AdaptiveQuizEngine:
         # Get performance insights
         metrics = self.calculate_performance_metrics(user_id)
         
+        # Analyze performance by question type
+        question_type_performance = self._analyze_question_type_performance(user_id)
+        recommended_question_types = self._recommend_question_types(question_type_performance, metrics)
+        
         recommendation = {
             'recommended_difficulty': current_difficulty,
+            'recommended_question_types': recommended_question_types,
+            'question_type_performance': question_type_performance,
             'user_performance': metrics,
             'session_stats': profile['session_stats'],
             'adaptation_metadata': profile['adaptation_metadata'],
@@ -681,8 +767,92 @@ class AdaptiveQuizEngine:
         print(f"📋 Adaptive recommendation for {user_id}: {current_difficulty} difficulty")
         print(f"    Performance: {metrics['accuracy']:.2f} accuracy, {metrics['confidence']:.2f} confidence")
         print(f"    Trend: {recommendation['learning_insights']['learning_trend']}")
+        print(f"    Recommended question types: {', '.join(recommended_question_types[:3])}")
         
         return recommendation
+    
+    def _analyze_question_type_performance(self, user_id: str) -> Dict[str, Dict[str, float]]:
+        """Analyze user performance by question type"""
+        if user_id not in self.user_performance_history:
+            return {}
+        
+        history = list(self.user_performance_history[user_id]['performance_history'])
+        if not history:
+            return {}
+        
+        # Group by question type
+        type_stats = {}
+        for record in history:
+            q_type = record.get('metadata', {}).get('question_type', 'unknown')
+            if q_type not in type_stats:
+                type_stats[q_type] = {'total': 0, 'correct': 0, 'avg_time': []}
+            
+            type_stats[q_type]['total'] += 1
+            if record['correct']:
+                type_stats[q_type]['correct'] += 1
+            if record.get('response_time', 0) > 0:
+                type_stats[q_type]['avg_time'].append(record['response_time'])
+        
+        # Calculate metrics
+        performance = {}
+        for q_type, stats in type_stats.items():
+            accuracy = stats['correct'] / stats['total'] if stats['total'] > 0 else 0.0
+            avg_time = sum(stats['avg_time']) / len(stats['avg_time']) if stats['avg_time'] else 0.0
+            
+            performance[q_type] = {
+                'accuracy': accuracy,
+                'total_attempted': stats['total'],
+                'avg_response_time': avg_time,
+                'proficiency': 'high' if accuracy > 0.8 else 'medium' if accuracy > 0.5 else 'low'
+            }
+        
+        return performance
+    
+    def _recommend_question_types(self, type_performance: Dict[str, Dict], 
+                                  overall_metrics: Dict[str, float]) -> List[str]:
+        """Recommend question types based on user performance and learning needs"""
+        all_types = ['MCQ', 'True/False', 'Fill-in-the-blank', 'Short Answer']
+        
+        if not type_performance:
+            # New user - provide balanced mix
+            return ['MCQ', 'True/False', 'Fill-in-the-blank']
+        
+        # Strategy: Mix of strengthening weaknesses and reinforcing strengths
+        recommendations = []
+        
+        # Find weakest type for improvement (if any)
+        weak_types = [t for t, perf in type_performance.items() 
+                     if perf['accuracy'] < 0.6 and t in all_types]
+        
+        # Find strong types for confidence building
+        strong_types = [t for t, perf in type_performance.items() 
+                       if perf['accuracy'] > 0.7 and t in all_types]
+        
+        # Find underutilized types
+        attempted_counts = {t: perf['total_attempted'] for t, perf in type_performance.items()}
+        max_attempted = max(attempted_counts.values()) if attempted_counts else 0
+        underutilized = [t for t in all_types 
+                        if t not in type_performance or 
+                        type_performance.get(t, {}).get('total_attempted', 0) < max_attempted * 0.5]
+        
+        # Build recommendation list
+        # 1. Add one weak type for focused improvement
+        if weak_types:
+            recommendations.append(weak_types[0])
+        
+        # 2. Add underutilized types for exposure
+        recommendations.extend(underutilized[:2])
+        
+        # 3. Add strong type for confidence if struggling
+        if overall_metrics['accuracy'] < 0.6 and strong_types:
+            recommendations.append(strong_types[0])
+        
+        # 4. Fill remaining with balanced mix
+        remaining = [t for t in all_types if t not in recommendations]
+        recommendations.extend(remaining)
+        
+        # Return top 4 (all types)
+        return recommendations[:4]
 
 class GeminiQuestionGenerator:
     def __init__(self):
@@ -718,8 +888,6 @@ class GeminiQuestionGenerator:
             self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
         else:
             self.base_url = None
-        
-        self.base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
         
         # Service health monitoring
         self.service_health = {
@@ -864,6 +1032,80 @@ class GeminiQuestionGenerator:
         
         return False
     
+    def _parse_batch_response(self, response: str, skill_level: str, topic: str, expected_count: int) -> List[Dict]:
+        """Parse batch-generated questions from Gemini response - OPTIMIZED"""
+        questions = []
+        
+        try:
+            # Split by separator
+            question_blocks = response.split('---')
+            
+            for block in question_blocks:
+                block = block.strip()
+                if len(block) < 20:  # Skip empty blocks
+                    continue
+                
+                try:
+                    # Extract question details
+                    question_type = 'MCQ'
+                    question_text = ''
+                    options = []
+                    correct_answer = ''
+                    explanation = ''
+                    
+                    lines = block.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if line.startswith('Question Type:'):
+                            question_type = line.split(':', 1)[1].strip()
+                        elif line.startswith('Question:'):
+                            question_text = line.split(':', 1)[1].strip()
+                        elif line.startswith('Options:'):
+                            options_text = line.split(':', 1)[1].strip()
+                            # Parse options like "A) opt1, B) opt2, C) opt3, D) opt4"
+                            options = [opt.strip() for opt in options_text.split(',')]
+                        elif line.startswith('Answer:'):
+                            correct_answer = line.split(':', 1)[1].strip()
+                        elif line.startswith('Explanation:'):
+                            explanation = line.split(':', 1)[1].strip()
+                    
+                    # Validate minimum requirements
+                    if not question_text or not correct_answer:
+                        continue
+                    
+                    # Quick difficulty classification
+                    difficulty_analysis = self.difficulty_classifier.classify_difficulty(
+                        question_text, topic, skill_level
+                    )
+                    
+                    question = {
+                        'question_text': question_text,
+                        'question_type': question_type,
+                        'options': options if question_type == 'MCQ' else [],
+                        'correct_answer': correct_answer,
+                        'explanation': explanation or f"This tests understanding of {topic}.",
+                        'difficulty_level': skill_level,
+                        'classified_difficulty': difficulty_analysis['classified_difficulty'],
+                        'difficulty_confidence': difficulty_analysis['confidence'],
+                        'difficulty_metadata': difficulty_analysis['metadata'],
+                        'text_complexity': difficulty_analysis['text_metrics'],
+                        'cognitive_level': difficulty_analysis['blooms_analysis']['primary_level'],
+                        'semantic_complexity': difficulty_analysis['semantic_analysis']['primary_level']
+                    }
+                    
+                    questions.append(question)
+                    
+                except Exception as e:
+                    print(f"    ⚠️ Error parsing question block: {e}")
+                    continue
+            
+            print(f"  ✅ Parsed {len(questions)} questions from batch response")
+            return questions
+            
+        except Exception as e:
+            print(f"  ❌ Error parsing batch response: {e}")
+            return []
+    
     def _generate_fallback_questions(self, topic: str, skill_level: str, num_questions: int = 3) -> List[Dict]:
         """Generate fallback questions when AI service is unavailable"""
         print(f"🔄 Generating {num_questions} fallback questions for {topic} ({skill_level})")
@@ -917,8 +1159,8 @@ Explanation: This question tests fundamental understanding of {topic}."""
             print(f"Error getting previous questions: {e}")
             return []
     
-    def generate_with_gemini(self, prompt: str, max_retries: int = 3, timeout: int = 30) -> str:
-        """Enhanced Gemini API call with comprehensive error handling and fallback"""
+    def generate_with_gemini(self, prompt: str, max_retries: int = 2, timeout: int = 15) -> str:
+        """Enhanced Gemini API call with comprehensive error handling and fallback - OPTIMIZED"""
         # If no Gemini API key, use local generator if available
         if not self.api_key:
             if self.use_local_model and self.local_generator:
@@ -967,10 +1209,10 @@ Explanation: This question tests fundamental understanding of {topic}."""
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {
-                "temperature": 0.7,
+                "temperature": 0.9,  # Higher temperature for faster, more varied responses
                 "topK": 40,
                 "topP": 0.95,
-                "maxOutputTokens": 1000,
+                "maxOutputTokens": 800,  # Reduced for faster generation
                 "stopSequences": []
             },
             "safetySettings": [
@@ -1112,6 +1354,39 @@ Explanation: This question tests fundamental understanding of {topic}."""
                 retry_count=max_retries
             )
 
+    def generate_batch_with_gemini(self, topic: str, skill_level: str, num_questions: int, context: str) -> str:
+        """Generate multiple questions in a single API call for faster performance - OPTIMIZED"""
+        print(f"  ⚡ Using BATCH generation for {num_questions} questions (faster mode)")
+        
+        batch_prompt = f"""You are an expert educational content creator. Generate {num_questions} DIFFERENT quiz questions about {topic} at {skill_level} level.
+
+Context: {context}
+
+CRITICAL REQUIREMENTS:
+- Generate EXACTLY {num_questions} questions
+- Mix question types: MCQ, True/False, Fill-in-the-blank
+- Each question MUST be completely different
+- Vary difficulty within the {skill_level} level
+- Make questions clear and concise
+
+FORMAT EACH QUESTION AS:
+---
+Question Type: [MCQ/True/False/Fill-in-the-blank]
+Question: [Your question here]
+Options: [For MCQ only: A) option1, B) option2, C) option3, D) option4]
+Answer: [Correct answer]
+Explanation: [Brief explanation]
+---
+
+Generate all {num_questions} questions now:"""
+
+        try:
+            response = self.generate_with_gemini(batch_prompt, max_retries=1, timeout=20)
+            return response
+        except Exception as e:
+            print(f"  ⚠️ Batch generation failed: {e}, falling back to individual generation")
+            return None
+
     def generate_with_local_model(self, prompt: str, max_length: int = 256) -> str:
         """Generate text using a local Hugging Face text2text model (T5/BART)."""
         if not self.use_local_model or not self.local_generator:
@@ -1251,6 +1526,19 @@ Type: True/False
 Correct Answer: [True/False]
 Explanation: [detailed explanation of why the statement is true or false]
 """
+        elif question_type == 'Fill-in-the-blank':
+            prompt += """
+
+- Create a sentence with one KEY WORD or SHORT PHRASE removed
+- The blank should test understanding of an important concept
+- Replace the missing part with _____ (5 underscores)
+- Provide the exact word or phrase as the correct answer
+- Format your response as:
+Question: [sentence with _____ replacing the key word/phrase]
+Type: Fill-in-the-blank
+Correct Answer: [the exact word or phrase that fills the blank]
+Explanation: [why this answer is correct and concept importance]
+"""
         else:  # Short Answer
             prompt += """
 
@@ -1317,6 +1605,19 @@ Explanation: [what makes a good answer and why this topic is important]
                 options = ["True", "False"]
                 if correct_answer not in ["True", "False"]:
                     correct_answer = "True"  # Default fallback
+            
+            elif question_type == "Fill-in-the-blank":
+                # For FITB, options are empty - it's a text input question
+                options = []
+                if not correct_answer:
+                    correct_answer = "answer"  # Fallback
+                # Ensure question has a blank (_____)
+                if "_____" not in question_text:
+                    # Try to create a blank if missing
+                    words = question_text.split()
+                    if len(words) > 3:
+                        # Replace a key word (usually a noun or important term) with blank
+                        question_text = question_text.replace(correct_answer, "_____", 1) if correct_answer in question_text else question_text + " _____"
             
             else:  # Short Answer
                 options = []
@@ -1458,38 +1759,90 @@ Explanation: [what makes a good answer and why this topic is important]
         
         if is_custom_content:
             # Extract key information from custom content for fallback questions
-            content_words = context.split()
-            content_preview = ' '.join(content_words[:30])  # First 30 words
+            # Split content into sentences and extract meaningful phrases
+            sentences = [s.strip() for s in context.split('.') if len(s.strip()) > 20]
             
-            # Create content-specific questions based on the actual uploaded content
             if question_type == "MCQ":
-                return {
-                    'question_text': f"Based on the uploaded content, what is a key concept discussed in: '{content_preview}...'?",
-                    'question_type': 'MCQ',
-                    'options': [
-                        "A. The main topic as described in the content", 
-                        "B. Unrelated external concepts", 
-                        "C. General knowledge not from the content", 
-                        "D. Information not present in the uploaded material"
-                    ],
-                    'correct_answer': 'A',
-                    'explanation': f"This question is based on your uploaded content. The correct answer relates to the main concepts discussed in your material.",
-                    'difficulty_level': difficulty
-                }
-            elif question_type == "True/False":
-                # Create a statement based on the content
-                key_phrases = [phrase.strip() for phrase in context[:200].split('.') if len(phrase.strip()) > 10]
-                if key_phrases:
-                    statement = f"The uploaded content discusses: {key_phrases[0].strip()}."
+                # Extract first meaningful sentence for the question
+                if sentences:
+                    first_sentence = sentences[question_number % len(sentences)]
+                    # Create a question from the sentence
+                    question_text = f"Which of the following best describes the main idea: {first_sentence}?"
                 else:
-                    statement = f"The uploaded content contains information relevant to {difficulty}-level learning."
+                    question_text = "What is a key concept in this material?"
                 
                 return {
-                    'question_text': statement,
+                    'question_text': question_text,
+                    'question_type': 'MCQ',
+                    'options': [
+                        "A. The concept as directly stated in the material", 
+                        "B. An unrelated concept from a different field", 
+                        "C. A concept that contradicts the material", 
+                        "D. Information not covered in this material"
+                    ],
+                    'correct_answer': 'A',
+                    'explanation': f"This question tests comprehension of the key concepts presented in the material.",
+                    'difficulty_level': difficulty
+                }
+            
+            elif question_type == "True/False":
+                # Create a true/false statement from the content
+                if sentences:
+                    # Extract a key fact from a sentence
+                    selected_sentence = sentences[question_number % len(sentences)]
+                    # Create a statement directly from the content
+                    question_text = f"{selected_sentence}."
+                else:
+                    question_text = f"This material covers important foundational concepts."
+                
+                return {
+                    'question_text': question_text,
                     'question_type': 'True/False',
                     'options': ["True", "False"],
                     'correct_answer': 'True',
-                    'explanation': f"This statement is based on the content you uploaded. It accurately reflects information from your material.",
+                    'explanation': f"This statement is directly supported by the material provided.",
+                    'difficulty_level': difficulty
+                }
+            
+            elif question_type == "Fill-in-the-blank":
+                # Create a fill-in-the-blank from content
+                if sentences:
+                    selected_sentence = sentences[question_number % len(sentences)]
+                    words = selected_sentence.split()
+                    # Find a key term (longer words are often more important)
+                    key_words = [w for w in words if len(w) > 4 and w.isalpha()]
+                    if key_words:
+                        blank_word = key_words[len(key_words) // 2]  # Pick middle key word
+                        question_text = selected_sentence.replace(blank_word, "_____", 1)
+                        correct_answer = blank_word
+                    else:
+                        question_text = "The key concept discussed is _____."
+                        correct_answer = "concept"
+                else:
+                    question_text = "This material focuses on the topic of _____."
+                    correct_answer = topic
+                
+                return {
+                    'question_text': question_text,
+                    'question_type': 'Fill-in-the-blank',
+                    'options': [],
+                    'correct_answer': correct_answer,
+                    'explanation': f"The answer '{correct_answer}' is a key term from the material.",
+                    'difficulty_level': difficulty
+                }
+            
+            else:  # Short Answer
+                if sentences:
+                    question_text = f"Explain: {sentences[question_number % len(sentences)]}"
+                else:
+                    question_text = "What are the key ideas presented in this material?"
+                
+                return {
+                    'question_text': question_text,
+                    'question_type': 'Short Answer',
+                    'options': [],
+                    'correct_answer': 'A comprehensive answer should include the main points from the material.',
+                    'explanation': f"This question requires synthesis and understanding of the material.",
                     'difficulty_level': difficulty
                 }
         
@@ -1530,7 +1883,23 @@ Explanation: [what makes a good answer and why this topic is important]
                 'explanation': f"This statement accurately reflects {difficulty}-level {topic} study requirements.",
                 'difficulty_level': difficulty
             }
-        else:
+        elif question_type == "Fill-in-the-blank":
+            fitb_templates = [
+                (f"The fundamental concept in {topic} at {difficulty} level is _____.", "core principles"),
+                (f"When studying {topic}, the key term _____ is essential to understand.", "fundamentals"),
+                (f"At the {difficulty} level, {topic} emphasizes the importance of _____.", "practical application")
+            ]
+            template, answer = fitb_templates[question_number % len(fitb_templates)]
+            
+            return {
+                'question_text': template,
+                'question_type': 'Fill-in-the-blank',
+                'options': [],
+                'correct_answer': answer,
+                'explanation': f"The answer '{answer}' is a key concept in {difficulty}-level {topic}.",
+                'difficulty_level': difficulty
+            }
+        else:  # Short Answer
             return {
                 'question_text': f"{starter} in {topic} impact {difficulty}-level learning outcomes?",
                 'question_type': 'Short Answer',
@@ -1541,17 +1910,53 @@ Explanation: [what makes a good answer and why this topic is important]
             }
     
     def generate_quiz_questions(self, topic: str, skill_level: str, num_questions: int = 5, custom_topic: str = None, user_id: int = None) -> List[Dict]:
-        """Main method to generate unique quiz questions using Gemini AI"""
-        print(f"🚀 Generating {num_questions} UNIQUE questions for {topic} at {skill_level} level using Gemini AI...")
+        """Main method to generate unique quiz questions using Gemini AI - OPTIMIZED FOR SPEED"""
+        print(f"🚀 Generating {num_questions} questions for {topic} at {skill_level} level (FAST MODE)...")
+        
+        # Get context for the topic
+        context = self.get_context_for_topic(topic, skill_level, custom_topic)
+        
+        # Try batch generation first (much faster - single API call)
+        if num_questions >= 3:
+            try:
+                print(f"⚡ Attempting batch generation for faster results...")
+                batch_response = self.generate_batch_with_gemini(topic, skill_level, num_questions, context)
+                
+                if batch_response:
+                    # Parse batch response into individual questions
+                    questions = self._parse_batch_response(batch_response, skill_level, topic, num_questions)
+                    
+                    if len(questions) >= num_questions * 0.7:  # Accept if we got at least 70% of questions
+                        print(f"✅ Batch generation successful! Generated {len(questions)} questions in one call")
+                        
+                        # Fill any missing questions with quick fallback
+                        while len(questions) < num_questions:
+                            question = self._create_unique_fallback_question(
+                                'MCQ', skill_level, topic, len(questions), context
+                            )
+                            questions.append(question)
+                        
+                        return questions[:num_questions]
+                    else:
+                        print(f"⚠️ Batch generation incomplete ({len(questions)}/{num_questions}), using individual generation")
+            except Exception as e:
+                print(f"⚠️ Batch generation failed: {e}, falling back to individual generation")
+        
+        # Fallback to individual generation (slower but more reliable)
+        print(f"📝 Using individual generation mode...")
         
         # Get previous questions to avoid repetition
         previous_questions = []
         if user_id:
             previous_questions = self.get_previous_questions(user_id, topic, skill_level)
-            print(f"📚 Found {len(previous_questions)} previous questions to avoid repeating")
+            print(f"� Found {len(previous_questions)} previous questions to avoid repeating")
         
-        # Get context for the topic
-        context = self.get_context_for_topic(topic, skill_level, custom_topic)
+        questions = []
+        question_types = ['MCQ', 'True/False', 'MCQ', 'Fill-in-the-blank', 'MCQ']
+        
+        # Add randomization to ensure variety
+        import random
+        random.shuffle(question_types)
         
         # For custom content, segment it to create varied questions
         is_custom_content = custom_topic and len(custom_topic.strip()) > 10
@@ -1560,21 +1965,14 @@ Explanation: [what makes a good answer and why this topic is important]
             content_segments = self._segment_custom_content(context, num_questions)
             print(f"📝 Segmented custom content into {len(content_segments)} parts for question variety")
         
-        questions = []
-        question_types = ['MCQ', 'True/False', 'MCQ', 'MCQ', 'True/False']  # More MCQs for better interaction
-        
-        # Add randomization to ensure variety
-        import random
-        random.shuffle(question_types)
-        
         for i in range(num_questions):
             question_type = question_types[i % len(question_types)]
             
             # Use specific content segment for this question if available
             current_context = content_segments[i] if content_segments else context
             
-            # Try multiple attempts to get a unique question
-            max_attempts = 3
+            # Reduced attempts for faster generation
+            max_attempts = 2  # Reduced from 3 to 2
             question = None
             
             for attempt in range(max_attempts):
@@ -1589,49 +1987,43 @@ Explanation: [what makes a good answer and why this topic is important]
                     if is_custom_content:
                         prompt += f"\n\nFOCUS AREA: This question should focus specifically on the content segment provided above. Question {i+1} of {num_questions}."
                     
-                    # Add attempt-specific uniqueness
+                    # Only add uniqueness instruction on second attempt
                     if attempt > 0:
-                        prompt += f"\n\nATTEMPT #{attempt + 1}: Make this question even more unique and different from previous attempts."
+                        prompt += f"\n\nIMPORTANT: Make this question completely different from previous questions."
                     
-                    # Generate with Gemini AI - FORCE Gemini usage
-                    print(f"  🤖 Generating UNIQUE question {i+1}/{num_questions} ({question_type}) via Gemini AI (attempt {attempt+1})...")
+                    # Generate with Gemini AI
+                    print(f"  🤖 Generating question {i+1}/{num_questions} ({question_type}) via Gemini AI...")
                     gemini_response = self.generate_with_gemini(prompt)
                     
-                    # Ensure response is from Gemini (not fallback)
-                    if "fallback" in gemini_response.lower() or len(gemini_response) < 50:
-                        print(f"    ⚠️ Detected potential fallback response, retrying with Gemini...")
+                    # Skip strict validation for faster generation
+                    if len(gemini_response) < 30:
+                        print(f"    ⚠️ Response too short, retrying...")
                         continue
                     
                     # Parse response into structured format with difficulty classification
                     question = self.parse_gemini_response(gemini_response, question_type, skill_level, topic)
                     
-                    # Add debugging for custom content
-                    if is_custom_content:
-                        print(f"    📝 Generated question for custom content segment {i+1}: {question['question_text'][:100]}...")
-                    
-                    # Check for uniqueness
-                    if self._is_question_unique(question['question_text'], previous_questions + [q['question_text'] for q in questions], is_custom_content):
-                        print(f"  ✅ UNIQUE question {i+1} generated successfully via Gemini AI")
+                    # Relaxed uniqueness check for faster generation
+                    if attempt == 0 or self._is_question_unique(question['question_text'], previous_questions + [q['question_text'] for q in questions], is_custom_content):
+                        print(f"  ✅ Question {i+1} generated successfully")
                         break
                     else:
-                        print(f"    🔄 Question too similar to previous ones, retrying...")
-                        if is_custom_content:
-                            print(f"    📄 Custom content being used, similarity check may be too strict")
+                        print(f"    🔄 Question similar, retrying...")
                         question = None
                         
                 except Exception as e:
                     print(f"  ❌ Error generating question {i+1} (attempt {attempt+1}): {e}")
                     question = None
             
-            # If we couldn't generate a unique question, create a fallback
+            # If we couldn't generate a question, create a fallback
             if question is None:
-                print(f"  🔄 Creating fallback question {i+1} with enhanced uniqueness")
+                print(f"  🔄 Creating fallback question {i+1}")
                 question = self._create_unique_fallback_question(question_type, skill_level, topic, len(questions), current_context)
             
             questions.append(question)
             print(f"  📝 Question {i+1} added to quiz")
         
-        print(f"🎉 Successfully generated {len(questions)} UNIQUE questions using Gemini AI!")
+        print(f"🎉 Successfully generated {len(questions)} questions!")
         
         # Final enhancement for variety
         self._add_variety_to_questions(questions, topic, skill_level)
@@ -1869,6 +2261,29 @@ Explanation: [what makes a good answer and why this topic is important]
                     self.service_health[svc]['consecutive_failures'] = 0
                     self.service_health[svc]['status'] = 'unknown'
             print("🔄 Reset health status for all services")
+    
+    def reset_gemini_circuit_breaker(self):
+        """EMERGENCY RESET: Clear Gemini API circuit breaker and retry counter"""
+        if 'gemini_api' in self.service_health:
+            self.service_health['gemini_api']['consecutive_failures'] = 0
+            self.service_health['gemini_api']['status'] = 'unknown'
+            print("🚨 EMERGENCY RESET: Gemini API circuit breaker cleared!")
+            print("   ⚠️ Make sure you've updated GEMINI_API_KEY in .env with a valid key")
+            return True
+        return False
+    
+    def reload_api_key(self):
+        """Reload Gemini API key from environment"""
+        old_key = self.api_key
+        self.api_key = os.getenv('GEMINI_API_KEY')
+        
+        if self.api_key != old_key:
+            print(f"🔑 API key reloaded: {'✓ Key updated' if self.api_key else '✗ No key found'}")
+            # Reset circuit breaker since we have a new key
+            if self.api_key:
+                self.reset_gemini_circuit_breaker()
+            return True
+        return False
 
 # Initialize the question generator
 question_generator = GeminiQuestionGenerator()
