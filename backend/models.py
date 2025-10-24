@@ -141,11 +141,22 @@ class Question(db.Model):
         self.user_answer = user_answer
         self.answered_at = datetime.utcnow()
         
+        # For MCQ, extract just the letter (A, B, C, D) from answers like "A) Option text"
+        if self.question_type == 'MCQ':
+            # Extract first character if it's a letter (handles "A", "A)", "A. Option", etc.)
+            user_answer_normalized = user_answer.strip()
+            if user_answer_normalized and user_answer_normalized[0].upper() in ['A', 'B', 'C', 'D']:
+                user_answer_letter = user_answer_normalized[0].upper()
+            else:
+                user_answer_letter = user_answer_normalized
+        else:
+            user_answer_letter = user_answer
+        
         if EVALUATOR_AVAILABLE:
             # Use advanced answer evaluator
             evaluation_result = answer_evaluator.evaluate_answer(
                 question_text=self.question_text,
-                user_answer=user_answer,
+                user_answer=user_answer_letter,
                 correct_answer=self.correct_answer,
                 question_type=self.question_type,
                 options=self.get_options()
@@ -170,11 +181,12 @@ class Question(db.Model):
         else:
             # Fallback to basic evaluation
             if self.question_type == 'MCQ':
-                self.is_correct = user_answer.strip().lower() == self.correct_answer.strip().lower()
+                # Compare just the letter (A, B, C, D)
+                self.is_correct = user_answer_letter.strip().upper() == self.correct_answer.strip().upper()
             elif self.question_type == 'True/False':
-                self.is_correct = user_answer.strip().lower() == self.correct_answer.strip().lower()
+                self.is_correct = user_answer_letter.strip().lower() == self.correct_answer.strip().lower()
             else:  # Short Answer - basic contains check
-                self.is_correct = self.correct_answer.strip().lower() in user_answer.strip().lower()
+                self.is_correct = self.correct_answer.strip().lower() in user_answer_letter.strip().lower()
             
             return self.is_correct
     
