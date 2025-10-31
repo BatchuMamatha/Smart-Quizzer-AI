@@ -176,7 +176,47 @@ Smart-Quizzer-AI/
 - Python (v3.8+)
 - Google Gemini API Key ([Get one here](https://makersuite.google.com/app/apikey))
 
-### Installation
+### 🎯 **Super Quick Setup (Automated)**
+
+**Windows:**
+```bash
+# 1. Clone and navigate
+git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+cd Smart-Quizzer-AI
+
+# 2. Run automated setup
+setup.bat
+
+# 3. Add your Gemini API key to backend/.env
+# Then initialize database:
+python init_database.py
+```
+
+**Mac/Linux:**
+```bash
+# 1. Clone and navigate
+git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+cd Smart-Quizzer-AI
+
+# 2. Run automated setup
+chmod +x setup.sh
+./setup.sh
+
+# 3. Add your Gemini API key to backend/.env
+# Then initialize database:
+python3 init_database.py
+```
+
+### 📋 **Default Test Users** (After running init_database.py)
+
+| Username | Password | Email | Role |
+|----------|----------|-------|------|
+| admin | admin123 | admin@smartquizzer.com | admin |
+| alice | password123 | alice@example.com | user |
+| john | password123 | john@example.com | user |
+| demo | demo123 | demo@smartquizzer.com | user |
+
+### 🔧 **Manual Installation**
 
 1. **Clone Repository**
    ```bash
@@ -187,8 +227,19 @@ Smart-Quizzer-AI/
 2. **Setup Backend**
    ```bash
    cd backend
+   
+   # Install dependencies
    pip install -r requirements.txt
-   python setup_env.py  # Configure Gemini API key
+   
+   # Configure environment
+   # Copy .env.example to .env and add your Gemini API key
+   
+   # Go back to root and initialize database
+   cd ..
+   python init_database.py
+   
+   # Start backend
+   cd backend
    python app.py
    ```
    Backend runs on `http://localhost:5000`
@@ -201,20 +252,45 @@ Smart-Quizzer-AI/
    ```
    Frontend runs on `http://localhost:3000`
 
-4. **Create Admin Account (Optional)**
-   ```bash
-   cd backend
-   python -c "
-   from app import app, db
-   from models import User
-   with app.app_context():
-       admin = User(username='admin', email='admin@smartquizzer.com', full_name='Admin', skill_level='Advanced')
-       admin.set_password('Admin123!')
-       db.session.add(admin)
-       db.session.commit()
-       print('Admin created successfully!')
-   "
-   ```
+4. **Login & Start!**
+   - Go to http://localhost:3000
+   - Login with one of the default users above
+   - Or register a new account
+
+### ⚠️ **Troubleshooting**
+
+**"Invalid credentials" error after cloning?**
+```bash
+# SOLUTION: Initialize the database with default users
+python init_database.py
+
+# The script will verify credentials and show:
+# ✅ alice: Login will work
+# ✅ john: Login will work
+# ✅ admin: Login will work
+# ✅ demo: Login will work
+```
+
+**Still getting "Invalid credentials"?**
+1. Make sure you ran `init_database.py` from the **project root directory** (not from backend/)
+2. Check the script output - it should show "✅ ALL CREDENTIALS VERIFIED"
+3. Make sure backend dependencies are installed: `cd backend && pip install -r requirements.txt`
+4. Verify database file exists: `backend/instance/smart_quizzer.db`
+5. Try the exact credentials shown in the table above (username & password are case-sensitive)
+
+**Registration not working?**
+1. Ensure backend is running (http://localhost:5000)
+2. Check that `.env` file exists with valid Gemini API key
+3. Clear browser cache and sessionStorage (F12 → Application → Clear Storage)
+4. Check backend console for error messages
+
+**Backend won't start?**
+1. Make sure you're in the backend directory: `cd backend`
+2. Install dependencies: `pip install -r requirements.txt`
+3. Check `.env` file has your Gemini API key
+4. Look for error messages in the console
+
+**Need more help?** See [SETUP_INSTRUCTIONS.md](SETUP_INSTRUCTIONS.md) for detailed troubleshooting
 
 ### 🐳 Docker Deployment
 

@@ -10,8 +10,23 @@ import os
 # Add backend directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
 
-from app import app, db
-from models import User, Topic
+try:
+    from app import app, db
+    from models import User, Topic
+except ImportError as e:
+    print('\n' + '='*80)
+    print('❌ ERROR: Could not import required modules')
+    print('='*80)
+    print(f'\nError: {str(e)}')
+    print('\n💡 SOLUTION:')
+    print('   1. Make sure you are in the project root directory')
+    print('   2. Install backend dependencies:')
+    print('      cd backend')
+    print('      pip install -r requirements.txt')
+    print('   3. Run this script again from the root directory:')
+    print('      python init_database.py')
+    print('\n' + '='*80 + '\n')
+    sys.exit(1)
 
 def init_database():
     """Initialize database with default data"""
@@ -155,6 +170,26 @@ def init_database():
         print('   2. Start the frontend: cd frontend && npm start')
         print('   3. Login with any of the credentials above')
         print('   4. Or register a new user at http://localhost:3000/register')
+        print('\n' + '='*80)
+        
+        # Verify users were created correctly
+        print('\n🔍 VERIFICATION: Testing user credentials...')
+        print('-'*80)
+        
+        verification_passed = True
+        for user_data in default_users:
+            test_user = User.query.filter_by(username=user_data['username']).first()
+            if test_user and test_user.check_password(user_data['password']):
+                print(f'   ✅ {user_data["username"]}: Login will work')
+            else:
+                print(f'   ❌ {user_data["username"]}: Login may FAIL')
+                verification_passed = False
+        
+        if verification_passed:
+            print('\n✅ ALL CREDENTIALS VERIFIED - Login should work!')
+        else:
+            print('\n⚠️  WARNING: Some credentials may not work. Try re-running this script.')
+        
         print('\n' + '='*80 + '\n')
 
 if __name__ == '__main__':
