@@ -12,7 +12,18 @@ const api = axios.create({
 
 // Request interceptor to add auth token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
+  const token = sessionStorage.getItem('access_token');
+  const user = sessionStorage.getItem('user');
+  
+  // Debug logging
+  console.log('🔍 API Request Debug:', {
+    url: config.url,
+    method: config.method,
+    hasToken: !!token,
+    tokenPreview: token ? token.substring(0, 30) + '...' : 'No token',
+    user: user ? JSON.parse(user) : 'No user'
+  });
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -24,8 +35,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('access_token');
+      sessionStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -239,6 +250,47 @@ export const quizAPI = {
 
   submitFeedback: async (questionId: number, feedback_text: string, rating: number): Promise<{ message: string }> => {
     const response = await api.post(`/feedback/question/${questionId}`, { feedback_text, rating });
+    return response.data;
+  },
+
+  getLeaderboard: async (params?: {
+    topic?: string;
+    skill_level?: string;
+    limit?: number;
+  }): Promise<{
+    leaderboard: Array<{
+      rank: number;
+      user_id: number;
+      username: string;
+      full_name: string;
+      total_quizzes: number;
+      total_questions: number;
+      total_correct: number;
+      average_score: number;
+      total_time: number;
+      average_time: number;
+      best_score: number;
+      best_quiz_id: number | null;
+      best_quiz_time: number;
+      recent_quizzes: Array<{
+        quiz_id: number;
+        topic: string;
+        score: number;
+        time_taken: number;
+        completed_at: string | null;
+      }>;
+    }>;
+    total_users: number;
+    current_user: {
+      rank: number | null;
+      stats: any;
+    };
+    filters: {
+      topic: string | null;
+      skill_level: string | null;
+    };
+  }> => {
+    const response = await api.get('/leaderboard', { params });
     return response.data;
   },
 };

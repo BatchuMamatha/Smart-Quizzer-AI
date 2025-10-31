@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { quizAPI, QuizSession } from '../lib/api';
 import { UserManager } from '../lib/userManager';
+import Header from '../components/Header';
 
 const History: React.FC = () => {
   const [quizHistory, setQuizHistory] = useState<QuizSession[]>([]);
@@ -73,24 +74,12 @@ const History: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                📈 Quiz History
-              </h1>
-              <p className="text-sm text-gray-600">Track your learning progress</p>
-            </div>
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        </div>
-      </header>
+      <Header 
+        title="📈 Quiz History" 
+        subtitle="Track your learning progress"
+        showBackButton={true}
+        backPath="/dashboard"
+      />
 
       <main className="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">

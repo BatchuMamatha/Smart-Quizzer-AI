@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserManager } from '../lib/userManager';
+import Header from '../components/Header';
 
 interface ProfileFormData {
   full_name: string;
@@ -121,39 +122,12 @@ const ProfilePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header */}
-      <header className="bg-white bg-opacity-80 backdrop-blur-md shadow-lg border-b border-white border-opacity-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                <span className="text-2xl">←</span>
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-gradient">
-                  👤 User Profile
-                </h1>
-                <p className="text-gray-600">Manage your account settings and preferences</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-700">Logged in as,</p>
-                <p className="text-lg font-bold text-gradient">{user?.full_name}</p>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="btn btn-secondary"
-              >
-                <span className="mr-2">👋</span>
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header 
+        title="👤 User Profile" 
+        subtitle="Manage your account settings and preferences"
+        showBackButton={true}
+        backPath="/dashboard"
+      />
 
       <main className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

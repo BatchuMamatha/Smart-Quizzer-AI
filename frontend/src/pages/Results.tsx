@@ -2,9 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { quizAPI, QuizResultsResponse, Question } from '../lib/api';
 import { useAudioFeedback } from '../lib/audioFeedback';
+import Header from '../components/Header';
 
 interface ResultsState {
   quizId: number;
+}
+
+interface LeaderboardEntry {
+  rank: number;
+  user_id: number;
+  username: string;
+  full_name: string;
+  total_quizzes: number;
+  average_score: number;
+  average_time: number;
 }
 
 const Results: React.FC = () => {
@@ -19,6 +30,9 @@ const Results: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentSpeechText, setCurrentSpeechText] = useState('');
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [currentUserRank, setCurrentUserRank] = useState<number | null>(null);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
 
   useEffect(() => {
     if (!quizId) {
@@ -31,11 +45,30 @@ const Results: React.FC = () => {
         setLoading(true);
         const data = await quizAPI.getResults(quizId);
         setResults(data);
+        
+        // Fetch leaderboard after getting results
+        fetchLeaderboard(data.quiz_session.topic);
       } catch (error: any) {
         console.error('Error fetching results:', error);
         setError(error.response?.data?.error || 'Failed to load results');
       } finally {
         setLoading(false);
+      }
+    };
+
+    const fetchLeaderboard = async (topic?: string) => {
+      try {
+        setLoadingLeaderboard(true);
+        const leaderboardData = await quizAPI.getLeaderboard({ 
+          topic: topic,
+          limit: 10 
+        });
+        setLeaderboard(leaderboardData.leaderboard);
+        setCurrentUserRank(leaderboardData.current_user.rank);
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+      } finally {
+        setLoadingLeaderboard(false);
       }
     };
 
@@ -105,75 +138,60 @@ const Results: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  📊 Quiz Results
-                </h1>
-                <p className="text-sm text-gray-600">Smart Quizzer - AI Generated Quiz</p>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                {/* Control Buttons */}
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={async () => {
-                      if (isSpeaking) {
-                        audioFeedback.stop();
-                        setIsSpeaking(false);
-                        setCurrentSpeechText('');
-                      } else {
-                        setIsSpeaking(true);
-                        try {
-                          await audioFeedback.speakQuizResults(results, setCurrentSpeechText);
-                        } catch (error) {
-                          console.warn('Failed to speak results:', error);
-                        } finally {
-                          setIsSpeaking(false);
-                          setCurrentSpeechText('');
-                        }
-                      }
-                    }}
-                    className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                      isSpeaking
-                        ? 'bg-red-100 text-red-800 hover:bg-red-200'
-                        : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
-                    }`}
-                    title={isSpeaking ? 'Stop Audio' : 'Hear Results Summary'}
-                  >
-                    <span>{isSpeaking ? '⏹️' : '🎤'}</span>
-                    <span>{isSpeaking ? 'Stop' : 'Feedback'}</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => setShowAnalysis(!showAnalysis)}
-                    className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                      showAnalysis
-                        ? 'bg-purple-200 text-purple-800'
-                        : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
-                    }`}
-                    title={showAnalysis ? 'Hide Analysis' : 'Show Visual Analysis'}
-                  >
-                    <span>📊</span>
-                    <span>{showAnalysis ? 'Hide' : 'Analysis'}</span>
-                  </button>
-                </div>
-                
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Topic: {quiz_session.topic}</p>
-                  <p className="text-xs text-gray-500">Level: {quiz_session.skill_level}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header 
+        title="📊 Quiz Results" 
+        subtitle={`${quiz_session.topic} | ${quiz_session.skill_level} | Score: ${scorePercentage.toFixed(0)}%`}
+        showBackButton={true}
+        backPath="/dashboard"
+      />
 
       <main className="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
+          
+          {/* Control Buttons - Moved to top of main content */}
+          <div className="mb-6 flex items-center justify-center space-x-4">
+            <button
+              onClick={async () => {
+                if (isSpeaking) {
+                  audioFeedback.stop();
+                  setIsSpeaking(false);
+                  setCurrentSpeechText('');
+                } else {
+                  setIsSpeaking(true);
+                  try {
+                    await audioFeedback.speakQuizResults(results, setCurrentSpeechText);
+                  } catch (error) {
+                    console.warn('Failed to speak results:', error);
+                  } finally {
+                    setIsSpeaking(false);
+                    setCurrentSpeechText('');
+                  }
+                }
+              }}
+              className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                isSpeaking
+                  ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                  : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+              }`}
+              title={isSpeaking ? 'Stop Audio' : 'Hear Results Summary'}
+            >
+              <span>{isSpeaking ? '⏹️' : '🎤'}</span>
+              <span>{isSpeaking ? 'Stop' : 'Feedback'}</span>
+            </button>
+            
+            <button
+              onClick={() => setShowAnalysis(!showAnalysis)}
+              className={`flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                showAnalysis
+                  ? 'bg-purple-200 text-purple-800'
+                  : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+              }`}
+              title={showAnalysis ? 'Hide Analysis' : 'Show Visual Analysis'}
+            >
+              <span>📊</span>
+              <span>{showAnalysis ? 'Hide' : 'Analysis'}</span>
+            </button>
+          </div>
           
           {/* Score Overview */}
           <div className="bg-white overflow-hidden shadow rounded-lg mb-6">
@@ -661,6 +679,162 @@ const Results: React.FC = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Leaderboard Section */}
+          <div className="bg-white overflow-hidden shadow rounded-lg mb-6">
+            <div className="px-4 py-5 sm:p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-3">🏆</span>
+                  Leaderboard - {quiz_session.topic}
+                </h3>
+                <button
+                  onClick={() => navigate('/leaderboard')}
+                  className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-1"
+                >
+                  View Full Leaderboard
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+
+              {loadingLeaderboard ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading leaderboard...</p>
+                </div>
+              ) : leaderboard.length > 0 ? (
+                <>
+                  {/* Current User Highlight */}
+                  {currentUserRank && (
+                    <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg p-4 mb-6 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm opacity-90">Your Current Rank</p>
+                          <p className="text-3xl font-bold">#{currentUserRank}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm opacity-90">Latest Score</p>
+                          <p className="text-3xl font-bold">{scorePercentage.toFixed(1)}%</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top 10 Table */}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Rank
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Player
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Quizzes
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Avg Score
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Avg Time
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {leaderboard.slice(0, 10).map((entry) => {
+                          const isCurrentUser = entry.rank === currentUserRank;
+                          const getRankIcon = (rank: number) => {
+                            if (rank === 1) return '🥇';
+                            if (rank === 2) return '🥈';
+                            if (rank === 3) return '🥉';
+                            return '🎯';
+                          };
+
+                          return (
+                            <tr
+                              key={entry.user_id}
+                              className={`${
+                                isCurrentUser ? 'bg-blue-50 font-semibold' : 'hover:bg-gray-50'
+                              }`}
+                            >
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xl">{getRankIcon(entry.rank)}</span>
+                                  <span className="text-lg font-bold text-gray-900">
+                                    #{entry.rank}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {entry.full_name}
+                                    {isCurrentUser && (
+                                      <span className="ml-2 text-xs text-blue-600">(You)</span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-500">@{entry.username}</div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className="text-sm text-gray-900">{entry.total_quizzes}</span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {entry.average_score.toFixed(1)}%
+                                  </span>
+                                  <div className="w-16 bg-gray-200 rounded-full h-2">
+                                    <div
+                                      className="bg-green-500 h-2 rounded-full"
+                                      style={{ width: `${entry.average_score}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className="text-sm text-gray-900">
+                                  {Math.floor(entry.average_time / 60)}m {Math.floor(entry.average_time % 60)}s
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* View Full Leaderboard CTA */}
+                  <div className="mt-6 text-center">
+                    <button
+                      onClick={() => navigate('/leaderboard')}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-semibold rounded-lg shadow-lg transition-all"
+                    >
+                      <span>🏆</span>
+                      View Full Leaderboard & Rankings
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">🏆</div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    Be the First!
+                  </h3>
+                  <p className="text-gray-600">
+                    Complete more quizzes to see your ranking on the leaderboard.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

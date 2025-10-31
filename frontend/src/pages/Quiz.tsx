@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { quizAPI, Question, QuizSession } from '../lib/api';
+import Header from '../components/Header';
 
 interface QuizState {
   quizData: {
@@ -200,28 +201,11 @@ const Quiz: React.FC = () => {
       </div>
 
       {/* Header */}
-      <header className="relative bg-white bg-opacity-80 backdrop-blur-md shadow-lg border-b border-white border-opacity-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="animate-fade-in-up">
-              <h1 className="text-3xl font-bold text-gradient mb-1">
-                🧠 Smart Quiz Session
-              </h1>
-              <p className="text-gray-600 font-medium">AI-Generated Questions</p>
-            </div>
-            <div className="text-right animate-slide-in-right">
-              <div className="flex items-center justify-end space-x-2 mb-2">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                  Question {currentQuestionIndex + 1} of {questions.length}
-                </span>
-              </div>
-              <p className="text-xs text-gray-500">
-                📚 {quiz_session.topic} | 🎯 {quiz_session.skill_level}
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header 
+        title="🧠 Smart Quiz Session" 
+        subtitle={`📚 ${quiz_session.topic} | 🎯 ${quiz_session.skill_level} | Question ${currentQuestionIndex + 1} of ${questions.length}`}
+        showBackButton={false}
+      />
 
       <main className="relative max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">

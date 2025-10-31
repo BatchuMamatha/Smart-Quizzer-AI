@@ -306,52 +306,49 @@ def login():
             print("⚠️ Login validation failed: Username and password are required")
             return jsonify({'error': 'Username and password are required'}), 400
         
-        # For demo purposes, accept any username/password OR check existing users
         username = data['username']
         password = data['password']
         
         # Check if user exists in database
-        existing_user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(username=username).first()
         
-        if existing_user and existing_user.check_password(password):
-            # Existing user login
-            user = existing_user
-            print(f"✅ Existing user '{user.username}' logged in successfully")
-        else:
-            # Demo login - create mock user data without saving to database
-            print(f"✅ Demo login for username '{username}'")
-            user_data = {
-                'id': 1,
-                'username': username,
-                'email': f"{username}@example.com",
-                'full_name': username.title(),
-                'skill_level': 'Intermediate',
-                'created_at': '2025-10-03T15:00:00Z',
-                'quiz_count': 0,
-                'total_quizzes': 8,
-                'completed_quizzes': 6,
-                'average_score': 87.5
-            }
-            
-            # Generate tokens for demo user
-            tokens = generate_tokens(1)  # Use ID 1 for demo
-            
-            return jsonify({
-                'message': 'Login successful',
-                'user': user_data,
-                'tokens': tokens
-            }), 200
+        if not user:
+            print(f"❌ Login failed: User '{username}' not found")
+            return jsonify({'error': 'Invalid username or password'}), 401
         
-        # For existing users, generate tokens
+        if not user.check_password(password):
+            print(f"❌ Login failed: Invalid password for user '{username}'")
+            return jsonify({'error': 'Invalid username or password'}), 401
+        
+        # Successful login
+        print(f"✅ User '{user.username}' (ID: {user.id}) logged in successfully")
+        
+        # Generate tokens for authenticated user
         tokens = generate_tokens(user.id)
         
-        # Add stats to existing user data
+        print(f"🔐 Token generated for user: {user.id} ({user.username})")
+        print(f"   Token preview: {tokens['access_token'][:50]}...")
+        
+        # Get user stats
+        total_quizzes = len(user.quiz_sessions)
+        completed_quizzes = len([qs for qs in user.quiz_sessions if qs.status == 'completed'])
+        avg_score = 0
+        
+        if completed_quizzes > 0:
+            total_score = sum([qs.score_percentage for qs in user.quiz_sessions if qs.status == 'completed'])
+            avg_score = total_score / completed_quizzes
+        
         user_dict = user.to_dict()
         user_dict.update({
-            'total_quizzes': 8,
-            'completed_quizzes': 6,
-            'average_score': 87.5
+            'total_quizzes': total_quizzes,
+            'completed_quizzes': completed_quizzes,
+            'average_score': round(avg_score, 1)
         })
+        
+        print(f"📤 Sending login response:")
+        print(f"   User ID: {user_dict['id']}")
+        print(f"   Username: {user_dict['username']}")
+        print(f"   Full Name: {user_dict['full_name']}")
         
         return jsonify({
             'message': 'Login successful',
@@ -361,7 +358,45 @@ def login():
         
     except Exception as e:
         print(f"❌ Login error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Login failed: {str(e)}'}), 500
+
+@app.route('/api/auth/verify-token', methods=['GET'])
+@auth_required
+def verify_token(current_user_id):
+    """Debug endpoint to verify JWT token and user identity"""
+    try:
+        from flask_jwt_extended import get_jwt, get_jwt_identity
+        
+        jwt_data = get_jwt()
+        jwt_identity = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        debug_info = {
+            'decoded_user_id': current_user_id,
+            'jwt_identity': jwt_identity,
+            'jwt_data': jwt_data,
+            'user_from_db': {
+                'id': user.id,
+                'username': user.username,
+                'full_name': user.full_name,
+                'email': user.email
+            } if user else None
+        }
+        
+        print(f"🔍 DEBUG Token Verification:")
+        print(f"  - JWT Identity: {jwt_identity}")
+        print(f"  - Decoded User ID: {current_user_id}")
+        print(f"  - DB User: {user.username if user else 'NOT FOUND'}")
+        
+        return jsonify(debug_info), 200
+        
+    except Exception as e:
+        print(f"❌ Token verification error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/auth/profile', methods=['GET'])
 @auth_required
@@ -1347,6 +1382,155 @@ def get_quiz_analytics(current_user_id):
         }), 200
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/leaderboard', methods=['GET'])
+@auth_required
+def get_leaderboard(current_user_id):
+    """Get leaderboard rankings for all users based on quiz performance"""
+    try:
+        print(f"🔍 DEBUG: Leaderboard requested by user_id: {current_user_id}")
+        
+        # Get query parameters
+        topic = request.args.get('topic', None)
+        skill_level = request.args.get('skill_level', None)
+        limit = request.args.get('limit', 10, type=int)
+        
+        print(f"🔍 DEBUG: Filters - topic: {topic}, skill_level: {skill_level}, limit: {limit}")
+        
+        # Build query for completed quiz sessions
+        query = QuizSession.query.filter_by(status='completed')
+        
+        # Apply filters if provided
+        if topic:
+            query = query.filter_by(topic=topic)
+        if skill_level:
+            query = query.filter_by(skill_level=skill_level)
+        
+        # Get all completed quizzes
+        completed_quizzes = query.all()
+        
+        print(f"🔍 DEBUG: Found {len(completed_quizzes)} completed quizzes")
+        
+        # Group by user and calculate aggregate stats
+        user_stats = {}
+        
+        for quiz in completed_quizzes:
+            user_id = quiz.user_id
+            
+            # Calculate time taken in seconds
+            time_taken = 0
+            if quiz.completed_at and quiz.started_at:
+                time_delta = quiz.completed_at - quiz.started_at
+                time_taken = int(time_delta.total_seconds())
+            
+            if user_id not in user_stats:
+                # IMPORTANT: Fetch fresh user data from database
+                user = User.query.get(user_id)
+                if not user:
+                    print(f"⚠️ WARNING: User {user_id} not found in database!")
+                    continue
+                    
+                print(f"🔍 DEBUG: Adding user - ID: {user_id}, Username: {user.username}, Full Name: {user.full_name}")
+                
+                user_stats[user_id] = {
+                    'user_id': user_id,
+                    'username': user.username,
+                    'full_name': user.full_name,
+                    'total_quizzes': 0,
+                    'total_questions': 0,
+                    'total_correct': 0,
+                    'average_score': 0,
+                    'total_time': 0,
+                    'average_time': 0,
+                    'best_score': 0,
+                    'best_quiz_id': None,
+                    'best_quiz_time': 0,
+                    'recent_quizzes': []
+                }
+            
+            # Update aggregated stats
+            user_stats[user_id]['total_quizzes'] += 1
+            user_stats[user_id]['total_questions'] += quiz.total_questions
+            user_stats[user_id]['total_correct'] += quiz.correct_answers
+            user_stats[user_id]['total_time'] += time_taken
+            
+            # Track best score
+            if quiz.score_percentage > user_stats[user_id]['best_score']:
+                user_stats[user_id]['best_score'] = quiz.score_percentage
+                user_stats[user_id]['best_quiz_id'] = quiz.id
+                user_stats[user_id]['best_quiz_time'] = time_taken
+            
+            # Add to recent quizzes (limit to 5)
+            if len(user_stats[user_id]['recent_quizzes']) < 5:
+                user_stats[user_id]['recent_quizzes'].append({
+                    'quiz_id': quiz.id,
+                    'topic': quiz.topic,
+                    'score': quiz.score_percentage,
+                    'time_taken': time_taken,
+                    'completed_at': quiz.completed_at.isoformat() if quiz.completed_at else None
+                })
+        
+        print(f"🔍 DEBUG: Total unique users: {len(user_stats)}")
+        
+        # Calculate averages
+        for user_id, stats in user_stats.items():
+            if stats['total_questions'] > 0:
+                stats['average_score'] = (stats['total_correct'] / stats['total_questions']) * 100
+            if stats['total_quizzes'] > 0:
+                stats['average_time'] = stats['total_time'] / stats['total_quizzes']
+        
+        # Convert to list and sort by average score (descending), then by average time (ascending)
+        leaderboard = list(user_stats.values())
+        leaderboard.sort(key=lambda x: (-x['average_score'], x['average_time']))
+        
+        # Add rank
+        for i, entry in enumerate(leaderboard):
+            entry['rank'] = i + 1
+            print(f"🔍 DEBUG: Rank {entry['rank']}: {entry['username']} ({entry['full_name']}) - {entry['average_score']:.1f}%")
+        
+        # Apply limit
+        leaderboard = leaderboard[:limit]
+        
+        # Find current user's rank and stats
+        current_user_rank = None
+        current_user_stats = None
+        
+        # Get fresh current user data
+        current_user = User.query.get(current_user_id)
+        print(f"🔍 DEBUG: Current user - ID: {current_user_id}, Username: {current_user.username if current_user else 'Unknown'}, Full Name: {current_user.full_name if current_user else 'Unknown'}")
+        
+        for entry in user_stats.values():
+            if entry['user_id'] == current_user_id:
+                current_user_stats = entry
+                # Calculate rank among all users (not just top limit)
+                all_users = list(user_stats.values())
+                all_users.sort(key=lambda x: (-x['average_score'], x['average_time']))
+                for i, user_entry in enumerate(all_users):
+                    if user_entry['user_id'] == current_user_id:
+                        current_user_rank = i + 1
+                        break
+                break
+        
+        print(f"🔍 DEBUG: Current user rank: {current_user_rank}")
+        
+        return jsonify({
+            'leaderboard': leaderboard,
+            'total_users': len(user_stats),
+            'current_user': {
+                'rank': current_user_rank,
+                'stats': current_user_stats
+            },
+            'filters': {
+                'topic': topic,
+                'skill_level': skill_level
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ ERROR in leaderboard: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 # Content Upload and Processing Endpoints

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserManager } from '../lib/userManager';
 import api, { quizAPI } from '../lib/api';
+import Header from '../components/Header';
 
 interface RealTimeStats {
     total_quizzes: number;
@@ -83,8 +84,8 @@ const Analytics: React.FC = () => {
         // Check if user is authenticated
         const userManager = UserManager.getInstance();
         const isAuth = userManager.isAuthenticated();
-        const token = localStorage.getItem('access_token');
-        const user = localStorage.getItem('user');
+        const token = sessionStorage.getItem('access_token');
+        const user = sessionStorage.getItem('user');
         
         console.log('Auth check:', {
             isAuthenticated: isAuth,
@@ -321,7 +322,7 @@ const Analytics: React.FC = () => {
                 setLoading(true);
             }
 
-            const token = localStorage.getItem('access_token');
+            const token = sessionStorage.getItem('access_token');
             if (!token) {
                 throw new Error('No authentication token found');
             }
@@ -440,30 +441,32 @@ const Analytics: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Header */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                        🧠 Adaptive Learning Analytics
-                    </h1>
-                    <p className="text-xl text-gray-600">
-                        AI-powered insights into your learning progress
-                    </p>
-                    {analytics.has_quiz_data && (
-                        <div className="mt-4 inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+        <div className="min-h-screen bg-gray-50">
+            <Header 
+                title="🧠 Adaptive Learning Analytics" 
+                subtitle="AI-powered insights into your learning progress"
+                showBackButton={true}
+                backPath="/dashboard"
+            />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Data Status Badge */}
+                {analytics.has_quiz_data && (
+                    <div className="text-center mb-6">
+                        <div className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                             ✅ Real Data - Based on {analytics.session_stats.total_questions || 0} questions answered
                         </div>
-                    )}
-                    
-                    {/* Success Message */}
-                    {refreshSuccess && (
-                        <div className="mt-4 inline-flex items-center px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm font-medium animate-fade-in-up">
+                    </div>
+                )}
+                
+                {/* Success Message */}
+                {refreshSuccess && (
+                    <div className="text-center mb-6">
+                        <div className="inline-flex items-center px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm font-medium animate-fade-in-up">
                             <span className="mr-2">✅</span>
                             Analytics refreshed successfully!
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Time Range Selector */}
                 <div className="flex justify-center mb-8">

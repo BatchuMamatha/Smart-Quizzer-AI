@@ -36,8 +36,21 @@ const Login: React.FC = () => {
     try {
       const response = await authAPI.login(formData);
       
+      console.log('🔍 Login Response:', {
+        userId: response.user.id,
+        username: response.user.username,
+        fullName: response.user.full_name,
+        tokenPreview: response.tokens.access_token.substring(0, 30) + '...'
+      });
+      
       // Store tokens and user data
       userManager.login(response.user, response.tokens.access_token);
+      
+      // Verify what was stored
+      console.log('🔍 Stored in sessionStorage:', {
+        user: sessionStorage.getItem('user'),
+        tokenPreview: sessionStorage.getItem('access_token')?.substring(0, 30) + '...'
+      });
       
       setSuccessMessage('Login successful! Redirecting...');
       

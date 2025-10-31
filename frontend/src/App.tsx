@@ -13,6 +13,7 @@ import Analytics from './pages/Analytics';
 import ContentUploadPage from './pages/ContentUploadPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminDashboard from './pages/AdminDashboard';
+import Leaderboard from './pages/Leaderboard';
 
 const userManager = UserManager.getInstance();
 
@@ -184,6 +185,14 @@ const App: React.FC = () => {
             element={
               <UserRoute>
                 <Analytics />
+              </UserRoute>
+            } 
+          />
+          <Route 
+            path="/leaderboard" 
+            element={
+              <UserRoute>
+                <Leaderboard />
               </UserRoute>
             } 
           />

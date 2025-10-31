@@ -16,8 +16,8 @@ export class UserManager {
   }
 
   private loadUserFromStorage(): void {
-    const userData = localStorage.getItem('user');
-    const token = localStorage.getItem('access_token');
+    const userData = sessionStorage.getItem('user');
+    const token = sessionStorage.getItem('access_token');
     
     if (userData && token) {
       try {
@@ -30,15 +30,32 @@ export class UserManager {
   }
 
   public login(user: User, token: string): void {
+    // First, clear any existing data
+    this.logout();
+    
+    // Then store new data
     this.currentUser = user;
-    localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('access_token', token);
+    sessionStorage.setItem('user', JSON.stringify(user));
+    sessionStorage.setItem('access_token', token);
+    
+    console.log('🔍 UserManager.login:', {
+      userId: user.id,
+      username: user.username,
+      fullName: user.full_name,
+      tokenStored: !!token
+    });
   }
 
   public logout(): void {
     this.currentUser = null;
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('access_token');
+    
+    // Also clear localStorage in case there's old data
     localStorage.removeItem('user');
     localStorage.removeItem('access_token');
+    
+    console.log('🔍 UserManager.logout: All session data cleared');
   }
 
   public getCurrentUser(): User | null {
@@ -46,16 +63,16 @@ export class UserManager {
   }
 
   public isAuthenticated(): boolean {
-    return this.currentUser !== null && localStorage.getItem('access_token') !== null;
+    return this.currentUser !== null && sessionStorage.getItem('access_token') !== null;
   }
 
   public updateUser(user: User): void {
     this.currentUser = user;
-    localStorage.setItem('user', JSON.stringify(user));
+    sessionStorage.setItem('user', JSON.stringify(user));
   }
 
   public getToken(): string | null {
-    return localStorage.getItem('access_token');
+    return sessionStorage.getItem('access_token');
   }
 
   public isAdmin(): boolean {
