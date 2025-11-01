@@ -17,7 +17,6 @@ api.interceptors.request.use((config) => {
   
   // Only log in development mode
   if (process.env.NODE_ENV === 'development') {
-    const user = sessionStorage.getItem('user');
     console.log('🔍 API Request:', {
       url: config.url,
       method: config.method,
