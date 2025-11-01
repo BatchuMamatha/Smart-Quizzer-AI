@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
 
 try:
     from app import app, db
-    from models import User, Topic, QuizSession, Question
+    from models import User, Topic, QuizSession, Question, FlaggedQuestion, QuestionFeedback
 except ImportError as e:
     print('\n' + '='*80)
     print('❌ ERROR: Could not import required modules')
@@ -176,6 +176,167 @@ def create_quiz_history(users, topics):
     print(f'   📈 Average: {total_quizzes_created // len(users)} quizzes per user')
     
     return total_quizzes_created, total_questions_created
+
+def create_flagged_questions_and_feedback(users):
+    """Create realistic flagged questions and user feedback"""
+    print('\n🚩 Creating flagged questions and user feedback...')
+    
+    # Get all completed questions from the database
+    all_questions = Question.query.all()
+    
+    if not all_questions or len(all_questions) == 0:
+        print('   ⚠️  No questions found. Skipping flagged questions and feedback.')
+        return 0, 0
+    
+    # Flag reasons
+    flag_reasons = [
+        "Incorrect answer key - the marked answer is wrong",
+        "Question text is unclear or ambiguous",
+        "Grammar mistake in question",
+        "Multiple correct answers possible",
+        "Answer explanation is insufficient",
+        "Question difficulty doesn't match the level",
+        "Outdated information in the question",
+        "Typo in one of the options",
+        "Question is too vague",
+        "Missing context for the question"
+    ]
+    
+    # Feedback comments (positive and negative)
+    feedback_comments = [
+        "Great question! Really helped me understand the concept.",
+        "The explanation was very clear and helpful.",
+        "Loved the adaptive difficulty level!",
+        "This question was challenging but fair.",
+        "The feedback system helped me learn from my mistakes.",
+        "Excellent coverage of the topic.",
+        "Some questions were repetitive.",
+        "Could use more detailed explanations.",
+        "The question was a bit confusing.",
+        "More examples would be helpful in the explanation.",
+        "Perfect difficulty level for beginners!",
+        "The time limit was just right.",
+        "Very engaging quiz experience.",
+        "Questions helped reinforce my learning.",
+        "Good variety of question types.",
+        "The MCQ options were well-designed.",
+        "Appreciated the immediate feedback!",
+        "This helped me identify my weak areas.",
+        "Would love to see more questions like this.",
+        "The quiz was well-structured."
+    ]
+    
+    flagged_count = 0
+    feedback_count = 0
+    resolved_count = 0
+    
+    # Create flagged questions (15-25 flags)
+    num_flags = random.randint(15, 25)
+    flagged_questions = random.sample(all_questions, min(num_flags, len(all_questions)))
+    
+    for question in flagged_questions:
+        # Pick a random user who completed this quiz
+        quiz_session = QuizSession.query.get(question.quiz_session_id)
+        if not quiz_session:
+            continue
+            
+        user = User.query.get(quiz_session.user_id)
+        if not user or user.role != 'user':
+            continue
+        
+        # Random flag reason
+        reason = random.choice(flag_reasons)
+        
+        # Random status (70% pending, 30% resolved)
+        status = 'pending' if random.random() < 0.7 else 'resolved'
+        
+        # Create flag date (within the quiz completion time and now)
+        days_ago = random.randint(0, 30)
+        flagged_at = datetime.now() - timedelta(days=days_ago, hours=random.randint(0, 23))
+        
+        # If resolved, set resolution date
+        resolved_at = None
+        resolved_by_user_id = None
+        if status == 'resolved':
+            # Resolved within 1-7 days after flagging
+            resolved_days = random.randint(1, 7)
+            resolved_at = flagged_at + timedelta(days=resolved_days, hours=random.randint(0, 23))
+            # Pick a random admin to resolve it
+            admin = User.query.filter_by(role='admin').first()
+            if admin:
+                resolved_by_user_id = admin.id
+            resolved_count += 1
+        
+        flagged_question = FlaggedQuestion(
+            question_id=question.id,
+            flagged_by_user_id=user.id,
+            flag_reason=reason,
+            flag_count=1,
+            status=status,
+            flagged_at=flagged_at,
+            resolved_at=resolved_at,
+            resolved_by_user_id=resolved_by_user_id
+        )
+        db.session.add(flagged_question)
+        flagged_count += 1
+    
+    # Create user feedback (30-50 feedback entries)
+    num_feedback = random.randint(30, 50)
+    feedback_questions = random.sample(all_questions, min(num_feedback, len(all_questions)))
+    
+    for question in feedback_questions:
+        # Pick the user who answered this question
+        quiz_session = QuizSession.query.get(question.quiz_session_id)
+        if not quiz_session:
+            continue
+            
+        user = User.query.get(quiz_session.user_id)
+        if not user or user.role != 'user':
+            continue
+        
+        # Random rating (weighted towards higher ratings)
+        # 40% chance of 5 stars, 30% of 4 stars, 20% of 3 stars, 10% of 1-2 stars
+        rating_weights = [5, 10, 20, 30, 40]  # cumulative weights for 1-5
+        rand_val = random.randint(1, 100)
+        if rand_val <= rating_weights[0]:
+            rating = 1
+        elif rand_val <= rating_weights[1]:
+            rating = 2
+        elif rand_val <= rating_weights[2]:
+            rating = 3
+        elif rand_val <= rating_weights[3]:
+            rating = 4
+        else:
+            rating = 5
+        
+        # Pick appropriate comment based on rating
+        if rating >= 4:
+            comment = random.choice([c for c in feedback_comments if any(word in c.lower() for word in ['great', 'excellent', 'loved', 'perfect', 'good', 'helpful', 'clear', 'appreciated'])])
+        elif rating == 3:
+            comment = random.choice([c for c in feedback_comments if any(word in c.lower() for word in ['could', 'would', 'helped', 'reinforced'])])
+        else:
+            comment = random.choice([c for c in feedback_comments if any(word in c.lower() for word in ['repetitive', 'confusing', 'more'])])
+        
+        # Create feedback date (same day or shortly after quiz)
+        days_after = random.randint(0, 3)
+        feedback_date = quiz_session.completed_at + timedelta(days=days_after, hours=random.randint(0, 23)) if quiz_session.completed_at else datetime.now()
+        
+        feedback = QuestionFeedback(
+            question_id=question.id,
+            user_id=user.id,
+            feedback_text=comment,
+            rating=rating,
+            created_at=feedback_date
+        )
+        db.session.add(feedback)
+        feedback_count += 1
+    
+    db.session.commit()
+    print(f'   ✅ Created {flagged_count} flagged questions ({flagged_count - resolved_count} pending, {resolved_count} resolved)')
+    print(f'   ✅ Created {feedback_count} user feedback entries')
+    print(f'   ⭐ Average rating: {sum([f.rating for f in QuestionFeedback.query.all()]) / feedback_count:.1f}/5.0' if feedback_count > 0 else '   ⭐ No feedback yet')
+    
+    return flagged_count, feedback_count
 
 def init_database():
     """Initialize database with default data"""
@@ -457,8 +618,11 @@ def init_database():
         all_users = User.query.all()
         if all_users and len(all_users) > 0:
             total_quizzes, total_questions = create_quiz_history(all_users, topics_list)
+            # Create flagged questions and feedback
+            total_flags, total_feedback = create_flagged_questions_and_feedback(all_users)
         else:
             total_quizzes, total_questions = 0, 0
+            total_flags, total_feedback = 0, 0
         
         # Display credentials
         print('\n' + '='*80)
@@ -476,6 +640,8 @@ def init_database():
         print(f'   📊 Total in database: {User.query.count()}')
         print(f'   📝 Quiz sessions created: {total_quizzes}')
         print(f'   ❓ Questions created: {total_questions}')
+        print(f'   🚩 Flagged questions: {total_flags}')
+        print(f'   💬 User feedback entries: {total_feedback}')
         print('-'*80)
         
         if created_users:
