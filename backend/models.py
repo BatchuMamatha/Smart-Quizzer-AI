@@ -259,53 +259,6 @@ class Topic(db.Model):
             'is_active': self.is_active
         }
 
-class PasswordResetToken(db.Model):
-    __tablename__ = 'password_reset_tokens'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    token = db.Column(db.String(100), unique=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    expires_at = db.Column(db.DateTime, nullable=False)
-    used = db.Column(db.Boolean, default=False)
-    used_at = db.Column(db.DateTime, nullable=True)
-    
-    # Relationship
-    user = db.relationship('User', backref='reset_tokens')
-    
-    def __init__(self, user_id, token, expires_in_hours=24):
-        self.user_id = user_id
-        self.token = token
-        self.expires_at = datetime.utcnow() + timedelta(hours=expires_in_hours)
-    
-    def is_valid(self):
-        """Check if token is still valid (not expired and not used)"""
-        return not self.used and datetime.utcnow() < self.expires_at
-    
-    def mark_as_used(self):
-        """Mark token as used"""
-        self.used = True
-        self.used_at = datetime.utcnow()
-    
-    @classmethod
-    def cleanup_expired(cls):
-        """Remove expired tokens from database"""
-        expired_tokens = cls.query.filter(cls.expires_at < datetime.utcnow()).all()
-        for token in expired_tokens:
-            db.session.delete(token)
-        db.session.commit()
-        return len(expired_tokens)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'created_at': self.created_at.isoformat(),
-            'expires_at': self.expires_at.isoformat(),
-            'used': self.used,
-            'used_at': self.used_at.isoformat() if self.used_at else None
-        }
-
 class QuestionFeedback(db.Model):
     __tablename__ = 'question_feedback'
     

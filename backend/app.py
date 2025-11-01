@@ -22,11 +22,10 @@ except Exception:
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 # Import our modules
-from models import db, User, QuizSession, Question, Topic, PasswordResetToken, QuizLeaderboard
+from models import db, User, QuizSession, Question, Topic, QuizLeaderboard
 from auth import init_jwt, generate_tokens, auth_required
 from question_gen import question_generator
 from content_processor import ContentProcessor
-from email_service import send_password_reset_email, send_welcome_email
 import logging
 
 # Import error handling system
