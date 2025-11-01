@@ -121,6 +121,7 @@ const AdminDashboard: React.FC = () => {
     }
 
     fetchAdminData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Auto-refresh data every 30 seconds
@@ -133,6 +134,7 @@ const AdminDashboard: React.FC = () => {
     }, 30000); // 30 seconds
 
     return () => clearInterval(refreshInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh, activeTab]);
 
   // Refetch when flag status filter changes
@@ -140,6 +142,7 @@ const AdminDashboard: React.FC = () => {
     if (activeTab === 'moderation') {
       fetchAdminData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flagStatusFilter]);
 
   const fetchAdminData = async () => {

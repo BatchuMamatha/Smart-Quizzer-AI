@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserManager } from '../lib/userManager';
-import api, { quizAPI } from '../lib/api';
+import { quizAPI } from '../lib/api';
 import Header from '../components/Header';
 
 interface RealTimeStats {
