@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
 
 try:
     from app import app, db
-    from models import User, Topic, QuizSession, Question, FlaggedQuestion, QuestionFeedback
+    from models import User, Topic, QuizSession, Question, FlaggedQuestion, QuestionFeedback, QuizLeaderboard
 except ImportError as e:
     print('\n' + '='*80)
     print('❌ ERROR: Could not import required modules')
@@ -338,6 +338,72 @@ def create_flagged_questions_and_feedback(users):
     
     return flagged_count, feedback_count
 
+def populate_leaderboard():
+    """Populate leaderboard from existing quiz sessions"""
+    print('\n🏆 Populating leaderboard from quiz sessions...')
+    
+    # Clear existing leaderboard entries
+    QuizLeaderboard.query.delete()
+    db.session.commit()
+    
+    # Get all completed quiz sessions
+    completed_sessions = QuizSession.query.filter_by(status='completed').all()
+    
+    if not completed_sessions:
+        print('   ⚠️  No completed quiz sessions found')
+        return 0
+    
+    leaderboard_count = 0
+    
+    for session in completed_sessions:
+        # Calculate time taken in seconds
+        time_taken_seconds = 0
+        if session.completed_at and session.started_at:
+            time_delta = session.completed_at - session.started_at
+            time_taken_seconds = int(time_delta.total_seconds())
+        
+        # Calculate accuracy
+        accuracy = (session.correct_answers / session.total_questions * 100) if session.total_questions > 0 else 0
+        
+        # Create leaderboard entry
+        leaderboard_entry = QuizLeaderboard(
+            user_id=session.user_id,
+            quiz_session_id=session.id,
+            topic=session.topic,
+            score=session.score_percentage,
+            correct_count=session.correct_answers,
+            total_questions=session.total_questions,
+            time_taken=time_taken_seconds,
+            avg_difficulty_weight=1.0,  # Default weight
+            timestamp=session.completed_at if session.completed_at else session.started_at
+        )
+        db.session.add(leaderboard_entry)
+        leaderboard_count += 1
+    
+    db.session.commit()
+    
+    # Calculate and assign ranks
+    all_entries = QuizLeaderboard.query.order_by(
+        QuizLeaderboard.score.desc(),
+        QuizLeaderboard.time_taken.asc()
+    ).all()
+    
+    for idx, entry in enumerate(all_entries, start=1):
+        entry.rank = idx
+    
+    db.session.commit()
+    
+    print(f'   ✅ Created {leaderboard_count} leaderboard entries')
+    print(f'   🏅 Ranks assigned (1-{leaderboard_count})')
+    
+    # Show top 5
+    top_5 = QuizLeaderboard.query.order_by(QuizLeaderboard.score.desc()).limit(5).all()
+    print(f'\n   🌟 Top 5 Leaderboard:')
+    for entry in top_5:
+        print(f'      #{entry.rank} {entry.user.username}: {entry.score}% on {entry.topic} ({entry.time_taken}s)')
+    
+    return leaderboard_count
+
 def init_database():
     """Initialize database with default data"""
     
@@ -620,9 +686,12 @@ def init_database():
             total_quizzes, total_questions = create_quiz_history(all_users, topics_list)
             # Create flagged questions and feedback
             total_flags, total_feedback = create_flagged_questions_and_feedback(all_users)
+            # Populate leaderboard
+            total_leaderboard = populate_leaderboard()
         else:
             total_quizzes, total_questions = 0, 0
             total_flags, total_feedback = 0, 0
+            total_leaderboard = 0
         
         # Display credentials
         print('\n' + '='*80)
@@ -642,6 +711,7 @@ def init_database():
         print(f'   ❓ Questions created: {total_questions}')
         print(f'   🚩 Flagged questions: {total_flags}')
         print(f'   💬 User feedback entries: {total_feedback}')
+        print(f'   🏆 Leaderboard entries: {total_leaderboard}')
         print('-'*80)
         
         if created_users:
