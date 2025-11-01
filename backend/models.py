@@ -337,9 +337,10 @@ class FlaggedQuestion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
     flagged_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    reason = db.Column(db.Text, nullable=False)
+    flag_reason = db.Column(db.Text, nullable=False)
+    flag_count = db.Column(db.Integer, default=1)
     status = db.Column(db.String(20), nullable=False, default='pending')  # pending, reviewed, resolved
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    flagged_at = db.Column(db.DateTime, default=datetime.utcnow)
     resolved_at = db.Column(db.DateTime, nullable=True)
     resolved_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     
@@ -349,22 +350,71 @@ class FlaggedQuestion(db.Model):
     resolved_by = db.relationship('User', foreign_keys=[resolved_by_user_id], backref='resolved_flags')
     
     def to_dict(self):
-        # Count total flags for this question
-        total_flags = FlaggedQuestion.query.filter_by(question_id=self.question_id).count()
-        
-        # Get all users who flagged this question
-        all_flags = FlaggedQuestion.query.filter_by(question_id=self.question_id).all()
-        flagged_by_users = [flag.flagged_by.username for flag in all_flags if flag.flagged_by]
-        
         return {
             'id': self.id,
             'question_id': self.question_id,
             'question_text': self.question.question_text if self.question else 'Unknown',
             'question_type': self.question.question_type if self.question else 'Unknown',
-            'flag_reason': self.reason,
-            'flag_count': total_flags,
-            'flagged_by': flagged_by_users,
+            'flag_reason': self.flag_reason,
+            'flag_count': self.flag_count,
+            'flagged_by': [self.flagged_by.username] if self.flagged_by else [],
             'status': self.status,
-            'created_at': self.created_at.isoformat(),
+            'flagged_at': self.flagged_at.isoformat() if self.flagged_at else None,
             'resolved_at': self.resolved_at.isoformat() if self.resolved_at else None
+        }
+
+class QuizLeaderboard(db.Model):
+    __tablename__ = 'quiz_leaderboard'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    quiz_session_id = db.Column(db.Integer, db.ForeignKey('quiz_sessions.id'), nullable=False)
+    topic = db.Column(db.String(100), nullable=False)
+    score = db.Column(db.Float, nullable=False, default=0.0)
+    correct_count = db.Column(db.Integer, nullable=False, default=0)
+    total_questions = db.Column(db.Integer, nullable=False, default=0)
+    time_taken = db.Column(db.Integer, nullable=False, default=0)  # in seconds
+    avg_difficulty_weight = db.Column(db.Float, nullable=False, default=1.0)
+    rank = db.Column(db.Integer, nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='leaderboard_entries')
+    quiz_session = db.relationship('QuizSession', backref='leaderboard_entry')
+    
+    def calculate_score(self):
+        """
+        Calculate weighted score based on:
+        - Number of correct answers
+        - Average difficulty weight of attempted questions
+        - Time taken (faster = higher score)
+        
+        Formula: score = (correct_count * avg_difficulty_weight * 100) / (time_taken / 60)
+        """
+        if self.time_taken > 0:
+            # Convert time to minutes, minimum 0.5 minutes to avoid division issues
+            time_in_minutes = max(self.time_taken / 60, 0.5)
+            # Calculate score: correct answers * difficulty weight * 100 / time
+            self.score = (self.correct_count * self.avg_difficulty_weight * 100) / time_in_minutes
+        else:
+            self.score = 0.0
+        
+        return self.score
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'username': self.user.username if self.user else 'Unknown',
+            'full_name': self.user.full_name if self.user else 'Unknown',
+            'quiz_session_id': self.quiz_session_id,
+            'topic': self.topic,
+            'score': round(self.score, 2),
+            'correct_count': self.correct_count,
+            'total_questions': self.total_questions,
+            'accuracy': round((self.correct_count / self.total_questions * 100), 1) if self.total_questions > 0 else 0,
+            'time_taken': self.time_taken,
+            'avg_difficulty_weight': round(self.avg_difficulty_weight, 2),
+            'rank': self.rank,
+            'timestamp': self.timestamp.isoformat()
         }

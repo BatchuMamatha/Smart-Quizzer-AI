@@ -59,44 +59,192 @@ def init_database():
         print('\n👥 Creating default test users...')
         
         default_users = [
+            # Admin accounts (5 total)
             {
-                'username': 'admin',
-                'email': 'admin@smartquizzer.com',
-                'password': 'admin123',
-                'full_name': 'Admin User',
+                'username': 'ravi',
+                'email': 'ravi.kumar@smartquizzer.com',
+                'password': 'Admin@123',
+                'full_name': 'Ravi Kumar',
                 'skill_level': 'Advanced',
                 'role': 'admin'
             },
             {
-                'username': 'alice',
-                'email': 'alice@example.com',
-                'password': 'password123',
-                'full_name': 'Alice Johnson',
+                'username': 'sneha',
+                'email': 'sneha.reddy@smartquizzer.com',
+                'password': 'Admin@123',
+                'full_name': 'Sneha Reddy',
+                'skill_level': 'Advanced',
+                'role': 'admin'
+            },
+            {
+                'username': 'arjun',
+                'email': 'arjun.mehta@smartquizzer.com',
+                'password': 'Admin@123',
+                'full_name': 'Arjun Mehta',
+                'skill_level': 'Advanced',
+                'role': 'admin'
+            },
+            {
+                'username': 'divya',
+                'email': 'divya.patel@smartquizzer.com',
+                'password': 'Admin@123',
+                'full_name': 'Divya Patel',
+                'skill_level': 'Advanced',
+                'role': 'admin'
+            },
+            {
+                'username': 'rahul',
+                'email': 'rahul.sharma@smartquizzer.com',
+                'password': 'Admin@123',
+                'full_name': 'Rahul Sharma',
+                'skill_level': 'Advanced',
+                'role': 'admin'
+            },
+            # Regular user accounts (15 total - 5 Beginner, 5 Intermediate, 5 Advanced)
+            # Beginner Users (5)
+            {
+                'username': 'priya',
+                'email': 'priya.nair@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Priya Nair',
                 'skill_level': 'Beginner',
                 'role': 'user'
             },
             {
-                'username': 'john',
-                'email': 'john@example.com',
-                'password': 'password123',
-                'full_name': 'John Doe',
+                'username': 'rohit',
+                'email': 'rohit.verma@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Rohit Verma',
+                'skill_level': 'Beginner',
+                'role': 'user'
+            },
+            {
+                'username': 'anjali',
+                'email': 'anjali.das@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Anjali Das',
+                'skill_level': 'Beginner',
+                'role': 'user'
+            },
+            {
+                'username': 'vikram',
+                'email': 'vikram.singh@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Vikram Singh',
+                'skill_level': 'Beginner',
+                'role': 'user'
+            },
+            {
+                'username': 'kavya',
+                'email': 'kavya.pillai@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Kavya Pillai',
+                'skill_level': 'Beginner',
+                'role': 'user'
+            },
+            # Intermediate Users (5)
+            {
+                'username': 'aditya',
+                'email': 'aditya.rao@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Aditya Rao',
                 'skill_level': 'Intermediate',
                 'role': 'user'
             },
             {
-                'username': 'demo',
-                'email': 'demo@smartquizzer.com',
-                'password': 'demo123',
-                'full_name': 'Demo User',
+                'username': 'neha',
+                'email': 'neha.bansal@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Neha Bansal',
                 'skill_level': 'Intermediate',
+                'role': 'user'
+            },
+            {
+                'username': 'suresh',
+                'email': 'suresh.iyer@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Suresh Iyer',
+                'skill_level': 'Intermediate',
+                'role': 'user'
+            },
+            {
+                'username': 'tanya',
+                'email': 'tanya.joseph@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Tanya Joseph',
+                'skill_level': 'Intermediate',
+                'role': 'user'
+            },
+            {
+                'username': 'rajesh',
+                'email': 'rajesh.kumar@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Rajesh Kumar',
+                'skill_level': 'Intermediate',
+                'role': 'user'
+            },
+            # Advanced Users (5)
+            {
+                'username': 'nisha',
+                'email': 'nisha.chauhan@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Nisha Chauhan',
+                'skill_level': 'Advanced',
+                'role': 'user'
+            },
+            {
+                'username': 'deepak',
+                'email': 'deepak.gupta@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Deepak Gupta',
+                'skill_level': 'Advanced',
+                'role': 'user'
+            },
+            {
+                'username': 'meera',
+                'email': 'meera.joshi@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Meera Joshi',
+                'skill_level': 'Advanced',
+                'role': 'user'
+            },
+            {
+                'username': 'anand',
+                'email': 'anand.kulkarni@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Anand Kulkarni',
+                'skill_level': 'Advanced',
+                'role': 'user'
+            },
+            {
+                'username': 'isha',
+                'email': 'isha.menon@gmail.com',
+                'password': 'User@123',
+                'full_name': 'Isha Menon',
+                'skill_level': 'Advanced',
                 'role': 'user'
             }
         ]
         
         created_users = []
+        skipped_users = []
         
         for user_data in default_users:
             try:
+                # Check if user already exists by username or email
+                existing_user = User.query.filter(
+                    (User.username == user_data['username']) | 
+                    (User.email == user_data['email'])
+                ).first()
+                
+                if existing_user:
+                    skipped_users.append({
+                        'username': user_data['username'],
+                        'reason': 'already exists'
+                    })
+                    print(f'   ⏭️  Skipped: {user_data["username"]} (already exists)')
+                    continue
+                
                 user = User(
                     username=user_data['username'],
                     email=user_data['email'],
@@ -115,7 +263,8 @@ def init_database():
                     'role': user_data['role']
                 })
                 
-                print(f'   ✅ Created: {user_data["username"]} ({user_data["role"]})')
+                role_emoji = '👑' if user_data['role'] == 'admin' else '👤'
+                print(f'   ✅ Created: {role_emoji} {user_data["username"]} ({user_data["role"]})')
                 
             except Exception as e:
                 print(f'   ❌ Failed to create {user_data["username"]}: {str(e)}')
@@ -156,13 +305,24 @@ def init_database():
         print('DATABASE INITIALIZATION COMPLETE!')
         print('='*80)
         
+        # Show summary statistics
+        print('\n📊 SUMMARY:')
+        print('-'*80)
+        admin_count = len([u for u in created_users if u['role'] == 'admin'])
+        user_count = len([u for u in created_users if u['role'] == 'user'])
+        print(f'   👑 Admin accounts created: {admin_count}')
+        print(f'   👤 Regular user accounts created: {user_count}')
+        print(f'   ⏭️  Skipped (already exist): {len(skipped_users)}')
+        print(f'   📊 Total in database: {User.query.count()}')
+        print('-'*80)
+        
         if created_users:
-            print('\n📋 DEFAULT USER CREDENTIALS:')
+            print('\n📋 NEW USER CREDENTIALS:')
             print('-'*80)
-            print(f'{"USERNAME":<15} {"PASSWORD":<15} {"EMAIL":<30} {"ROLE":<10}')
+            print(f'{"USERNAME":<15} {"PASSWORD":<15} {"EMAIL":<35} {"ROLE":<10}')
             print('-'*80)
             for user in created_users:
-                print(f'{user["username"]:<15} {user["password"]:<15} {user["email"]:<30} {user["role"]:<10}')
+                print(f'{user["username"]:<15} {user["password"]:<15} {user["email"]:<35} {user["role"]:<10}')
             print('-'*80)
         
         print('\n✅ You can now:')

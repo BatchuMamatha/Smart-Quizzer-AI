@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
@@ -22,7 +22,7 @@ except Exception:
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 # Import our modules
-from models import db, User, QuizSession, Question, Topic, PasswordResetToken
+from models import db, User, QuizSession, Question, Topic, PasswordResetToken, QuizLeaderboard
 from auth import init_jwt, generate_tokens, auth_required
 from question_gen import question_generator
 from content_processor import ContentProcessor
@@ -52,7 +52,20 @@ def create_app():
     
     # Initialize extensions
     db.init_app(app)
-    CORS(app)
+    
+    # Configure CORS - Allow frontend to communicate with backend
+    # In production, replace with your actual frontend URL
+    cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": cors_origins,
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "expose_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    })
+    
     init_jwt(app)
     
     # Create tables
@@ -252,12 +265,18 @@ def register():
         if data['skill_level'] not in ['Beginner', 'Intermediate', 'Advanced']:
             return jsonify({'error': 'Invalid skill level'}), 400
         
+        # Get role from data (default to 'user')
+        role = data.get('role', 'user')
+        if role not in ['user', 'admin']:
+            role = 'user'
+        
         # Create new user
         user = User(
             username=data['username'],
             email=data['email'],
             full_name=data['full_name'],
-            skill_level=data['skill_level']
+            skill_level=data['skill_level'],
+            role=role
         )
         user.set_password(data['password'])
         
@@ -266,7 +285,7 @@ def register():
         
         # Generate tokens
         tokens = generate_tokens(user.id)
-        print(f"✅ User '{user.username}' registered successfully")
+        print(f"✅ User '{user.username}' registered successfully as {role}")
         
         # Send welcome email (optional - don't fail registration if email fails)
         try:
@@ -1920,74 +1939,327 @@ def admin_update_user_skill(current_user_id, user_id):
 @app.route('/api/admin/flagged-questions', methods=['GET'])
 @auth_required
 def get_flagged_questions(current_user_id):
-    """Get all flagged questions for moderation"""
+    """Get all flagged questions with complete details (Admin only)"""
     try:
+        # Verify admin access
+        admin_user = User.query.get(current_user_id)
+        if not admin_user or admin_user.role != 'admin':
+            return jsonify({'error': 'Unauthorized: Admin access required'}), 403
+        
         from models import FlaggedQuestion
-        flagged = FlaggedQuestion.query.filter_by(status='pending').all()
+        
+        # Get filter parameter (default to 'pending')
+        status_filter = request.args.get('status', 'pending')
+        
+        # Build query based on filter
+        if status_filter == 'all':
+            flagged = FlaggedQuestion.query.order_by(FlaggedQuestion.flagged_at.desc()).all()
+        else:
+            flagged = FlaggedQuestion.query.filter_by(status=status_filter).order_by(FlaggedQuestion.flagged_at.desc()).all()
+        
+        flagged_list = []
+        for flag in flagged:
+            question = Question.query.get(flag.question_id)
+            flagged_by_user = User.query.get(flag.flagged_by_user_id)
+            
+            flag_dict = {
+                'id': flag.id,
+                'question_id': flag.question_id,
+                'question_text': question.question_text if question else 'Question not found',
+                'question_type': question.question_type if question else 'Unknown',
+                'difficulty': question.difficulty_level if question else 'Unknown',
+                'flag_reason': flag.flag_reason,
+                'flag_count': flag.flag_count,
+                'flagged_by': [flagged_by_user.username] if flagged_by_user else ['Unknown'],
+                'flagged_by_email': flagged_by_user.email if flagged_by_user else 'Unknown',
+                'status': flag.status,
+                'flagged_at': flag.flagged_at.isoformat() if flag.flagged_at else None,
+                'resolved_at': flag.resolved_at.isoformat() if flag.resolved_at else None
+            }
+            flagged_list.append(flag_dict)
+        
         return jsonify({
-            'flagged_questions': [f.to_dict() for f in flagged]
+            'flagged_questions': flagged_list,
+            'total_count': len(flagged_list)
         }), 200
         
     except Exception as e:
+        print(f"❌ Error getting flagged questions: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/admin/resolve-flag/<int:question_id>', methods=['POST'])
+@app.route('/api/admin/resolve-flag/<int:flag_id>', methods=['POST'])
 @auth_required
-def resolve_flag(current_user_id, question_id):
-    """Resolve all flags for a question"""
+def resolve_flag(current_user_id, flag_id):
+    """Resolve a specific flagged question (Admin only)"""
     try:
-        from models import FlaggedQuestion
-        flags = FlaggedQuestion.query.filter_by(question_id=question_id, status='pending').all()
+        # Verify admin access
+        admin_user = User.query.get(current_user_id)
+        if not admin_user or admin_user.role != 'admin':
+            return jsonify({'error': 'Unauthorized: Admin access required'}), 403
         
-        for flag in flags:
+        from models import FlaggedQuestion
+        flag = FlaggedQuestion.query.get(flag_id)
+        
+        if not flag:
+            return jsonify({'error': 'Flagged question not found'}), 404
+        
+        flag.status = 'resolved'
+        flag.resolved_at = datetime.utcnow()
+        flag.resolved_by_user_id = current_user_id
+        
+        db.session.commit()
+        
+        print(f"✅ Admin {current_user_id} resolved flag {flag_id} for question {flag.question_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Flag resolved successfully'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error resolving flag: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/delete-flagged-question/<int:flag_id>', methods=['DELETE'])
+@auth_required
+def delete_flagged_question(current_user_id, flag_id):
+    """Delete the question associated with a flag and mark flag as resolved (Admin only)"""
+    try:
+        # Verify admin access
+        admin_user = User.query.get(current_user_id)
+        if not admin_user or admin_user.role != 'admin':
+            return jsonify({'error': 'Unauthorized: Admin access required'}), 403
+        
+        from models import FlaggedQuestion
+        flag = FlaggedQuestion.query.get(flag_id)
+        
+        if not flag:
+            return jsonify({'error': 'Flagged question not found'}), 404
+        
+        question_id = flag.question_id
+        question = Question.query.get(question_id)
+        
+        if not question:
+            # Question already deleted, just resolve the flag
             flag.status = 'resolved'
             flag.resolved_at = datetime.utcnow()
             flag.resolved_by_user_id = current_user_id
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Question was already deleted. Flag resolved.'
+            }), 200
         
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': f'Resolved {len(flags)} flags for question {question_id}'
-        }), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/admin/question/<int:question_id>', methods=['DELETE'])
-@auth_required
-def admin_delete_question(current_user_id, question_id):
-    """Admin delete a question"""
-    try:
-        question = Question.query.get(question_id)
-        if not question:
-            return jsonify({'error': 'Question not found'}), 404
-        
+        # Delete the question
         db.session.delete(question)
+        
+        # Mark all flags for this question as resolved
+        all_flags = FlaggedQuestion.query.filter_by(question_id=question_id, status='pending').all()
+        for f in all_flags:
+            f.status = 'resolved'
+            f.resolved_at = datetime.utcnow()
+            f.resolved_by_user_id = current_user_id
+        
         db.session.commit()
+        
+        print(f"🗑️ Admin {current_user_id} deleted question {question_id} and resolved {len(all_flags)} flags")
         
         return jsonify({
             'success': True,
-            'message': 'Question deleted successfully'
+            'message': f'Question deleted and {len(all_flags)} flag(s) resolved successfully'
         }), 200
         
     except Exception as e:
         db.session.rollback()
+        print(f"❌ Error deleting flagged question: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/admin/feedback', methods=['GET'])
 @auth_required
 def get_admin_feedback(current_user_id):
-    """Get all user feedback"""
+    """Get all user feedback with complete details (Admin only)"""
     try:
+        # Verify admin access
+        admin_user = User.query.get(current_user_id)
+        if not admin_user or admin_user.role != 'admin':
+            return jsonify({'error': 'Unauthorized: Admin access required'}), 403
+        
         from models import QuestionFeedback
+        
+        # Get all feedback with user and question details
         feedbacks = QuestionFeedback.query.order_by(QuestionFeedback.created_at.desc()).limit(100).all()
+        
+        feedback_list = []
+        for feedback in feedbacks:
+            user = User.query.get(feedback.user_id)
+            question = Question.query.get(feedback.question_id)
+            
+            feedback_dict = {
+                'id': feedback.id,
+                'question_id': feedback.question_id,
+                'question_text': question.question_text if question else 'Question not found',
+                'question_type': question.question_type if question else 'Unknown',
+                'difficulty': question.difficulty_level if question else 'Unknown',
+                'user_id': feedback.user_id,
+                'username': user.username if user else 'Unknown',
+                'user_email': user.email if user else 'Unknown',
+                'feedback_text': feedback.feedback_text,
+                'rating': feedback.rating,
+                'created_at': feedback.created_at.isoformat() if feedback.created_at else None
+            }
+            feedback_list.append(feedback_dict)
+        
         return jsonify({
-            'feedbacks': [f.to_dict() for f in feedbacks]
+            'feedbacks': feedback_list,
+            'total_count': len(feedback_list)
         }), 200
         
     except Exception as e:
+        print(f"❌ Error getting feedback: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/questions/<int:question_id>', methods=['GET'])
+@auth_required
+def get_question_by_id(current_user_id, question_id):
+    """Get a single question by ID with full details (for admins to view question details)"""
+    try:
+        question = Question.query.get(question_id)
+        
+        if not question:
+            return jsonify({'error': 'Question not found'}), 404
+        
+        # Get the quiz session to retrieve topic
+        quiz_session = QuizSession.query.get(question.quiz_session_id) if question.quiz_session_id else None
+        
+        # Get the user who created it
+        created_by_user = quiz_session.user if quiz_session else None
+        
+        question_dict = {
+            'id': question.id,
+            'question_text': question.question_text,
+            'question_type': question.question_type,
+            'difficulty': question.difficulty_level,
+            'topic': quiz_session.topic if quiz_session else 'Unknown',
+            'correct_answer': question.correct_answer,
+            'explanation': question.explanation,
+            'options': question.get_options() if question.question_type == 'multiple_choice' else None,
+            'created_at': question.created_at.isoformat() if question.created_at else None,
+            'created_by': {
+                'id': created_by_user.id if created_by_user else None,
+                'username': created_by_user.username if created_by_user else 'Unknown',
+                'email': created_by_user.email if created_by_user else 'Unknown'
+            } if created_by_user else None
+        }
+        
+        return jsonify(question_dict), 200
+        
+    except Exception as e:
+        print(f"❌ Error getting question: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/leaderboard', methods=['GET'])
+@auth_required
+def get_admin_leaderboard(current_user_id):
+    """Get complete leaderboard for admin dashboard with search and filter"""
+    try:
+        # Verify admin access
+        admin_user = User.query.get(current_user_id)
+        if not admin_user or admin_user.role != 'admin':
+            return jsonify({'error': 'Unauthorized: Admin access required'}), 403
+        
+        # Get query parameters
+        search = request.args.get('search', '').strip()
+        topic = request.args.get('topic', '').strip()
+        quiz_id = request.args.get('quiz_id', '').strip()
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Build query
+        query = QuizLeaderboard.query
+        
+        # Apply filters
+        if search:
+            query = query.join(User).filter(
+                db.or_(
+                    User.username.ilike(f'%{search}%'),
+                    User.full_name.ilike(f'%{search}%'),
+                    User.email.ilike(f'%{search}%')
+                )
+            )
+        
+        if topic:
+            query = query.filter(QuizLeaderboard.topic.ilike(f'%{topic}%'))
+        
+        if quiz_id:
+            query = query.filter(QuizLeaderboard.quiz_session_id == int(quiz_id))
+        
+        # Get total count
+        total_entries = query.count()
+        
+        # Get paginated results ordered by score
+        leaderboard_entries = query.order_by(
+            QuizLeaderboard.score.desc(),
+            QuizLeaderboard.timestamp.desc()
+        ).limit(limit).offset(offset).all()
+        
+        # Calculate ranks
+        for idx, entry in enumerate(leaderboard_entries, start=offset + 1):
+            entry.rank = idx
+        
+        # Get user statistics
+        user_stats = db.session.query(
+            User.id,
+            User.username,
+            User.full_name,
+            User.email,
+            User.role,
+            db.func.count(QuizLeaderboard.id).label('total_quizzes'),
+            db.func.avg(QuizLeaderboard.score).label('avg_score'),
+            db.func.sum(QuizLeaderboard.correct_count).label('total_correct'),
+            db.func.sum(QuizLeaderboard.total_questions).label('total_questions')
+        ).outerjoin(QuizLeaderboard).group_by(User.id).all()
+        
+        users_summary = []
+        for stat in user_stats:
+            users_summary.append({
+                'user_id': stat.id,
+                'username': stat.username,
+                'full_name': stat.full_name,
+                'email': stat.email,
+                'role': stat.role,
+                'total_quizzes': stat.total_quizzes or 0,
+                'avg_score': round(stat.avg_score, 2) if stat.avg_score else 0,
+                'total_correct': stat.total_correct or 0,
+                'total_questions': stat.total_questions or 0,
+                'overall_accuracy': round((stat.total_correct / stat.total_questions * 100), 1) if stat.total_questions else 0
+            })
+        
+        return jsonify({
+            'leaderboard': [entry.to_dict() for entry in leaderboard_entries],
+            'users_summary': users_summary,
+            'total_entries': total_entries,
+            'limit': limit,
+            'offset': offset,
+            'filters': {
+                'search': search,
+                'topic': topic,
+                'quiz_id': quiz_id
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Admin leaderboard error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ==================== FEEDBACK & FLAGGING ENDPOINTS ====================
@@ -1995,8 +2267,19 @@ def get_admin_feedback(current_user_id):
 @app.route('/api/feedback/question/<int:question_id>', methods=['POST'])
 @auth_required
 def submit_question_feedback(current_user_id, question_id):
-    """Submit feedback for a question"""
+    """Submit feedback for a question (Users only, not admins)"""
     try:
+        # Verify user is not an admin
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        if user.role == 'admin':
+            return jsonify({
+                'error': 'Admins cannot submit feedback',
+                'message': 'Only regular users who take quizzes can provide feedback'
+            }), 403
+        
         from models import QuestionFeedback
         data = request.get_json()
         feedback_text = data.get('feedback')
@@ -2018,7 +2301,7 @@ def submit_question_feedback(current_user_id, question_id):
         db.session.add(feedback)
         db.session.commit()
         
-        print(f"📝 Feedback saved from user {current_user_id} on question {question_id}")
+        print(f"📝 Feedback saved from user {user.username} (ID: {current_user_id}) on question {question_id}")
         
         return jsonify({
             'success': True,
@@ -2028,16 +2311,30 @@ def submit_question_feedback(current_user_id, question_id):
         
     except Exception as e:
         db.session.rollback()
+        print(f"❌ Error submitting feedback: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/flag/question/<int:question_id>', methods=['POST'])
 @auth_required
 def flag_question(current_user_id, question_id):
-    """Flag a question for review"""
+    """Flag a question for review (Users only, not admins)"""
     try:
+        # Verify user is not an admin
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        if user.role == 'admin':
+            return jsonify({
+                'error': 'Admins cannot flag questions',
+                'message': 'Only regular users who take quizzes can flag questions for review'
+            }), 403
+        
         from models import FlaggedQuestion
         data = request.get_json()
-        reason = data.get('reason', 'No reason provided')
+        flag_reason = data.get('reason', 'No reason provided')
         
         question = Question.query.get(question_id)
         if not question:
@@ -2046,26 +2343,31 @@ def flag_question(current_user_id, question_id):
         # Check if user already flagged this question
         existing_flag = FlaggedQuestion.query.filter_by(
             question_id=question_id,
-            flagged_by_user_id=current_user_id
+            flagged_by_user_id=current_user_id,
+            status='pending'
         ).first()
         
         if existing_flag:
+            # Increment flag count
+            existing_flag.flag_count += 1
+            db.session.commit()
             return jsonify({
-                'success': False,
-                'message': 'You have already flagged this question'
-            }), 400
+                'success': True,
+                'message': 'Flag count updated for this question'
+            }), 200
         
         flag = FlaggedQuestion(
             question_id=question_id,
             flagged_by_user_id=current_user_id,
-            reason=reason,
+            flag_reason=flag_reason,
+            flag_count=1,
             status='pending'
         )
         
         db.session.add(flag)
         db.session.commit()
         
-        print(f"🚩 Question {question_id} flagged by user {current_user_id}")
+        print(f"🚩 Question {question_id} flagged by user {current_user_id}: {flag_reason}")
         
         return jsonify({
             'success': True,
@@ -2075,6 +2377,347 @@ def flag_question(current_user_id, question_id):
         
     except Exception as e:
         db.session.rollback()
+        print(f"❌ Error flagging question: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+# ==================== LEADERBOARD ENDPOINTS ====================
+
+@app.route('/api/leaderboard/global', methods=['GET'])
+def get_global_leaderboard():
+    """Get global leaderboard across all quizzes"""
+    try:
+        limit = request.args.get('limit', 10, type=int)
+        topic = request.args.get('topic', None)
+        
+        # Query leaderboard entries
+        query = db.session.query(
+            QuizLeaderboard.user_id,
+            User.username,
+            User.full_name,
+            db.func.count(QuizLeaderboard.id).label('total_quizzes'),
+            db.func.avg(QuizLeaderboard.score).label('avg_score'),
+            db.func.sum(QuizLeaderboard.correct_count).label('total_correct'),
+            db.func.sum(QuizLeaderboard.total_questions).label('total_questions'),
+            db.func.avg(QuizLeaderboard.time_taken).label('avg_time')
+        ).join(User).group_by(QuizLeaderboard.user_id)
+        
+        if topic:
+            query = query.filter(QuizLeaderboard.topic == topic)
+        
+        # Order by average score
+        leaderboard_data = query.order_by(db.desc('avg_score')).limit(limit).all()
+        
+        # Format results with ranking
+        leaderboard = []
+        for rank, entry in enumerate(leaderboard_data, start=1):
+            leaderboard.append({
+                'rank': rank,
+                'user_id': entry.user_id,
+                'username': entry.username,
+                'full_name': entry.full_name,
+                'total_quizzes': entry.total_quizzes,
+                'avg_score': round(entry.avg_score, 2),
+                'total_correct': entry.total_correct,
+                'total_questions': entry.total_questions,
+                'accuracy': round((entry.total_correct / entry.total_questions * 100), 1) if entry.total_questions > 0 else 0,
+                'avg_time': round(entry.avg_time, 1)
+            })
+        
+        return jsonify({
+            'leaderboard': leaderboard,
+            'total_entries': len(leaderboard),
+            'topic': topic
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error fetching global leaderboard: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/leaderboard/topic/<topic>', methods=['GET'])
+def get_topic_leaderboard(topic):
+    """Get leaderboard for specific topic"""
+    try:
+        limit = request.args.get('limit', 10, type=int)
+        time_period = request.args.get('period', 'all')  # all, today, week, month
+        
+        query = QuizLeaderboard.query.filter_by(topic=topic)
+        
+        # Filter by time period
+        if time_period == 'today':
+            today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            query = query.filter(QuizLeaderboard.timestamp >= today)
+        elif time_period == 'week':
+            week_ago = datetime.utcnow() - timedelta(days=7)
+            query = query.filter(QuizLeaderboard.timestamp >= week_ago)
+        elif time_period == 'month':
+            month_ago = datetime.utcnow() - timedelta(days=30)
+            query = query.filter(QuizLeaderboard.timestamp >= month_ago)
+        
+        # Get top scores
+        leaderboard_entries = query.order_by(QuizLeaderboard.score.desc()).limit(limit).all()
+        
+        # Update ranks
+        for rank, entry in enumerate(leaderboard_entries, start=1):
+            entry.rank = rank
+        
+        db.session.commit()
+        
+        leaderboard = [entry.to_dict() for entry in leaderboard_entries]
+        
+        return jsonify({
+            'leaderboard': leaderboard,
+            'topic': topic,
+            'period': time_period,
+            'total_entries': len(leaderboard)
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error fetching topic leaderboard: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/leaderboard/live/<topic>', methods=['GET'])
+def get_live_leaderboard(topic):
+    """Get live leaderboard for users currently taking quizzes on a topic"""
+    try:
+        # Get active and recently completed quiz sessions (last 5 minutes)
+        recent_time = datetime.utcnow() - timedelta(minutes=5)
+        
+        active_sessions = QuizSession.query.filter(
+            QuizSession.topic == topic,
+            QuizSession.started_at >= recent_time,
+            db.or_(
+                QuizSession.status == 'active',
+                db.and_(
+                    QuizSession.status == 'completed',
+                    QuizSession.completed_at >= recent_time
+                )
+            )
+        ).all()
+        
+        live_rankings = []
+        for session in active_sessions:
+            # Calculate current stats
+            time_elapsed = (datetime.utcnow() - session.started_at).total_seconds()
+            
+            # Calculate average difficulty weight
+            questions = Question.query.filter_by(quiz_session_id=session.id).all()
+            difficulty_weights = {
+                'Beginner': 1.0,
+                'Intermediate': 1.5,
+                'Advanced': 2.0
+            }
+            
+            avg_difficulty = sum([difficulty_weights.get(q.difficulty_level, 1.0) for q in questions]) / len(questions) if questions else 1.0
+            
+            # Calculate score
+            if time_elapsed > 0:
+                time_in_minutes = max(time_elapsed / 60, 0.5)
+                score = (session.correct_answers * avg_difficulty * 100) / time_in_minutes
+            else:
+                score = 0
+            
+            live_rankings.append({
+                'user_id': session.user_id,
+                'username': session.user.username,
+                'full_name': session.user.full_name,
+                'quiz_session_id': session.id,
+                'score': round(score, 2),
+                'correct_count': session.correct_answers,
+                'total_questions': session.total_questions,
+                'completed_questions': session.completed_questions,
+                'accuracy': round(session.score_percentage, 1),
+                'time_taken': int(time_elapsed),
+                'status': session.status,
+                'avg_difficulty': round(avg_difficulty, 2)
+            })
+        
+        # Sort by score
+        live_rankings.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Add ranks
+        for rank, entry in enumerate(live_rankings, start=1):
+            entry['rank'] = rank
+        
+        return jsonify({
+            'live_leaderboard': live_rankings,
+            'topic': topic,
+            'total_active': len(live_rankings),
+            'last_updated': datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error fetching live leaderboard: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/leaderboard/user/<int:user_id>', methods=['GET'])
+@auth_required
+def get_user_leaderboard_stats(current_user_id, user_id):
+    """Get leaderboard statistics for a specific user"""
+    try:
+        # Verify user can access this data (only their own or admin)
+        current_user = User.query.get(current_user_id)
+        if current_user_id != user_id and current_user.role != 'admin':
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Get all leaderboard entries for user
+        entries = QuizLeaderboard.query.filter_by(user_id=user_id).all()
+        
+        if not entries:
+            return jsonify({
+                'user_id': user_id,
+                'total_entries': 0,
+                'best_score': 0,
+                'avg_score': 0,
+                'total_quizzes': 0
+            }), 200
+        
+        # Calculate stats
+        scores = [entry.score for entry in entries]
+        best_score = max(scores)
+        avg_score = sum(scores) / len(scores)
+        
+        # Get best rank achieved
+        best_rank = min([entry.rank for entry in entries if entry.rank is not None], default=None)
+        
+        # Group by topic
+        topic_stats = {}
+        for entry in entries:
+            if entry.topic not in topic_stats:
+                topic_stats[entry.topic] = {
+                    'count': 0,
+                    'best_score': 0,
+                    'avg_score': 0,
+                    'best_rank': None
+                }
+            
+            topic_stats[entry.topic]['count'] += 1
+            topic_stats[entry.topic]['best_score'] = max(topic_stats[entry.topic]['best_score'], entry.score)
+            
+            if entry.rank and (topic_stats[entry.topic]['best_rank'] is None or entry.rank < topic_stats[entry.topic]['best_rank']):
+                topic_stats[entry.topic]['best_rank'] = entry.rank
+        
+        # Calculate average scores per topic
+        for topic in topic_stats:
+            topic_entries = [e for e in entries if e.topic == topic]
+            topic_stats[topic]['avg_score'] = sum([e.score for e in topic_entries]) / len(topic_entries)
+        
+        return jsonify({
+            'user_id': user_id,
+            'total_entries': len(entries),
+            'best_score': round(best_score, 2),
+            'avg_score': round(avg_score, 2),
+            'best_rank': best_rank,
+            'total_quizzes': len(entries),
+            'topic_stats': {
+                topic: {
+                    'count': stats['count'],
+                    'best_score': round(stats['best_score'], 2),
+                    'avg_score': round(stats['avg_score'], 2),
+                    'best_rank': stats['best_rank']
+                }
+                for topic, stats in topic_stats.items()
+            },
+            'recent_entries': [entry.to_dict() for entry in sorted(entries, key=lambda x: x.timestamp, reverse=True)[:5]]
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Error fetching user leaderboard stats: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quiz/<int:quiz_id>/leaderboard', methods=['POST'])
+@auth_required
+def update_quiz_leaderboard(current_user_id, quiz_id):
+    """Update leaderboard entry when quiz is completed"""
+    try:
+        # Get quiz session
+        quiz_session = QuizSession.query.filter_by(id=quiz_id, user_id=current_user_id).first()
+        
+        if not quiz_session:
+            return jsonify({'error': 'Quiz session not found'}), 404
+        
+        if quiz_session.status != 'completed':
+            return jsonify({'error': 'Quiz not completed yet'}), 400
+        
+        # Calculate time taken
+        if quiz_session.completed_at and quiz_session.started_at:
+            time_taken = int((quiz_session.completed_at - quiz_session.started_at).total_seconds())
+        else:
+            time_taken = 0
+        
+        # Get all questions for this quiz to calculate average difficulty
+        questions = Question.query.filter_by(quiz_session_id=quiz_id).all()
+        
+        difficulty_weights = {
+            'Beginner': 1.0,
+            'Intermediate': 1.5,
+            'Advanced': 2.0
+        }
+        
+        if questions:
+            total_weight = sum([difficulty_weights.get(q.difficulty_level, 1.0) for q in questions])
+            avg_difficulty_weight = total_weight / len(questions)
+        else:
+            avg_difficulty_weight = 1.0
+        
+        # Check if leaderboard entry already exists
+        existing_entry = QuizLeaderboard.query.filter_by(quiz_session_id=quiz_id).first()
+        
+        if existing_entry:
+            # Update existing entry
+            leaderboard_entry = existing_entry
+            leaderboard_entry.correct_count = quiz_session.correct_answers
+            leaderboard_entry.total_questions = quiz_session.total_questions
+            leaderboard_entry.time_taken = time_taken
+            leaderboard_entry.avg_difficulty_weight = avg_difficulty_weight
+        else:
+            # Create new leaderboard entry
+            leaderboard_entry = QuizLeaderboard(
+                user_id=current_user_id,
+                quiz_session_id=quiz_id,
+                topic=quiz_session.topic,
+                correct_count=quiz_session.correct_answers,
+                total_questions=quiz_session.total_questions,
+                time_taken=time_taken,
+                avg_difficulty_weight=avg_difficulty_weight
+            )
+            db.session.add(leaderboard_entry)
+        
+        # Calculate score
+        leaderboard_entry.calculate_score()
+        
+        db.session.commit()
+        
+        # Get updated rank for this topic
+        topic_entries = QuizLeaderboard.query.filter_by(topic=quiz_session.topic).order_by(QuizLeaderboard.score.desc()).all()
+        
+        for rank, entry in enumerate(topic_entries, start=1):
+            entry.rank = rank
+        
+        db.session.commit()
+        
+        print(f"📊 Leaderboard updated for user {current_user_id}, quiz {quiz_id}, score: {leaderboard_entry.score}")
+        
+        return jsonify({
+            'success': True,
+            'leaderboard_entry': leaderboard_entry.to_dict(),
+            'message': 'Leaderboard updated successfully'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error updating leaderboard: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
@@ -2095,6 +2738,12 @@ if __name__ == '__main__':
     print("   - POST /api/quiz/<id>/answer - Submit answer")
     print("   - GET  /api/quiz/<id>/results - Quiz results")
     print("   - GET  /api/quiz/history - Quiz history")
+    print("   Leaderboard:")
+    print("   - GET  /api/leaderboard/global - Global leaderboard")
+    print("   - GET  /api/leaderboard/topic/<topic> - Topic-specific leaderboard")
+    print("   - GET  /api/leaderboard/live/<topic> - Live rankings (real-time)")
+    print("   - GET  /api/leaderboard/user/<id> - User leaderboard stats")
+    print("   - POST /api/quiz/<id>/leaderboard - Update leaderboard entry")
     print("   Content Upload & Processing:")
     print("   - POST /api/content/upload - Upload files (PDF, DOCX, TXT, etc.)")
     print("   - POST /api/content/process-url - Process web URL content")

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { quizAPI, QuizResultsResponse, Question } from '../lib/api';
+import api, { quizAPI, QuizResultsResponse, Question } from '../lib/api';
 import { useAudioFeedback } from '../lib/audioFeedback';
 import Header from '../components/Header';
 
@@ -45,6 +45,15 @@ const Results: React.FC = () => {
         setLoading(true);
         const data = await quizAPI.getResults(quizId);
         setResults(data);
+        
+        // Update leaderboard entry for this completed quiz
+        try {
+          await api.post(`/quiz/${quizId}/leaderboard`);
+          console.log('✅ Leaderboard updated successfully');
+        } catch (leaderboardError) {
+          console.error('Failed to update leaderboard:', leaderboardError);
+          // Don't fail the results page if leaderboard update fails
+        }
         
         // Fetch leaderboard after getting results
         fetchLeaderboard(data.quiz_session.topic);
@@ -685,20 +694,11 @@ const Results: React.FC = () => {
           {/* Leaderboard Section */}
           <div className="bg-white overflow-hidden shadow rounded-lg mb-6">
             <div className="px-4 py-5 sm:p-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="mb-6">
                 <h3 className="text-2xl font-bold text-gray-900 flex items-center">
                   <span className="mr-3">🏆</span>
                   Leaderboard - {quiz_session.topic}
                 </h3>
-                <button
-                  onClick={() => navigate('/leaderboard')}
-                  className="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-1"
-                >
-                  View Full Leaderboard
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
               </div>
 
               {loadingLeaderboard ? (
@@ -808,20 +808,6 @@ const Results: React.FC = () => {
                         })}
                       </tbody>
                     </table>
-                  </div>
-
-                  {/* View Full Leaderboard CTA */}
-                  <div className="mt-6 text-center">
-                    <button
-                      onClick={() => navigate('/leaderboard')}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-semibold rounded-lg shadow-lg transition-all"
-                    >
-                      <span>🏆</span>
-                      View Full Leaderboard & Rankings
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                    </button>
                   </div>
                 </>
               ) : (

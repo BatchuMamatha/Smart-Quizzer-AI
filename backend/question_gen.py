@@ -1949,7 +1949,7 @@ Explanation: [what makes a good answer and why this topic is important]
         previous_questions = []
         if user_id:
             previous_questions = self.get_previous_questions(user_id, topic, skill_level)
-            print(f"� Found {len(previous_questions)} previous questions to avoid repeating")
+            print(f"📋 Found {len(previous_questions)} previous questions to avoid repeating")
         
         questions = []
         question_types = ['MCQ', 'True/False', 'MCQ', 'Fill-in-the-blank', 'MCQ']

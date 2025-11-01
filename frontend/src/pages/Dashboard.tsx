@@ -157,7 +157,7 @@ const Dashboard: React.FC = () => {
               <div className="bg-white bg-opacity-90 backdrop-blur-lg border border-white border-opacity-30 rounded-2xl shadow-xl p-8 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/25 animate-fade-in-scale">
                 <div className="mb-6">
                   <h3 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
-                    <span className="mr-3 text-3xl">�</span>
+                    <span className="mr-3 text-3xl">🎓</span>
                     Start New Quiz
                   </h3>
                   <p className="text-gray-600">Create a personalized learning experience</p>
@@ -177,14 +177,15 @@ const Dashboard: React.FC = () => {
                           setSelectedTopic(e.target.value);
                           setShowCustomTopic(e.target.value === 'Custom');
                         }}
-                        className="block w-full px-4 py-3 text-base border border-gray-300 rounded-xl shadow-sm text-gray-900 bg-white cursor-pointer transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pl-12"
+                        className="block w-full px-4 py-3 text-lg border border-gray-300 rounded-xl shadow-sm text-gray-900 bg-white cursor-pointer transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pl-12"
                         style={{
                           backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
                           backgroundPosition: 'right 12px center',
                           backgroundRepeat: 'no-repeat',
                           backgroundSize: '16px 12px',
                           paddingRight: '40px',
-                          appearance: 'none'
+                          appearance: 'none',
+                          fontSize: '1.125rem'
                         }}
                       >
                         <option value="">🎯 Choose your learning topic...</option>

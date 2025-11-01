@@ -6,6 +6,13 @@ An intelligent quiz generation platform powered by AI that creates personalized 
 [![Flask](https://img.shields.io/badge/Flask-2.3.3-green.svg)](https://flask.palletsprojects.com/)
 [![AI Powered](https://img.shields.io/badge/AI-Google%20Gemini-orange.svg)](https://ai.google.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![Production Ready](https://img.shields.io/badge/Production-Ready-success.svg)](https://github.com/BatchuMamatha/Smart-Quizzer-AI)
+
+## 📚 Documentation
+
+- **[SETUP.md](SETUP.md)** - Complete installation guide with troubleshooting
+- **[CHANGES.md](CHANGES.md)** - Production refactoring changes and improvements
+- **[ADMIN_DASHBOARD_GUIDE.md](ADMIN_DASHBOARD_GUIDE.md)** - Admin features documentation
 
 ## 🎯 Problem Statement
 
@@ -178,6 +185,8 @@ Smart-Quizzer-AI/
 
 ### 🎯 **Super Quick Setup (Automated)**
 
+The setup script automatically installs dependencies and initializes the database with sample data.
+
 **Windows:**
 ```bash
 # 1. Clone and navigate
@@ -187,9 +196,8 @@ cd Smart-Quizzer-AI
 # 2. Run automated setup
 setup.bat
 
-# 3. Add your Gemini API key to backend/.env
-# Then initialize database:
-python init_database.py
+# 3. Edit backend/.env and add your Gemini API key
+# The script creates this file automatically
 ```
 
 **Mac/Linux:**
@@ -202,17 +210,37 @@ cd Smart-Quizzer-AI
 chmod +x setup.sh
 ./setup.sh
 
-# 3. Add your Gemini API key to backend/.env
-# Then initialize database:
-python3 init_database.py
+# 3. Edit backend/.env and add your Gemini API key
+# The script creates this file automatically
 ```
 
-### 📋 **Default Test Users** (After running init_database.py)
+> 📖 **For detailed setup instructions, troubleshooting, and manual installation**, see [SETUP.md](SETUP.md)
 
-| Username | Password | Email | Role |
-|----------|----------|-------|------|
-| admin | admin123 | admin@smartquizzer.com | admin |
-| alice | password123 | alice@example.com | user |
+### � **Default Test Credentials**
+
+The setup script creates 20 users (5 admins + 15 regular users):
+
+**Admin Accounts:**
+| Username | Password | Name |
+|----------|----------|------|
+| ravi | Admin@123 | Ravi Kumar |
+| sneha | Admin@123 | Sneha Reddy |
+| arjun | Admin@123 | Arjun Mehta |
+| divya | Admin@123 | Divya Patel |
+| rahul | Admin@123 | Rahul Sharma |
+
+**Sample User Accounts:**
+| Username | Password | Name | Skill Level |
+|----------|----------|------|-------------|
+| priya | User@123 | Priya Nair | Beginner |
+| anjali | User@123 | Anjali Das | Beginner |
+| vikram | User@123 | Vikram Singh | Intermediate |
+| neha | User@123 | Neha Bansal | Intermediate |
+| deepak | User@123 | Deepak Gupta | Advanced |
+
+*15 user accounts total with varying skill levels. See `init_database.py` for complete list.*
+
+> ⚠️ **Security Note**: These are test credentials. Change admin passwords before deploying to production!
 | john | password123 | john@example.com | user |
 | demo | demo123 | demo@smartquizzer.com | user |
 
@@ -343,7 +371,7 @@ Backend: http://localhost:5000
 
 ## 🆕 Latest Updates (October 2025)
 
-### � **Admin Dashboard & Moderation System**
+### 🛡️ **Admin Dashboard & Moderation System**
 Complete platform management with powerful moderation tools:
 - **Admin Dashboard** - 4-tab interface (Overview, Users, Moderation, Feedback)
 - **User Management** - View, search, and update user skill levels
@@ -395,7 +423,7 @@ Complete containerization and deployment setup:
 - **📱 Mobile Responsive** - Optimized for all device sizes
 - **🎤 Audio Experience** - 90% user satisfaction with voice feedback
 - **📊 Analytics Adoption** - 85% of users actively view analytics
-- **� Security Score** - 100% secure authentication and password recovery
+- **🔒 Security Score** - 100% secure authentication and password recovery
 - **👥 Content Moderation** - Real-time flag processing and resolution
 - **🌐 Multi-Format Support** - PDF, DOCX, TXT, JSON, CSV processing
 

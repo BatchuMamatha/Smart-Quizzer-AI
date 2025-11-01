@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+// Use environment variable or fallback to localhost
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 // Create axios instance
 const api = axios.create({
@@ -13,16 +14,16 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use((config) => {
   const token = sessionStorage.getItem('access_token');
-  const user = sessionStorage.getItem('user');
   
-  // Debug logging
-  console.log('🔍 API Request Debug:', {
-    url: config.url,
-    method: config.method,
-    hasToken: !!token,
-    tokenPreview: token ? token.substring(0, 30) + '...' : 'No token',
-    user: user ? JSON.parse(user) : 'No user'
-  });
+  // Only log in development mode
+  if (process.env.NODE_ENV === 'development') {
+    const user = sessionStorage.getItem('user');
+    console.log('🔍 API Request:', {
+      url: config.url,
+      method: config.method,
+      hasToken: !!token
+    });
+  }
   
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -142,6 +143,7 @@ export const authAPI = {
     password: string;
     full_name: string;
     skill_level: string;
+    role?: string;
   }): Promise<AuthResponse> => {
     const response = await api.post('/auth/register', data);
     return response.data;

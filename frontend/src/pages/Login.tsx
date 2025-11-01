@@ -8,13 +8,23 @@ const Login: React.FC = () => {
     username: '',
     password: '',
   });
+  const [signupData, setSignupData] = useState({
+    username: '',
+    email: '',
+    full_name: '',
+    password: '',
+    confirmPassword: '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
+  const [isAdminLogin, setIsAdminLogin] = useState(false);
+  const [isAdminSignup, setIsAdminSignup] = useState(false);
 
   const navigate = useNavigate();
   const userManager = UserManager.getInstance();
@@ -26,6 +36,68 @@ const Login: React.FC = () => {
       [name]: value
     }));
     if (error) setError(''); // Clear error when user types
+  };
+
+  const handleSignupInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setSignupData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    if (error) setError(''); // Clear error when user types
+  };
+
+  const handleAdminSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    // Validation
+    if (signupData.password !== signupData.confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (signupData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      setLoading(false);
+      return;
+    }
+
+    if (!signupData.email.includes('@')) {
+      setError('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await authAPI.register({
+        username: signupData.username,
+        email: signupData.email,
+        full_name: signupData.full_name,
+        password: signupData.password,
+        skill_level: 'Intermediate',
+        role: 'admin' // Set role as admin
+      });
+
+      console.log('🔍 Admin Signup Response:', response);
+
+      // Auto-login after signup
+      if (response.user && response.tokens) {
+        userManager.login(response.user, response.tokens.access_token);
+        setSuccessMessage('Admin account created successfully! Redirecting to dashboard...');
+        
+        setTimeout(() => {
+          navigate('/admin');
+        }, 1500);
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 'Failed to create admin account. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,14 +220,65 @@ const Login: React.FC = () => {
           </div>
         )}
 
-        {/* Main Login Form */}
+        {/* Main Login/Signup Form */}
         {!showForgotPassword && (
           <div className="bg-white bg-opacity-90 backdrop-blur-lg border border-white border-opacity-30 rounded-2xl shadow-xl p-8 animate-fade-in-scale">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
-              <p className="text-gray-600">Please sign in to continue your learning journey</p>
+            {/* Login Mode Toggle */}
+            <div className="mb-6 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAdminLogin(false);
+                  setIsAdminSignup(false);
+                  setFormData({ username: '', password: '' });
+                  setSignupData({ username: '', email: '', full_name: '', password: '', confirmPassword: '' });
+                  setError('');
+                }}
+                className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+                  !isAdminLogin && !isAdminSignup
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <span className="mr-2">👤</span>
+                User Login
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAdminLogin(true);
+                  setIsAdminSignup(false);
+                  setFormData({ username: '', password: '' });
+                  setSignupData({ username: '', email: '', full_name: '', password: '', confirmPassword: '' });
+                  setError('');
+                }}
+                className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+                  isAdminLogin && !isAdminSignup
+                    ? 'bg-gradient-to-r from-amber-500 to-red-500 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <span className="mr-2">🔑</span>
+                Admin
+              </button>
             </div>
 
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {isAdminLogin ? '🔑 Admin Access' : 'Welcome Back!'}
+              </h2>
+              <p className="text-gray-600">
+                {isAdminLogin 
+                  ? 'Sign in with your administrator credentials'
+                  : 'Please sign in to continue your learning journey'
+                }
+              </p>
+            </div>
+
+            {/* Admin Signup Form */}
+            {/* Admin signup removed - admins created via backend only */}
+
+            {/* Regular Login Form (User or Admin) */}
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Username */}
               <div>
@@ -208,7 +331,11 @@ const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                className={`w-full font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${
+                  isAdminLogin
+                    ? 'bg-gradient-to-r from-amber-500 to-red-500 hover:from-amber-600 hover:to-red-600 text-white'
+                    : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                }`}
               >
                 {loading ? (
                   <div className="flex items-center justify-center">
@@ -217,36 +344,40 @@ const Login: React.FC = () => {
                   </div>
                 ) : (
                   <div className="flex items-center justify-center">
-                    <span className="mr-2">🚀</span>
-                    Sign In
+                    <span className="mr-2">{isAdminLogin ? '🔑' : '🚀'}</span>
+                    {isAdminLogin ? 'Admin Sign In' : 'Sign In'}
                   </div>
                 )}
               </button>
 
-              {/* Forgot Password Link */}
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => setShowForgotPassword(true)}
-                  className="text-blue-600 hover:text-blue-800 font-medium transition-colors underline"
-                >
-                  Forgot your password?
-                </button>
-              </div>
+              {/* Forgot Password Link - Only show for regular users */}
+              {!isAdminLogin && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-blue-600 hover:text-blue-800 font-medium transition-colors underline"
+                  >
+                    Forgot your password?
+                  </button>
+                </div>
+              )}
             </form>
 
-            {/* Register Link */}
-            <div className="mt-6 text-center border-t border-gray-200 pt-6">
-              <p className="text-gray-600">
-                Don't have an account?{' '}
-                <Link
-                  to="/register"
-                  className="text-blue-600 hover:text-blue-800 font-semibold transition-colors"
-                >
-                  Create Account
-                </Link>
-              </p>
-            </div>
+            {/* Register Link - Only show for regular users */}
+            {!isAdminLogin && !isAdminSignup && (
+              <div className="mt-6 text-center border-t border-gray-200 pt-6">
+                <p className="text-gray-600">
+                  Don't have an account?{' '}
+                  <Link
+                    to="/register"
+                    className="text-blue-600 hover:text-blue-800 font-semibold transition-colors"
+                  >
+                    Create Account
+                  </Link>
+                </p>
+              </div>
+            )}
           </div>
         )}
 
