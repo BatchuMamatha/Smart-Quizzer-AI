@@ -8,18 +8,10 @@ const Login: React.FC = () => {
     username: '',
     password: '',
   });
-  const [signupData, setSignupData] = useState({
-    username: '',
-    email: '',
-    full_name: '',
-    password: '',
-    confirmPassword: '',
-  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
@@ -36,68 +28,6 @@ const Login: React.FC = () => {
       [name]: value
     }));
     if (error) setError(''); // Clear error when user types
-  };
-
-  const handleSignupInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setSignupData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    if (error) setError(''); // Clear error when user types
-  };
-
-  const handleAdminSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    // Validation
-    if (signupData.password !== signupData.confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
-    if (signupData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      setLoading(false);
-      return;
-    }
-
-    if (!signupData.email.includes('@')) {
-      setError('Please enter a valid email address');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const response = await authAPI.register({
-        username: signupData.username,
-        email: signupData.email,
-        full_name: signupData.full_name,
-        password: signupData.password,
-        skill_level: 'Intermediate',
-        role: 'admin' // Set role as admin
-      });
-
-      console.log('🔍 Admin Signup Response:', response);
-
-      // Auto-login after signup
-      if (response.user && response.tokens) {
-        userManager.login(response.user, response.tokens.access_token);
-        setSuccessMessage('Admin account created successfully! Redirecting to dashboard...');
-        
-        setTimeout(() => {
-          navigate('/admin');
-        }, 1500);
-      }
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Failed to create admin account. Please try again.';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -231,7 +161,6 @@ const Login: React.FC = () => {
                   setIsAdminLogin(false);
                   setIsAdminSignup(false);
                   setFormData({ username: '', password: '' });
-                  setSignupData({ username: '', email: '', full_name: '', password: '', confirmPassword: '' });
                   setError('');
                 }}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
@@ -249,7 +178,6 @@ const Login: React.FC = () => {
                   setIsAdminLogin(true);
                   setIsAdminSignup(false);
                   setFormData({ username: '', password: '' });
-                  setSignupData({ username: '', email: '', full_name: '', password: '', confirmPassword: '' });
                   setError('');
                 }}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
