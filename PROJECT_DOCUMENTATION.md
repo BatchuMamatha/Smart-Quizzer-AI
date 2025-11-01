@@ -2,6 +2,12 @@
 
 ## Complete Project Documentation
 
+> **📅 Last Updated:** November 1, 2025  
+> **📌 Version:** 1.0.0  
+> **✅ Status:** Fully Functional - Local Development Ready  
+> **🔒 Security:** All default credentials removed for safety  
+> **📖 Note:** This documentation reflects the current state of the project after recent security improvements and documentation cleanup.
+
 ---
 
 ## Table of Contents
@@ -14,7 +20,7 @@
 7. [Database Schema](#database-schema)
 8. [API Documentation](#api-documentation)
 9. [Features Implementation](#features-implementation)
-10. [Deployment Guide](#deployment-guide)
+10. [Local Development Setup](#local-development-setup)
 11. [User Guide](#user-guide)
 12. [Admin Guide](#admin-guide)
 13. [Development Timeline](#development-timeline)
@@ -33,12 +39,14 @@
 ### Key Highlights
 - 🤖 **AI-Powered Question Generation** using Google Gemini AI
 - 🎯 **Adaptive Learning Engine** that adjusts difficulty based on performance
-- 📚 **Multi-Format Content Support** (Text, PDF, URLs)
+- 📚 **Multi-Format Content Support** (Text, PDF, DOCX, JSON, CSV)
 - 🌐 **Multi-Question Types** (MCQ, True/False, Fill-in-the-blank, Short Answer)
 - 📊 **Real-time Analytics** and performance tracking
 - 🛡️ **Role-Based Access Control** (Admin/User separation)
 - 🚀 **Optimized Performance** (4-5x faster question generation)
-- 🐳 **Docker-Ready Deployment**
+- � **Enhanced Security** (No default credentials, JWT authentication)
+- 🎤 **Audio Feedback** (Text-to-speech with live captions)
+- 🚩 **Content Moderation** (Flag questions and submit feedback)
 
 ---
 
@@ -103,12 +111,12 @@ This open-source project addresses the need for personalized, adaptive assessmen
   - Detailed results and explanations
   - Analytics dashboard with charts
 
-- ✅ **Deployment Ready**
-  - Docker containerization
-  - Docker Compose configuration
-  - Nginx reverse proxy setup
+- ✅ **Development Ready**
+  - Automated setup scripts (Windows & Mac/Linux)
   - Environment-based configuration
-  - Production-ready architecture
+  - Database initialization with sample data
+  - Comprehensive documentation
+  - Local development optimized
 
 ---
 
@@ -1034,111 +1042,136 @@ def calculate_score(self):
 
 ---
 
-## 10. Deployment Guide
+## 10. Local Development Setup
 
-### Docker Deployment
+### Prerequisites
+- Python 3.8+ installed
+- Node.js 16+ installed
+- Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))
 
-#### Prerequisites
-- Docker installed (v20.10+)
-- Docker Compose installed (v2.0+)
-- Google Gemini API key
+### Quick Start (Automated)
 
-#### Quick Start
-
-1. **Clone Repository**
+**Windows:**
 ```bash
+# 1. Clone repository
 git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
 cd Smart-Quizzer-AI
+
+# 2. Run automated setup
+setup.bat
+
+# 3. Add your Gemini API key to backend/.env
 ```
 
-2. **Configure Environment**
+**Mac/Linux:**
 ```bash
-# Backend environment
-cd backend
-cp .env.example .env
-# Edit .env and add your GEMINI_API_KEY
+# 1. Clone repository
+git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+cd Smart-Quizzer-AI
+
+# 2. Run automated setup
+chmod +x setup.sh
+./setup.sh
+
+# 3. Add your Gemini API key to backend/.env
 ```
 
-3. **Build and Run**
-```bash
-# From project root
-docker-compose up --build
-```
-
-4. **Access Application**
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
-- Admin Dashboard: http://localhost:3000/admin
-
-#### Docker Compose Configuration
-
-```yaml
-version: '3.8'
-
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "5000:5000"
-    environment:
-      - FLASK_ENV=production
-      - DATABASE_URL=sqlite:///instance/smart_quizzer.db
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-    volumes:
-      - ./backend/instance:/app/instance
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
-    environment:
-      - REACT_APP_API_URL=http://localhost:5000
-```
-
-### Manual Deployment
+### Manual Setup
 
 #### Backend Setup
 ```bash
 cd backend
+
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Activate virtual environment
+# Windows: venv\Scripts\activate
+# Mac/Linux: source venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Initialize database
+cd ..
+python init_database.py
+
+# Start backend server
+cd backend
 python app.py
 ```
+Backend runs on `http://localhost:5000`
 
 #### Frontend Setup
 ```bash
 cd frontend
+
+# Install dependencies
 npm install
-npm run build
+
+# Start development server
 npm start
 ```
+Frontend runs on `http://localhost:3000`
 
-### Production Considerations
-1. **Security**
-   - Use HTTPS
-   - Secure JWT secrets
-   - Environment variable protection
-   - Rate limiting
+### Testing the Application
 
-2. **Database**
-   - Migrate to PostgreSQL for production
-   - Regular backups
-   - Connection pooling
+1. **Backend Health Check**
+   - Visit: http://localhost:5000/api/health
+   - Expected: `{"status": "healthy"}`
 
-3. **Monitoring**
-   - Application logs
-   - Error tracking (Sentry)
-   - Performance monitoring
-   - Uptime monitoring
+2. **Frontend Access**
+   - Visit: http://localhost:3000
+   - Should see login page
 
-4. **Scaling**
-   - Load balancer (Nginx)
-   - Horizontal scaling
-   - CDN for frontend assets
-   - Caching layer (Redis)
+3. **User Registration**
+   - Click "Register" and create an account
+   - Or run `python init_database.py` to create sample users
+
+4. **Take a Quiz**
+   - Login with your account
+   - Select a topic and difficulty
+   - Start your first quiz!
+
+### Troubleshooting
+
+#### Port Already in Use
+```bash
+# Find and kill process on port 5000 (backend)
+# Windows: netstat -ano | findstr :5000
+# Mac/Linux: lsof -ti:5000 | xargs kill -9
+
+# Find and kill process on port 3000 (frontend)
+# Windows: netstat -ano | findstr :3000
+# Mac/Linux: lsof -ti:3000 | xargs kill -9
+```
+
+#### Module Not Found Errors
+```bash
+# Reinstall backend dependencies
+cd backend
+pip install -r requirements.txt
+
+# Reinstall frontend dependencies
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+```
+
+#### Database Errors
+```bash
+# Reinitialize database
+cd backend
+rm -rf instance/smart_quizzer.db  # Delete old database
+cd ..
+python init_database.py  # Create fresh database
+```
+
+#### API Connection Issues
+- Ensure backend is running on port 5000
+- Check frontend API URL in `.env` or code
+- Verify CORS settings in `backend/app.py`
+- Clear browser cache and cookies
 
 ---
 
@@ -1501,16 +1534,21 @@ Speed improvement: 5x faster (80% reduction)
 ## 16. Future Enhancements
 
 ### Planned Features
-1. 🔄 **OAuth Integration** - Google, GitHub, Microsoft login
-2. 🌐 **Multilingual Support** - Questions in multiple languages
-3. 📱 **Mobile App** - Native iOS/Android apps
-4. 🎮 **Gamification** - Badges, leaderboards, achievements
-5. 👥 **Collaborative Quizzes** - Multiplayer quiz battles
-6. 📊 **Advanced Analytics** - ML-based insights
-7. 🔊 **Voice Support** - Audio questions and answers
-8. 🎨 **Themes** - Dark mode, custom themes
-9. 📧 **Email Notifications** - Quiz reminders, results
-10. 💾 **Export Results** - PDF reports, CSV data
+1. 🔄 **OAuth Integration** - Social login with Google, GitHub, Microsoft
+2. 🌐 **Multilingual Support** - Generate questions in multiple languages
+3. 📱 **Mobile App** - Native iOS/Android applications
+4. 🎮 **Gamification** - Badges, leaderboards, achievements system
+5. 👥 **Collaborative Quizzes** - Real-time multiplayer quiz battles
+6. 📊 **Advanced Analytics** - Machine learning-based performance insights
+7. 🔊 **Enhanced Voice Support** - Voice-activated quiz taking
+8. 🎨 **Custom Themes** - Dark mode and personalized color schemes
+9. 📧 **Email Notifications** - Scheduled quiz reminders and result summaries
+10. 💾 **Export Results** - PDF reports and CSV data export
+11. 🤝 **Peer Learning** - Study groups and shared quizzes
+12. 🏆 **Certification** - Complete learning paths with certificates
+13. 📚 **Content Marketplace** - Share and download quiz content
+14. 🔍 **Advanced Search** - Search across all quizzes and questions
+15. 📈 **Progress Milestones** - Achievement tracking and rewards
 
 ### Technical Improvements
 1. **PostgreSQL Migration** - Production-grade database
@@ -1542,8 +1580,19 @@ cd Smart-Quizzer-AI
 # Backend setup
 cd backend
 python -m venv venv
-source venv/bin/activate
+
+# Activate virtual environment
+# Windows: venv\Scripts\activate
+# Mac/Linux: source venv/bin/activate
+
 pip install -r requirements.txt
+
+# Initialize database
+cd ..
+python init_database.py
+
+# Start backend
+cd backend
 python app.py
 
 # Frontend setup (new terminal)
@@ -1595,22 +1644,22 @@ SOFTWARE.
 
 - **Project Repository**: https://github.com/BatchuMamatha/Smart-Quizzer-AI
 - **Issues**: https://github.com/BatchuMamatha/Smart-Quizzer-AI/issues
-- **Discussions**: https://github.com/BatchuMamatha/Smart-Quizzer-AI/discussions
+- **Author**: Batchu Mamatha ([@BatchuMamatha](https://github.com/BatchuMamatha))
 
 ---
 
 ## Acknowledgments
 
-- Google Gemini AI for question generation
-- Hugging Face for ML models
-- React community for frontend tools
-- Flask community for backend framework
-- Open source contributors
+- Google Gemini AI for intelligent question generation
+- React community for modern frontend framework
+- Flask community for lightweight backend framework
+- Open source community for valuable tools and libraries
+- All contributors and testers who helped improve this project
 
 ---
 
-**Built with ❤️ by the Smart Quizzer AI Team**
+**Built with ❤️ by Batchu Mamatha**
 
-*Last Updated: October 23, 2025*
+*Last Updated: November 1, 2025*
 *Version: 1.0.0*
-*Status: Production Ready ✅*
+*Status: Fully Functional - Local Development Ready ✅*
