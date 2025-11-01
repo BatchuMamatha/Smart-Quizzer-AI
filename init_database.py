@@ -1,18 +1,21 @@
 """
 Database Initialization Script for Smart Quizzer AI
-This script creates the database and adds default test users.
+This script creates the database and adds default test users with realistic quiz history.
 Run this after cloning the repository.
 """
 
 import sys
 import os
+from datetime import datetime, timedelta
+import random
+import json
 
 # Add backend directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
 
 try:
     from app import app, db
-    from models import User, Topic
+    from models import User, Topic, QuizSession, Question
 except ImportError as e:
     print('\n' + '='*80)
     print('❌ ERROR: Could not import required modules')
@@ -27,6 +30,152 @@ except ImportError as e:
     print('      python init_database.py')
     print('\n' + '='*80 + '\n')
     sys.exit(1)
+
+def create_quiz_history(users, topics):
+    """Create realistic quiz history for all users"""
+    print('\n📊 Creating realistic quiz history...')
+    
+    # Quiz templates with varied difficulty and performance patterns
+    quiz_templates = [
+        # Beginner-friendly topics
+        {'topic': 'Mathematics', 'difficulties': ['Beginner', 'Intermediate'], 'avg_score': 65},
+        {'topic': 'Science', 'difficulties': ['Beginner', 'Intermediate'], 'avg_score': 70},
+        {'topic': 'Computer Science', 'difficulties': ['Beginner', 'Intermediate', 'Advanced'], 'avg_score': 60},
+        {'topic': 'Geography', 'difficulties': ['Beginner', 'Intermediate'], 'avg_score': 75},
+        {'topic': 'History', 'difficulties': ['Beginner', 'Intermediate', 'Advanced'], 'avg_score': 68},
+        {'topic': 'Physics', 'difficulties': ['Beginner', 'Intermediate', 'Advanced'], 'avg_score': 62},
+        {'topic': 'Chemistry', 'difficulties': ['Beginner', 'Intermediate'], 'avg_score': 67},
+        {'topic': 'Biology', 'difficulties': ['Beginner', 'Intermediate', 'Advanced'], 'avg_score': 72},
+        {'topic': 'Literature', 'difficulties': ['Beginner', 'Intermediate'], 'avg_score': 73},
+        {'topic': 'Economics', 'difficulties': ['Intermediate', 'Advanced'], 'avg_score': 65}
+    ]
+    
+    question_types = ['MCQ', 'True/False', 'Short Answer']
+    
+    total_quizzes_created = 0
+    total_questions_created = 0
+    
+    for user in users:
+        # Determine quiz count based on user skill level
+        if user.skill_level == 'Beginner':
+            quiz_count = random.randint(5, 12)  # 5-12 quizzes
+            performance_multiplier = 0.85  # Slightly lower scores
+        elif user.skill_level == 'Intermediate':
+            quiz_count = random.randint(10, 20)  # 10-20 quizzes
+            performance_multiplier = 1.0  # Average scores
+        else:  # Advanced
+            quiz_count = random.randint(15, 30)  # 15-30 quizzes
+            performance_multiplier = 1.15  # Higher scores
+        
+        # Create quizzes over the past 60 days
+        for i in range(quiz_count):
+            # Pick a random topic
+            template = random.choice(quiz_templates)
+            topic_name = template['topic']
+            
+            # Select difficulty appropriate for user
+            if user.skill_level == 'Beginner':
+                difficulty = random.choice(['Beginner', 'Beginner', 'Intermediate'])  # More beginner
+            elif user.skill_level == 'Intermediate':
+                difficulty = random.choice(['Beginner', 'Intermediate', 'Intermediate', 'Advanced'])
+            else:  # Advanced
+                difficulty = random.choice(['Intermediate', 'Advanced', 'Advanced'])
+            
+            # Random date within last 60 days
+            days_ago = random.randint(1, 60)
+            started_at = datetime.now() - timedelta(days=days_ago, hours=random.randint(0, 23), minutes=random.randint(0, 59))
+            
+            # Quiz duration (5-30 minutes)
+            quiz_duration = random.randint(5, 30)
+            completed_at = started_at + timedelta(minutes=quiz_duration)
+            
+            # Number of questions (5-15)
+            total_questions = random.randint(5, 15)
+            
+            # Calculate score with some randomness
+            base_score = template['avg_score']
+            score_variance = random.randint(-15, 20)
+            target_score = max(30, min(100, int(base_score * performance_multiplier + score_variance)))
+            
+            correct_answers = int((target_score / 100.0) * total_questions)
+            score_percentage = (correct_answers / total_questions) * 100 if total_questions > 0 else 0
+            
+            # Create quiz session
+            quiz_session = QuizSession(
+                user_id=user.id,
+                topic=topic_name,
+                custom_topic=None,
+                skill_level=difficulty,
+                total_questions=total_questions,
+                completed_questions=total_questions,
+                correct_answers=correct_answers,
+                score_percentage=round(score_percentage, 1),
+                status='completed',
+                started_at=started_at,
+                completed_at=completed_at
+            )
+            db.session.add(quiz_session)
+            db.session.flush()  # Get quiz_session.id
+            
+            # Create questions for this quiz
+            for q_num in range(total_questions):
+                # Determine if this question was answered correctly
+                is_correct = q_num < correct_answers
+                
+                # Random question type
+                q_type = random.choice(question_types)
+                
+                # Generate sample options for MCQ
+                if q_type == 'MCQ':
+                    options = [f'Option {chr(65+j)}' for j in range(4)]
+                    correct_answer = random.choice(options)
+                    user_answer = correct_answer if is_correct else random.choice([opt for opt in options if opt != correct_answer])
+                elif q_type == 'True/False':
+                    options = ['True', 'False']
+                    correct_answer = random.choice(options)
+                    user_answer = correct_answer if is_correct else ('False' if correct_answer == 'True' else 'True')
+                else:  # Short Answer
+                    options = []
+                    correct_answer = 'Sample correct answer'
+                    user_answer = correct_answer if is_correct else 'Sample incorrect answer'
+                
+                # Time taken per question (30 sec - 3 min)
+                time_taken = random.randint(30, 180)
+                answered_at = started_at + timedelta(seconds=sum([random.randint(30, 180) for _ in range(q_num + 1)]))
+                
+                # Difficulty levels for questions
+                q_difficulty_levels = ['Easy', 'Medium', 'Hard', 'Expert']
+                if difficulty == 'Beginner':
+                    q_difficulty = random.choice(['Easy', 'Easy', 'Medium'])
+                elif difficulty == 'Intermediate':
+                    q_difficulty = random.choice(['Easy', 'Medium', 'Medium', 'Hard'])
+                else:
+                    q_difficulty = random.choice(['Medium', 'Hard', 'Hard', 'Expert'])
+                
+                question = Question(
+                    quiz_session_id=quiz_session.id,
+                    question_text=f'{topic_name} question {q_num + 1} ({q_difficulty})',
+                    question_type=q_type,
+                    options=json.dumps(options) if options else None,
+                    correct_answer=correct_answer,
+                    user_answer=user_answer,
+                    is_correct=is_correct,
+                    explanation=f'Explanation for {topic_name} question {q_num + 1}',
+                    difficulty_level=q_difficulty,
+                    answered_at=answered_at,
+                    time_taken=time_taken
+                )
+                db.session.add(question)
+                total_questions_created += 1
+            
+            total_quizzes_created += 1
+    
+    db.session.commit()
+    print(f'   ✅ Created {total_quizzes_created} quiz sessions')
+    print(f'   ✅ Created {total_questions_created} questions')
+    print(f'   📈 Average: {total_quizzes_created // len(users)} quizzes per user')
+    
+    return total_quizzes_created, total_questions_created
 
 def init_database():
     """Initialize database with default data"""
@@ -272,6 +421,8 @@ def init_database():
         
         # Check if topics exist
         existing_topics = Topic.query.count()
+        topics_list = []
+        
         if existing_topics == 0:
             print('\n📚 Creating default topics...')
             
@@ -292,6 +443,7 @@ def init_database():
                 try:
                     topic = Topic(**topic_data, is_active=True)
                     db.session.add(topic)
+                    topics_list.append(topic)
                     print(f'   ✅ Created topic: {topic_data["name"]}')
                 except Exception as e:
                     print(f'   ❌ Failed to create topic {topic_data["name"]}: {str(e)}')
@@ -299,6 +451,14 @@ def init_database():
             db.session.commit()
         else:
             print(f'\n📚 Topics already exist ({existing_topics} topics found)')
+            topics_list = Topic.query.all()
+        
+        # Create quiz history for all users
+        all_users = User.query.all()
+        if all_users and len(all_users) > 0:
+            total_quizzes, total_questions = create_quiz_history(all_users, topics_list)
+        else:
+            total_quizzes, total_questions = 0, 0
         
         # Display credentials
         print('\n' + '='*80)
@@ -314,6 +474,8 @@ def init_database():
         print(f'   👤 Regular user accounts created: {user_count}')
         print(f'   ⏭️  Skipped (already exist): {len(skipped_users)}')
         print(f'   📊 Total in database: {User.query.count()}')
+        print(f'   📝 Quiz sessions created: {total_quizzes}')
+        print(f'   ❓ Questions created: {total_questions}')
         print('-'*80)
         
         if created_users:
