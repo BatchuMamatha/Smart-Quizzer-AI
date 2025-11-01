@@ -39,7 +39,8 @@ def create_app():
     
     # Configuration - Use environment variables with fallbacks
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'smart-quizzer-secret-2024-change-in-production')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///smart_quizzer.db')
+    # Fix: Use instance folder for database (same location as init_database.py creates it)
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///instance/smart_quizzer.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # File upload configuration
