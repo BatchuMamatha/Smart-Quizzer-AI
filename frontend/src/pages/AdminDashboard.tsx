@@ -950,7 +950,7 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Multiple Choice Options */}
-              {selectedQuestion.question_type === 'multiple_choice' && selectedQuestion.options && (
+              {(selectedQuestion.question_type === 'MCQ' || selectedQuestion.question_type === 'multiple_choice') && selectedQuestion.options && (
                 <div className="space-y-2">
                   <h4 className="text-sm font-semibold text-gray-600">Options:</h4>
                   {selectedQuestion.options.map((option: string, index: number) => (
@@ -975,7 +975,7 @@ const AdminDashboard: React.FC = () => {
               )}
 
               {/* True/False Answer */}
-              {selectedQuestion.question_type === 'true_false' && (
+              {(selectedQuestion.question_type === 'True/False' || selectedQuestion.question_type === 'true_false') && (
                 <div className="bg-green-50 rounded-lg p-4 border-l-4 border-green-600">
                   <h4 className="text-sm font-semibold text-gray-600 mb-2">Correct Answer:</h4>
                   <p className="text-lg font-bold text-green-900">{selectedQuestion.correct_answer}</p>
@@ -983,7 +983,7 @@ const AdminDashboard: React.FC = () => {
               )}
 
               {/* Short Answer */}
-              {selectedQuestion.question_type === 'short_answer' && (
+              {(selectedQuestion.question_type === 'Short Answer' || selectedQuestion.question_type === 'short_answer') && (
                 <div className="bg-green-50 rounded-lg p-4 border-l-4 border-green-600">
                   <h4 className="text-sm font-semibold text-gray-600 mb-2">Sample Answer:</h4>
                   <p className="text-lg text-green-900">{selectedQuestion.correct_answer}</p>

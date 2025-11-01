@@ -2151,7 +2151,7 @@ def get_question_by_id(current_user_id, question_id):
             'topic': quiz_session.topic if quiz_session else 'Unknown',
             'correct_answer': question.correct_answer,
             'explanation': question.explanation,
-            'options': question.get_options() if question.question_type == 'multiple_choice' else None,
+            'options': question.get_options() if question.question_type in ['MCQ', 'multiple_choice'] else None,
             'created_at': question.created_at.isoformat() if question.created_at else None,
             'created_by': {
                 'id': created_by_user.id if created_by_user else None,
