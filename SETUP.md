@@ -223,26 +223,40 @@ Smart-Quizzer-AI/
 ├── init_database.py           # Database initialization
 ├── populate_quiz_data.py      # Sample data generator
 ├── setup.bat                  # Windows setup script
-├── setup.sh                   # Linux/Mac setup script
 └── README.md                  # Main documentation
 ```
 
 ---
 
-## 🚀 Production Deployment
+## ✅ Testing the Application
 
-For production deployment:
+After setup, you can test the application:
 
-1. Set `DEBUG=False` in backend/.env
-2. Set `FLASK_ENV=production` in backend/.env
-3. Use a strong `SECRET_KEY` (generate with `python -c "import secrets; print(secrets.token_hex(32))"`)
-4. Use a production database (PostgreSQL recommended)
-5. Set up HTTPS with SSL certificates
-6. Configure CORS properly for your domain
-7. Use a process manager like PM2 or Supervisor
-8. Set up reverse proxy with Nginx
+1. **Access Frontend**: Open `http://localhost:3000` in your browser
+2. **Create Account**: Register a new user account or use the admin account created during initialization
+3. **Take a Quiz**: Navigate to the dashboard and start a quiz
+4. **Check Backend**: Verify API is running at `http://localhost:5000`
 
-See [README.md](README.md) for detailed production deployment guide.
+---
+
+## 🔍 Troubleshooting
+
+**Common Issues:**
+
+1. **Port Already in Use**
+   - Backend (Port 5000): Stop other Flask apps or change port in `app.py`
+   - Frontend (Port 3000): Stop other React apps or set `PORT=3001` in `frontend/.env`
+
+2. **Module Not Found Errors**
+   - Run `pip install -r requirements.txt` in backend directory
+   - Run `npm install` in frontend directory
+
+3. **Database Errors**
+   - Delete `backend/instance/smart_quizzer.db` and run `python init_database.py` again
+
+4. **API Connection Failed**
+   - Ensure backend is running before starting frontend
+   - Check `REACT_APP_API_URL` in `frontend/.env` matches backend URL
 
 ---
 
