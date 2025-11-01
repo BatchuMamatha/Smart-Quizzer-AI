@@ -65,6 +65,7 @@ class QuizSession(db.Model):
     completed_questions = db.Column(db.Integer, nullable=False, default=0)
     correct_answers = db.Column(db.Integer, nullable=False, default=0)
     score_percentage = db.Column(db.Float, nullable=False, default=0.0)
+    total_time_seconds = db.Column(db.Integer, nullable=False, default=0)  # Total time taken in seconds
     session_data = db.Column(db.Text, nullable=True)  # JSON string for storing questions and answers
     status = db.Column(db.String(20), nullable=False, default='active')  # active, completed, abandoned
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -101,6 +102,7 @@ class QuizSession(db.Model):
             'completed_questions': self.completed_questions,
             'correct_answers': self.correct_answers,
             'score_percentage': self.score_percentage,
+            'total_time_seconds': self.total_time_seconds,
             'status': self.status,
             'started_at': self.started_at.isoformat(),
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
@@ -119,11 +121,30 @@ class Question(db.Model):
     user_answer = db.Column(db.Text, nullable=True)
     explanation = db.Column(db.Text, nullable=True)
     difficulty_level = db.Column(db.String(20), nullable=False)
+    difficulty_weight = db.Column(db.Float, nullable=False, default=1.0)  # Easy=1.0, Medium=1.5, Hard=2.0
     is_correct = db.Column(db.Boolean, nullable=True)  # True, False, or None if not answered
     answered_at = db.Column(db.DateTime, nullable=True)
     time_taken = db.Column(db.Integer, nullable=True)  # Time in seconds
     # evaluation_metadata = db.Column(db.Text, nullable=True)  # JSON string for evaluation details - temporarily disabled
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __init__(self, **kwargs):
+        super(Question, self).__init__(**kwargs)
+        # Set difficulty weight based on difficulty level
+        if hasattr(self, 'difficulty_level'):
+            self.set_difficulty_weight()
+    
+    def set_difficulty_weight(self):
+        """Set difficulty weight based on difficulty level"""
+        difficulty_weights = {
+            'Easy': 1.0,
+            'easy': 1.0,
+            'Medium': 1.5,
+            'medium': 1.5,
+            'Hard': 2.0,
+            'hard': 2.0
+        }
+        self.difficulty_weight = difficulty_weights.get(self.difficulty_level, 1.0)
     
     def set_options(self, options_list):
         """Store options as JSON"""
@@ -141,54 +162,50 @@ class Question(db.Model):
         self.user_answer = user_answer
         self.answered_at = datetime.utcnow()
         
-        # For MCQ, extract just the letter (A, B, C, D) from answers like "A) Option text"
-        if self.question_type == 'MCQ':
-            # Extract first character if it's a letter (handles "A", "A)", "A. Option", etc.)
-            user_answer_normalized = user_answer.strip()
-            if user_answer_normalized and user_answer_normalized[0].upper() in ['A', 'B', 'C', 'D']:
-                user_answer_letter = user_answer_normalized[0].upper()
-            else:
-                user_answer_letter = user_answer_normalized
-        else:
-            user_answer_letter = user_answer
+        # Normalize answers for comparison
+        user_answer_normalized = str(user_answer).strip()
+        correct_answer_normalized = str(self.correct_answer).strip()
         
-        if EVALUATOR_AVAILABLE:
-            # Use advanced answer evaluator
-            evaluation_result = answer_evaluator.evaluate_answer(
-                question_text=self.question_text,
-                user_answer=user_answer_letter,
-                correct_answer=self.correct_answer,
-                question_type=self.question_type,
-                options=self.get_options()
-            )
+        if self.question_type in ['MCQ', 'multiple_choice']:
+            # For MCQ, we expect single letter answers (A, B, C, D)
+            # Extract first character if it's a letter
+            if user_answer_normalized and user_answer_normalized[0].upper() in ['A', 'B', 'C', 'D']:
+                user_answer_normalized = user_answer_normalized[0].upper()
             
-            self.is_correct = evaluation_result['is_correct']
+            if correct_answer_normalized and correct_answer_normalized[0].upper() in ['A', 'B', 'C', 'D']:
+                correct_answer_normalized = correct_answer_normalized[0].upper()
             
-            # Store evaluation metadata
-            # Store detailed evaluation results (temporarily disabled)
-            # self.evaluation_metadata = json.dumps({
-            #     'confidence': evaluation_result.get('confidence', 0.0),
-            #     'evaluation_method': evaluation_result.get('evaluation_method', 'enhanced_text_analysis'),
-            #     'answer_type': evaluation_result.get('answer_type', 'general'),
-            #     'exact_match': evaluation_result.get('exact_match', False),
-            #     'contains_match': evaluation_result.get('contains_match', False),
-            #     'keyword_overlap': evaluation_result.get('keyword_overlap', 0.0),
-            #     'feedback': evaluation_result.get('feedback', {}),
-            #     'evaluation_timestamp': evaluation_result.get('evaluation_timestamp')
-            # })
+            # Compare letters
+            self.is_correct = user_answer_normalized == correct_answer_normalized
             
-            return self.is_correct
+            print(f"[DEBUG] MCQ Evaluation - User: '{user_answer}' -> '{user_answer_normalized}', Correct: '{self.correct_answer}' -> '{correct_answer_normalized}', Result: {self.is_correct}")
+            
+        elif self.question_type in ['True/False', 'true_false']:
+            # For True/False, normalize case
+            self.is_correct = user_answer_normalized.lower() == correct_answer_normalized.lower()
+            
+            print(f"[DEBUG] T/F Evaluation - User: '{user_answer}' -> '{user_answer_normalized}', Correct: '{self.correct_answer}' -> '{correct_answer_normalized}', Result: {self.is_correct}")
+            
         else:
-            # Fallback to basic evaluation
-            if self.question_type == 'MCQ':
-                # Compare just the letter (A, B, C, D)
-                self.is_correct = user_answer_letter.strip().upper() == self.correct_answer.strip().upper()
-            elif self.question_type == 'True/False':
-                self.is_correct = user_answer_letter.strip().lower() == self.correct_answer.strip().lower()
-            else:  # Short Answer - basic contains check
-                self.is_correct = self.correct_answer.strip().lower() in user_answer_letter.strip().lower()
-            
-            return self.is_correct
+            # For Short Answer and Fill-in-the-blank
+            if EVALUATOR_AVAILABLE:
+                # Use advanced answer evaluator
+                evaluation_result = answer_evaluator.evaluate_answer(
+                    question_text=self.question_text,
+                    user_answer=user_answer_normalized,
+                    correct_answer=correct_answer_normalized,
+                    question_type=self.question_type,
+                    options=self.get_options()
+                )
+                
+                self.is_correct = evaluation_result['is_correct']
+                print(f"[DEBUG] Advanced Evaluation - User: '{user_answer}', Correct: '{self.correct_answer}', Result: {self.is_correct}")
+            else:
+                # Fallback: basic contains check for short answers
+                self.is_correct = correct_answer_normalized.lower() in user_answer_normalized.lower()
+                print(f"[DEBUG] Basic Evaluation - User: '{user_answer}', Correct: '{self.correct_answer}', Result: {self.is_correct}")
+        
+        return self.is_correct
     
     def get_evaluation_details(self):
         """Get detailed evaluation metadata"""
@@ -228,6 +245,7 @@ class Question(db.Model):
             'user_answer': self.user_answer,
             'explanation': self.explanation,
             'difficulty_level': self.difficulty_level,
+            'difficulty_weight': self.difficulty_weight,
             'is_correct': self.is_correct,
             'answered_at': self.answered_at.isoformat() if self.answered_at else None,
             'time_taken': self.time_taken,
@@ -257,6 +275,53 @@ class Topic(db.Model):
             'description': self.description,
             'category': self.category,
             'is_active': self.is_active
+        }
+
+class PasswordResetToken(db.Model):
+    __tablename__ = 'password_reset_tokens'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    token = db.Column(db.String(100), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relationship
+    user = db.relationship('User', backref='reset_tokens')
+    
+    def __init__(self, user_id, token, expires_in_hours=24):
+        self.user_id = user_id
+        self.token = token
+        self.expires_at = datetime.utcnow() + timedelta(hours=expires_in_hours)
+    
+    def is_valid(self):
+        """Check if token is still valid (not expired and not used)"""
+        return not self.used and datetime.utcnow() < self.expires_at
+    
+    def mark_as_used(self):
+        """Mark token as used"""
+        self.used = True
+        self.used_at = datetime.utcnow()
+    
+    @classmethod
+    def cleanup_expired(cls):
+        """Remove expired tokens from database"""
+        expired_tokens = cls.query.filter(cls.expires_at < datetime.utcnow()).all()
+        for token in expired_tokens:
+            db.session.delete(token)
+        db.session.commit()
+        return len(expired_tokens)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'created_at': self.created_at.isoformat(),
+            'expires_at': self.expires_at.isoformat(),
+            'used': self.used,
+            'used_at': self.used_at.isoformat() if self.used_at else None
         }
 
 class QuestionFeedback(db.Model):
@@ -323,10 +388,10 @@ class QuizLeaderboard(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     quiz_session_id = db.Column(db.Integer, db.ForeignKey('quiz_sessions.id'), nullable=False)
     topic = db.Column(db.String(100), nullable=False)
-    score = db.Column(db.Float, nullable=False, default=0.0)
+    score = db.Column(db.Float, nullable=False, default=0.0)  # Weighted score
     correct_count = db.Column(db.Integer, nullable=False, default=0)
     total_questions = db.Column(db.Integer, nullable=False, default=0)
-    time_taken = db.Column(db.Integer, nullable=False, default=0)  # in seconds
+    time_taken = db.Column(db.Integer, nullable=False, default=0)  # in seconds (must be > 0)
     avg_difficulty_weight = db.Column(db.Float, nullable=False, default=1.0)
     rank = db.Column(db.Integer, nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
@@ -335,19 +400,49 @@ class QuizLeaderboard(db.Model):
     user = db.relationship('User', backref='leaderboard_entries')
     quiz_session = db.relationship('QuizSession', backref='leaderboard_entry')
     
+    def compute_weighted_score(self, questions):
+        """
+        Compute weighted score from questions using the formula:
+        score = sum(difficulty_weight for each correct question)
+        
+        This gives bonus points for harder questions:
+        - Easy (1.0): 1 point per correct answer
+        - Medium (1.5): 1.5 points per correct answer
+        - Hard (2.0): 2 points per correct answer
+        
+        Tiebreaker: time_taken (lower is better), then completed_at (earlier is better)
+        """
+        if not questions:
+            self.score = 0.0
+            self.avg_difficulty_weight = 1.0
+            return 0.0
+        
+        # Calculate weighted score: sum of difficulty weights for correct answers
+        weighted_sum = 0.0
+        total_weight = 0.0
+        
+        for question in questions:
+            weight = question.difficulty_weight
+            total_weight += weight
+            if question.is_correct:
+                weighted_sum += weight
+        
+        self.score = weighted_sum
+        self.avg_difficulty_weight = total_weight / len(questions) if questions else 1.0
+        
+        # Ensure time_taken is positive (use minimal epsilon if 0)
+        if self.time_taken <= 0:
+            self.time_taken = 1
+        
+        return self.score
+    
     def calculate_score(self):
         """
-        Calculate weighted score based on:
-        - Number of correct answers
-        - Average difficulty weight of attempted questions
-        - Time taken (faster = higher score)
-        
-        Formula: score = (correct_count * avg_difficulty_weight * 100) / (time_taken / 60)
+        Backward compatibility method - uses simple calculation
+        Will be replaced by compute_weighted_score in leaderboard updates
         """
         if self.time_taken > 0:
-            # Convert time to minutes, minimum 0.5 minutes to avoid division issues
             time_in_minutes = max(self.time_taken / 60, 0.5)
-            # Calculate score: correct answers * difficulty weight * 100 / time
             self.score = (self.correct_count * self.avg_difficulty_weight * 100) / time_in_minutes
         else:
             self.score = 0.0
@@ -359,6 +454,7 @@ class QuizLeaderboard(db.Model):
             'id': self.id,
             'user_id': self.user_id,
             'username': self.user.username if self.user else 'Unknown',
+            'email': self.user.email if self.user else '',
             'full_name': self.user.full_name if self.user else 'Unknown',
             'quiz_session_id': self.quiz_session_id,
             'topic': self.topic,
@@ -369,5 +465,6 @@ class QuizLeaderboard(db.Model):
             'time_taken': self.time_taken,
             'avg_difficulty_weight': round(self.avg_difficulty_weight, 2),
             'rank': self.rank,
-            'timestamp': self.timestamp.isoformat()
+            'timestamp': self.timestamp.isoformat(),
+            'completed_at': self.quiz_session.completed_at.isoformat() if self.quiz_session and self.quiz_session.completed_at else self.timestamp.isoformat()
         }

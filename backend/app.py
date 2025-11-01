@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
@@ -34,6 +35,13 @@ from error_handler import (
     ErrorCategory, ErrorSeverity, InputValidator, handle_errors
 )
 
+# Import leaderboard service
+import leaderboard_service
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 def create_app():
     app = Flask(__name__)
     
@@ -66,6 +74,13 @@ def create_app():
         }
     })
     
+    # Initialize SocketIO with CORS support
+    socketio = SocketIO(app, 
+                       cors_allowed_origins=cors_origins,
+                       async_mode='threading',
+                       logger=True,
+                       engineio_logger=False)
+    
     init_jwt(app)
     
     # Create tables
@@ -77,7 +92,7 @@ def create_app():
         
         initialize_topics()
     
-    return app
+    return app, socketio
 
 def initialize_topics():
     """Initialize default topics if not exists"""
@@ -96,7 +111,48 @@ def initialize_topics():
     
     db.session.commit()
 
-app = create_app()
+app, socketio = create_app()
+
+# WebSocket Event Handlers
+@socketio.on('connect')
+def handle_connect():
+    """Handle client connection"""
+    logger.info(f"WebSocket client connected: {request.sid}")
+    emit('connection_established', {
+        'status': 'connected',
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle client disconnection"""
+    logger.info(f"WebSocket client disconnected: {request.sid}")
+
+@socketio.on('join_leaderboard')
+def handle_join_leaderboard(data):
+    """Join a leaderboard room for real-time updates"""
+    topic = data.get('topic', 'global')
+    room = f"leaderboard_{topic}"
+    join_room(room)
+    logger.info(f"Client {request.sid} joined leaderboard room: {room}")
+    emit('joined_leaderboard', {
+        'topic': topic,
+        'room': room,
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
+@socketio.on('leave_leaderboard')
+def handle_leave_leaderboard(data):
+    """Leave a leaderboard room"""
+    topic = data.get('topic', 'global')
+    room = f"leaderboard_{topic}"
+    leave_room(room)
+    logger.info(f"Client {request.sid} left leaderboard room: {room}")
+    emit('left_leaderboard', {
+        'topic': topic,
+        'room': room,
+        'timestamp': datetime.utcnow().isoformat()
+    })
 
 # Root endpoint
 @app.route('/', methods=['GET'])
@@ -1068,15 +1124,44 @@ def submit_answer(current_user_id, quiz_id):
         if is_correct:
             quiz_session.correct_answers += 1
         
+        # Update total time
+        quiz_session.total_time_seconds += question.time_taken or 0
+        
         # Calculate score after each answer to show real-time progress
         quiz_session.calculate_score()
         
         # Check if quiz is completed
-        if quiz_session.completed_questions >= quiz_session.total_questions:
+        is_quiz_completed = quiz_session.completed_questions >= quiz_session.total_questions
+        if is_quiz_completed:
             quiz_session.status = 'completed'
             quiz_session.completed_at = datetime.utcnow()
+            
+            # Ensure minimum time if somehow it's 0
+            if quiz_session.total_time_seconds == 0:
+                quiz_session.total_time_seconds = 1
         
         db.session.commit()
+        
+        # If quiz is completed, update leaderboard
+        leaderboard_entry = None
+        if is_quiz_completed:
+            try:
+                # Update leaderboard with WebSocket emit
+                leaderboard_entry = leaderboard_service.update_leaderboard_entry(
+                    quiz_session_id=quiz_id,
+                    emit_event=lambda event, data, **kwargs: socketio.emit(
+                        event, 
+                        data, 
+                        room=f"leaderboard_{quiz_session.topic}",
+                        **kwargs
+                    )
+                )
+                if leaderboard_entry:
+                    logger.info(f"✅ Leaderboard updated for quiz {quiz_id}, rank: {leaderboard_entry.rank}")
+                else:
+                    logger.warning(f"⚠️  Failed to create leaderboard entry for quiz {quiz_id}")
+            except Exception as lb_error:
+                logger.error(f"❌ Error updating leaderboard for quiz {quiz_id}: {lb_error}")
         
         return jsonify({
             'is_correct': is_correct,
@@ -1105,11 +1190,119 @@ def submit_answer(current_user_id, quiz_id):
                 'total': quiz_session.total_questions,
                 'score_percentage': quiz_session.score_percentage,
                 'is_completed': quiz_session.status == 'completed'
+            },
+            'leaderboard_entry': leaderboard_entry.to_dict() if leaderboard_entry else None
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quiz/<int:quiz_id>/complete', methods=['POST'])
+@auth_required
+def complete_quiz(current_user_id, quiz_id):
+    """
+    Complete a quiz session and update leaderboard.
+    This endpoint ensures atomic updates and accurate leaderboard computation.
+    """
+    try:
+        # Get quiz session with ownership verification
+        quiz_session = QuizSession.query.filter_by(
+            id=quiz_id,
+            user_id=current_user_id
+        ).first()
+        
+        if not quiz_session:
+            return jsonify({'error': 'Quiz session not found'}), 404
+        
+        if quiz_session.status == 'completed':
+            # Already completed, just return existing data
+            leaderboard_entry = QuizLeaderboard.query.filter_by(
+                quiz_session_id=quiz_id
+            ).first()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Quiz already completed',
+                'quiz_session': quiz_session.to_dict(),
+                'leaderboard_entry': leaderboard_entry.to_dict() if leaderboard_entry else None
+            }), 200
+        
+        # Get all questions for this quiz
+        questions = Question.query.filter_by(quiz_session_id=quiz_id).all()
+        
+        # Verify all questions have been answered
+        unanswered_questions = [q.id for q in questions if q.is_correct is None]
+        
+        if unanswered_questions:
+            return jsonify({
+                'error': 'Not all questions have been answered',
+                'unanswered_count': len(unanswered_questions),
+                'unanswered_question_ids': unanswered_questions,
+                'total_questions': len(questions),
+                'answered_count': len(questions) - len(unanswered_questions)
+            }), 400
+        
+        # Calculate final statistics atomically
+        quiz_session.status = 'completed'
+        quiz_session.completed_at = datetime.utcnow()
+        
+        # Calculate total time if not already set
+        if quiz_session.total_time_seconds == 0:
+            quiz_session.total_time_seconds = sum([q.time_taken or 0 for q in questions])
+        
+        # Ensure minimum time (avoid division by zero in scoring)
+        if quiz_session.total_time_seconds == 0:
+            quiz_session.total_time_seconds = 1
+            logger.warning(f"Quiz {quiz_id} had 0 total time, set to 1 second minimum")
+        
+        # Recalculate score
+        quiz_session.calculate_score()
+        
+        # Commit quiz completion
+        db.session.commit()
+        
+        logger.info(f"✅ Quiz {quiz_id} completed: {quiz_session.correct_answers}/{quiz_session.total_questions} correct, {quiz_session.total_time_seconds}s")
+        
+        # Update leaderboard entry with WebSocket notification
+        try:
+            leaderboard_entry = leaderboard_service.update_leaderboard_entry(
+                quiz_session_id=quiz_id,
+                emit_event=lambda event, data, **kwargs: socketio.emit(
+                    event,
+                    data,
+                    room=f"leaderboard_{quiz_session.topic}",
+                    **kwargs
+                )
+            )
+            
+            if leaderboard_entry:
+                logger.info(f"✅ Leaderboard entry created for quiz {quiz_id}, rank: {leaderboard_entry.rank}, score: {leaderboard_entry.score}")
+            else:
+                logger.error(f"❌ Failed to create leaderboard entry for quiz {quiz_id}")
+                
+        except Exception as lb_error:
+            logger.error(f"❌ Leaderboard update error for quiz {quiz_id}: {lb_error}")
+            # Don't fail the completion if leaderboard update fails
+            leaderboard_entry = None
+        
+        return jsonify({
+            'success': True,
+            'message': 'Quiz completed successfully',
+            'quiz_session': quiz_session.to_dict(),
+            'leaderboard_entry': leaderboard_entry.to_dict() if leaderboard_entry else None,
+            'summary': {
+                'total_questions': quiz_session.total_questions,
+                'correct_answers': quiz_session.correct_answers,
+                'score_percentage': quiz_session.score_percentage,
+                'total_time_seconds': quiz_session.total_time_seconds,
+                'completed_at': quiz_session.completed_at.isoformat()
             }
         }), 200
         
     except Exception as e:
         db.session.rollback()
+        logger.error(f"❌ Error completing quiz {quiz_id}: {e}")
         return jsonify({'error': str(e)}), 500
 
 # Adaptive Learning Analytics Routes
@@ -1406,104 +1599,78 @@ def get_quiz_analytics(current_user_id):
 @app.route('/api/leaderboard', methods=['GET'])
 @auth_required
 def get_leaderboard(current_user_id):
-    """Get leaderboard rankings for all users based on quiz performance"""
+    """
+    Get leaderboard rankings with aggregated user statistics.
+    Each user appears once with their overall performance across all quizzes.
+    Supports filtering by topic and search.
+    """
     try:
-        print(f"🔍 DEBUG: Leaderboard requested by user_id: {current_user_id}")
-        
         # Get query parameters
-        topic = request.args.get('topic', None)
-        skill_level = request.args.get('skill_level', None)
-        limit = request.args.get('limit', 10, type=int)
+        topic = request.args.get('topic')
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        search = request.args.get('search', '').strip()
         
-        print(f"🔍 DEBUG: Filters - topic: {topic}, skill_level: {skill_level}, limit: {limit}")
+        logger.info(f"📊 Leaderboard request - user: {current_user_id}, topic: {topic}, search: {search}")
         
-        # Build query for completed quiz sessions
-        query = QuizSession.query.filter_by(status='completed')
+        # Use leaderboard service for aggregated user statistics
+        result = leaderboard_service.get_aggregated_user_leaderboard(
+            topic=topic,
+            limit=limit,
+            offset=offset,
+            search=search if search else None
+        )
         
-        # Apply filters if provided
-        if topic:
-            query = query.filter_by(topic=topic)
-        if skill_level:
-            query = query.filter_by(skill_level=skill_level)
+        # Find current user's rank and stats in the leaderboard
+        current_user_rank = None
+        current_user_stats = None
         
-        # Get all completed quizzes
-        completed_quizzes = query.all()
+        for user_stat in result.get('leaderboard', []):
+            if user_stat['user_id'] == current_user_id:
+                current_user_rank = user_stat['rank']
+                current_user_stats = user_stat
+                break
         
-        print(f"🔍 DEBUG: Found {len(completed_quizzes)} completed quizzes")
+        # If current user not in the paginated results, calculate their rank
+        if current_user_rank is None:
+            user_stats = leaderboard_service.get_user_leaderboard_stats(current_user_id)
+            if user_stats:
+                # Get all users to find rank
+                all_users_result = leaderboard_service.get_aggregated_user_leaderboard(
+                    topic=topic,
+                    limit=1000,  # Get all users
+                    offset=0
+                )
+                for user_stat in all_users_result.get('leaderboard', []):
+                    if user_stat['user_id'] == current_user_id:
+                        current_user_rank = user_stat['rank']
+                        current_user_stats = user_stat
+                        break
         
-        # Group by user and calculate aggregate stats
-        user_stats = {}
+        logger.info(f"✅ Returned {len(result.get('leaderboard', []))} leaderboard entries (total: {result.get('total_users', 0)})")
+        logger.info(f"👤 Current user rank: {current_user_rank}")
         
-        for quiz in completed_quizzes:
-            user_id = quiz.user_id
-            
-            # Calculate time taken in seconds
-            time_taken = 0
-            if quiz.completed_at and quiz.started_at:
-                time_delta = quiz.completed_at - quiz.started_at
-                time_taken = int(time_delta.total_seconds())
-            
-            if user_id not in user_stats:
-                # IMPORTANT: Fetch fresh user data from database
-                user = User.query.get(user_id)
-                if not user:
-                    print(f"⚠️ WARNING: User {user_id} not found in database!")
-                    continue
-                    
-                print(f"🔍 DEBUG: Adding user - ID: {user_id}, Username: {user.username}, Full Name: {user.full_name}")
-                
-                user_stats[user_id] = {
-                    'user_id': user_id,
-                    'username': user.username,
-                    'full_name': user.full_name,
-                    'total_quizzes': 0,
-                    'total_questions': 0,
-                    'total_correct': 0,
-                    'average_score': 0,
-                    'total_time': 0,
-                    'average_time': 0,
-                    'best_score': 0,
-                    'best_quiz_id': None,
-                    'best_quiz_time': 0,
-                    'recent_quizzes': []
-                }
-            
-            # Update aggregated stats
-            user_stats[user_id]['total_quizzes'] += 1
-            user_stats[user_id]['total_questions'] += quiz.total_questions
-            user_stats[user_id]['total_correct'] += quiz.correct_answers
-            user_stats[user_id]['total_time'] += time_taken
-            
-            # Track best score
-            if quiz.score_percentage > user_stats[user_id]['best_score']:
-                user_stats[user_id]['best_score'] = quiz.score_percentage
-                user_stats[user_id]['best_quiz_id'] = quiz.id
-                user_stats[user_id]['best_quiz_time'] = time_taken
-            
-            # Add to recent quizzes (limit to 5)
-            if len(user_stats[user_id]['recent_quizzes']) < 5:
-                user_stats[user_id]['recent_quizzes'].append({
-                    'quiz_id': quiz.id,
-                    'topic': quiz.topic,
-                    'score': quiz.score_percentage,
-                    'time_taken': time_taken,
-                    'completed_at': quiz.completed_at.isoformat() if quiz.completed_at else None
-                })
+        # Transform to match frontend expectations
+        response_data = {
+            'leaderboard': result.get('leaderboard', []),
+            'total_users': result.get('total_users', 0),
+            'current_user': {
+                'rank': current_user_rank,
+                'stats': current_user_stats
+            },
+            'filters': {
+                'topic': topic,
+                'skill_level': None  # Removed skill_level filtering
+            }
+        }
         
-        print(f"🔍 DEBUG: Total unique users: {len(user_stats)}")
+        return jsonify(response_data), 200
         
-        # Calculate averages
-        for user_id, stats in user_stats.items():
-            if stats['total_questions'] > 0:
-                stats['average_score'] = (stats['total_correct'] / stats['total_questions']) * 100
-            if stats['total_quizzes'] > 0:
-                stats['average_time'] = stats['total_time'] / stats['total_quizzes']
-        
-        # Convert to list and sort by average score (descending), then by average time (ascending)
-        leaderboard = list(user_stats.values())
-        leaderboard.sort(key=lambda x: (-x['average_score'], x['average_time']))
-        
-        # Add rank
+    except Exception as e:
+        logger.error(f"❌ Error fetching leaderboard: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
         for i, entry in enumerate(leaderboard):
             entry['rank'] = i + 1
             print(f"🔍 DEBUG: Rank {entry['rank']}: {entry['username']} ({entry['full_name']}) - {entry['average_score']:.1f}%")
@@ -2726,6 +2893,7 @@ if __name__ == '__main__':
     print("💾 SQLite Database ✅")
     print("🤖 Gemini AI Model ✅")
     print("📁 Advanced Content Processing ✅")
+    print("🔌 WebSocket Support (Real-time Leaderboard) ✅")
     print("\n🌐 API running on: http://localhost:5000")
     print("📖 API Documentation:")
     print("   Authentication:")
@@ -2736,14 +2904,15 @@ if __name__ == '__main__':
     print("   - GET  /api/topics - Available topics")
     print("   - POST /api/quiz/start - Start quiz")
     print("   - POST /api/quiz/<id>/answer - Submit answer")
+    print("   - POST /api/quiz/<id>/complete - Complete quiz (atomic)")
     print("   - GET  /api/quiz/<id>/results - Quiz results")
     print("   - GET  /api/quiz/history - Quiz history")
     print("   Leaderboard:")
+    print("   - GET  /api/leaderboard - Live leaderboard (supports filters)")
     print("   - GET  /api/leaderboard/global - Global leaderboard")
     print("   - GET  /api/leaderboard/topic/<topic> - Topic-specific leaderboard")
     print("   - GET  /api/leaderboard/live/<topic> - Live rankings (real-time)")
     print("   - GET  /api/leaderboard/user/<id> - User leaderboard stats")
-    print("   - POST /api/quiz/<id>/leaderboard - Update leaderboard entry")
     print("   Content Upload & Processing:")
     print("   - POST /api/content/upload - Upload files (PDF, DOCX, TXT, etc.)")
     print("   - POST /api/content/process-url - Process web URL content")
@@ -2754,5 +2923,11 @@ if __name__ == '__main__':
     print("   - POST /api/user/difficulty-recommendation - Get difficulty recommendation")
     print("   System:")
     print("   - GET  /api/health - Health check")
+    print("   WebSocket Events:")
+    print("   - connect/disconnect - Connection management")
+    print("   - join_leaderboard/leave_leaderboard - Subscribe to leaderboard updates")
+    print("   - leaderboard:update - Real-time leaderboard changes")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Use socketio.run instead of app.run for WebSocket support
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    socketio.run(app, debug=debug_mode, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True, use_reloader=False)

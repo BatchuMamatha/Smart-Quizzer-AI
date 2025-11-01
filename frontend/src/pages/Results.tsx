@@ -72,10 +72,25 @@ const Results: React.FC = () => {
           topic: topic,
           limit: 10 
         });
-        setLeaderboard(leaderboardData.leaderboard);
-        setCurrentUserRank(leaderboardData.current_user.rank);
+        
+        // Safely handle leaderboard data
+        if (leaderboardData && Array.isArray(leaderboardData.leaderboard)) {
+          setLeaderboard(leaderboardData.leaderboard);
+        } else {
+          setLeaderboard([]);
+        }
+        
+        // Safely handle current user rank
+        if (leaderboardData?.current_user?.rank) {
+          setCurrentUserRank(leaderboardData.current_user.rank);
+        } else {
+          setCurrentUserRank(null);
+        }
       } catch (error) {
         console.error('Error fetching leaderboard:', error);
+        // Set empty state on error
+        setLeaderboard([]);
+        setCurrentUserRank(null);
       } finally {
         setLoadingLeaderboard(false);
       }
@@ -98,14 +113,14 @@ const Results: React.FC = () => {
     );
   }
 
-  if (error || !results) {
+  if (error || !results || !results.questions) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
         <div className="card animate-fade-in-scale max-w-md w-full">
           <div className="card-body text-center">
             <span className="text-red-500 text-6xl mb-6 block">❌</span>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Results</h2>
-            <p className="text-gray-600 mb-6">{error}</p>
+            <p className="text-gray-600 mb-6">{error || 'Results data is incomplete'}</p>
             <button
               onClick={() => navigate('/dashboard')}
               className="btn btn-primary"
@@ -119,7 +134,7 @@ const Results: React.FC = () => {
     );
   }
 
-  const { quiz_session, questions, summary } = results;
+  const { quiz_session, questions = [], summary } = results;
   const scorePercentage = quiz_session.score_percentage || 0;
 
   const getScoreColor = (score: number) => {
@@ -706,7 +721,7 @@ const Results: React.FC = () => {
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <p className="text-gray-600">Loading leaderboard...</p>
                 </div>
-              ) : leaderboard.length > 0 ? (
+              ) : (leaderboard && leaderboard.length > 0) ? (
                 <>
                   {/* Current User Highlight */}
                   {currentUserRank && (

@@ -274,7 +274,12 @@ const Quiz: React.FC = () => {
                       {!feedback.is_correct && (
                         <div className="mb-3 p-3 bg-white bg-opacity-60 rounded-lg">
                           <p className="text-sm font-medium text-red-700">
-                            🎯 Correct answer: <span className="font-bold">{feedback.correct_answer}</span>
+                            🎯 Correct answer: <span className="font-bold">
+                              {currentQuestion.question_type === 'MCQ' 
+                                ? currentQuestion.options.find(opt => opt.charAt(0) === feedback.correct_answer) || feedback.correct_answer
+                                : feedback.correct_answer
+                              }
+                            </span>
                           </p>
                         </div>
                       )}
