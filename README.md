@@ -1,6 +1,4 @@
-﻿# Smart Quizzer AI 🎓# Smart Quizzer AI 
-
-
+﻿# Smart Quizzer AI 🎓
 
 **An intelligent, AI-powered adaptive learning platform that generates personalized quizzes, evaluates answers semantically, and provides real-time performance analytics.****An intelligent quiz generation platform powered by AI that creates personalized learning experiences with real-time feedback, adaptive difficulty adjustment, and comprehensive analytics.**
 
