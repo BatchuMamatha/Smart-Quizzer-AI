@@ -26,13 +26,14 @@
 
 
 
-- [Overview](#overview)**Maintainer**: Mamatha Bachu  
+- [Overview](#overview)
 
-- [Key Features](#key-features)**Repository**: [github.com/BatchuMamatha/Smart-Quizzer-AI](https://github.com/BatchuMamatha/Smart-Quizzer-AI)
+- [Key Features](#key-features)
 
 - [Technology Stack](#technology-stack)
 
-- [Quick Start](#quick-start)For complete documentation, see SETUP.md and PROJECT_DOCUMENTATION.md files.
+- [Quick Start](#quick-start)
+
 - [Project Structure](#project-structure)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
@@ -329,45 +330,6 @@ We welcome contributions from the community! Here's how you can help:
 5. **Commit your changes**: `git commit -m 'Add AmazingFeature'`
 6. **Push to branch**: `git push origin feature/AmazingFeature`
 7. **Open a Pull Request** with a detailed description
-
-### Code Standards
-
-**Python (Backend)**:
-- Follow PEP 8 style guide
-- Use type hints where applicable
-- Write docstrings for all functions
-- Maximum line length: 100 characters
-
-**TypeScript (Frontend)**:
-- Use ESLint configuration provided
-- Prefer functional components with hooks
-- Use TypeScript strict mode
-- Follow component naming conventions
-
-### Commit Message Format
-
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-**Example**:
-```
-feat(analytics): add weekly performance report feature
-
-Implemented automated weekly reports that summarize:
-- Quiz completion stats
-- Performance trends
-- Badge achievements
-
-Closes #42
-```
-
 ---
 
 ## License
