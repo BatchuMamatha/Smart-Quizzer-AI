@@ -62,11 +62,6 @@ const ContentUploadPage: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    userManager.logout();
-    navigate('/login');
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header */}

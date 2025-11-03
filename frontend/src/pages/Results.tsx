@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api, { quizAPI, QuizResultsResponse, Question } from '../lib/api';
 import { useAudioFeedback } from '../lib/audioFeedback';
+import socketService from '../lib/socket';
 import Header from '../components/Header';
 
 interface ResultsState {
@@ -13,9 +14,16 @@ interface LeaderboardEntry {
   user_id: number;
   username: string;
   full_name: string;
-  total_quizzes: number;
-  average_score: number;
-  average_time: number;
+  quiz_session_id: number;
+  status: 'active' | 'completed';
+  accuracy: number;
+  correct_answers: number;
+  total_questions: number;
+  completed_questions: number;
+  time_taken: number;
+  weighted_score: number;
+  started_at: string;
+  completed_at: string | null;
 }
 
 const Results: React.FC = () => {
@@ -57,6 +65,20 @@ const Results: React.FC = () => {
         
         // Fetch leaderboard after getting results
         fetchLeaderboard(data.quiz_session.topic);
+        
+        // 🔥 NEW: Join WebSocket room for real-time leaderboard updates
+        if (data.quiz_session.topic) {
+          socketService.joinLeaderboardRoom(data.quiz_session.topic);
+          
+          // Listen for leaderboard updates
+          socketService.onLeaderboardUpdate((updateData) => {
+            console.log('🔔 Real-time leaderboard update received:', updateData);
+            if (updateData.topic === data.quiz_session.topic) {
+              // Re-fetch leaderboard when someone completes quiz
+              fetchLeaderboard(data.quiz_session.topic);
+            }
+          });
+        }
       } catch (error: any) {
         console.error('Error fetching results:', error);
         setError(error.response?.data?.error || 'Failed to load results');
@@ -68,26 +90,40 @@ const Results: React.FC = () => {
     const fetchLeaderboard = async (topic?: string) => {
       try {
         setLoadingLeaderboard(true);
-        const leaderboardData = await quizAPI.getLeaderboard({ 
-          topic: topic,
-          limit: 10 
+        
+        // 🔥 Fetch concurrent quiz leaderboard - shows only users taking this quiz NOW
+        const response = await api.get(`/leaderboard/concurrent/${topic}`, {
+          params: {
+            time_window: 30,  // Last 30 minutes
+            limit: 10
+          }
         });
+        
+        const leaderboardData = response.data;
         
         // Safely handle leaderboard data
         if (leaderboardData && Array.isArray(leaderboardData.leaderboard)) {
           setLeaderboard(leaderboardData.leaderboard);
+          console.log(`✅ Concurrent quiz leaderboard loaded: ${leaderboardData.leaderboard.length} users`);
+          console.log(`📊 Total concurrent takers: ${leaderboardData.total_concurrent}`);
         } else {
           setLeaderboard([]);
         }
         
-        // Safely handle current user rank
-        if (leaderboardData?.current_user?.rank) {
-          setCurrentUserRank(leaderboardData.current_user.rank);
+        // Find current user's rank in concurrent leaderboard
+        const userManager = (await import('../lib/userManager')).UserManager.getInstance();
+        const currentUser = userManager.getCurrentUser();
+        
+        if (currentUser && leaderboardData.leaderboard) {
+          const userEntry = leaderboardData.leaderboard.find(
+            (entry: any) => entry.user_id === currentUser.id
+          );
+          setCurrentUserRank(userEntry ? userEntry.rank : null);
         } else {
           setCurrentUserRank(null);
         }
       } catch (error) {
-        console.error('Error fetching leaderboard:', error);
+        console.error('Error fetching concurrent quiz leaderboard:', error);
         // Set empty state on error
         setLeaderboard([]);
         setCurrentUserRank(null);
@@ -97,6 +133,15 @@ const Results: React.FC = () => {
     };
 
     fetchResults();
+
+    // Cleanup: Leave WebSocket room when component unmounts
+    return () => {
+      if (results?.quiz_session?.topic) {
+        socketService.leaveLeaderboardRoom(results.quiz_session.topic);
+        socketService.offLeaderboardUpdate();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizId, navigate]);
 
   if (loading) {
@@ -751,13 +796,16 @@ const Results: React.FC = () => {
                             Player
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Quizzes
+                            Score
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Avg Score
+                            Accuracy
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Avg Time
+                            Time
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
                           </th>
                         </tr>
                       </thead>
@@ -798,24 +846,40 @@ const Results: React.FC = () => {
                                 </div>
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
-                                <span className="text-sm text-gray-900">{entry.total_quizzes}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-purple-600">
+                                    {entry.weighted_score.toFixed(1)}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    ({entry.correct_answers}/{entry.total_questions})
+                                  </span>
+                                </div>
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-semibold text-gray-900">
-                                    {entry.average_score.toFixed(1)}%
+                                    {entry.accuracy.toFixed(1)}%
                                   </span>
                                   <div className="w-16 bg-gray-200 rounded-full h-2">
                                     <div
                                       className="bg-green-500 h-2 rounded-full"
-                                      style={{ width: `${entry.average_score}%` }}
+                                      style={{ width: `${entry.accuracy}%` }}
                                     ></div>
                                   </div>
                                 </div>
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <span className="text-sm text-gray-900">
-                                  {Math.floor(entry.average_time / 60)}m {Math.floor(entry.average_time % 60)}s
+                                  {Math.floor(entry.time_taken / 60)}m {Math.floor(entry.time_taken % 60)}s
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  entry.status === 'completed' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {entry.status === 'completed' ? '✓ Complete' : '⏳ In Progress'}
                                 </span>
                               </td>
                             </tr>
@@ -831,8 +895,11 @@ const Results: React.FC = () => {
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     Be the First!
                   </h3>
-                  <p className="text-gray-600">
-                    Complete more quizzes to see your ranking on the leaderboard.
+                  <p className="text-gray-600 mb-2">
+                    You're the only one who took this quiz in the last 30 minutes.
+                  </p>
+                  <p className="text-gray-500 text-sm">
+                    Invite your friends to compete and see real-time rankings!
                   </p>
                 </div>
               )}

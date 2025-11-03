@@ -39,7 +39,14 @@ const ProfilePage: React.FC = () => {
       username: user.username || '',
       skill_level: user.skill_level || 'Intermediate'
     });
-  }, [user, navigate]);
+    
+    const fetchUserStats = async () => {
+      // Fetch additional user stats if needed
+    };
+    
+    fetchUserStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -101,11 +108,6 @@ const ProfilePage: React.FC = () => {
     setIsEditing(false);
     setError('');
     setSuccess('');
-  };
-
-  const handleLogout = () => {
-    userManager.logout();
-    navigate('/login');
   };
 
   if (!user) {

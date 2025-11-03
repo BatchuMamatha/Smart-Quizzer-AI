@@ -35,6 +35,7 @@ interface LeaderboardData {
 }
 
 const Leaderboard: React.FC = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const navigate = useNavigate();
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +50,7 @@ const Leaderboard: React.FC = () => {
 
   useEffect(() => {
     fetchLeaderboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, selectedTopic, timePeriod, limit]);
 
   useEffect(() => {
@@ -60,6 +62,7 @@ const Leaderboard: React.FC = () => {
     }, refreshInterval);
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh, viewMode, selectedTopic, timePeriod, limit]);
 
   const fetchLeaderboard = async () => {

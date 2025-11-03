@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserManager } from '../lib/userManager';
 import api from '../lib/api';
+import socketService from '../lib/socket';
 
 interface AdminStats {
   total_users: number;
@@ -56,15 +57,17 @@ interface LeaderboardEntry {
   user_id: number;
   username: string;
   full_name: string;
+  email: string;
   quiz_session_id: number;
   topic: string;
-  score: number;
+  // score: removed - admin leaderboard shows recent activity, not rankings
   correct_count: number;
   total_questions: number;
   accuracy: number;
   time_taken: number;
   rank: number;
   timestamp: string;
+  submitted_at: string;  // Added: quiz completion timestamp
 }
 
 interface UserSummary {
@@ -74,7 +77,7 @@ interface UserSummary {
   email: string;
   role: string;
   total_quizzes: number;
-  avg_score: number;
+  // avg_score: removed - focus on accuracy instead
   total_correct: number;
   total_questions: number;
   overall_accuracy: number;
@@ -91,6 +94,8 @@ const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'moderation' | 'feedback' | 'leaderboard'>('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isConnected, setIsConnected] = useState(false);
   
   // Leaderboard filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,6 +126,51 @@ const AdminDashboard: React.FC = () => {
     }
 
     fetchAdminData();
+    
+    // 🔥 NEW: Connect WebSocket for real-time admin leaderboard updates
+    const socket = socketService.getSocket();
+    
+    // Wait for connection before joining room
+    const setupWebSocket = () => {
+      setIsConnected(socketService.getConnectionStatus());
+      
+      // Join admin leaderboard room for global updates
+      socketService.joinLeaderboardRoom('admin_global');
+      
+      // Listen for leaderboard updates from ANY quiz completion
+      socketService.onLeaderboardUpdate((updateData) => {
+        console.log('🔔 Admin received leaderboard update:', updateData);
+        
+        // If we're on the leaderboard tab, refresh it
+        if (activeTab === 'leaderboard') {
+          console.log('🔄 Auto-refreshing admin leaderboard...');
+          fetchLeaderboard();
+          setLastUpdated(new Date());
+        }
+      });
+    };
+
+    // If already connected, set up immediately
+    if (socket && socket.connected) {
+      setupWebSocket();
+    } else if (socket) {
+      // Wait for connection event
+      socket.once('connect', () => {
+        setupWebSocket();
+      });
+    }
+
+    // Monitor connection status changes
+    const checkConnection = setInterval(() => {
+      setIsConnected(socketService.getConnectionStatus());
+    }, 2000);
+    
+    // Cleanup WebSocket on unmount
+    return () => {
+      clearInterval(checkConnection);
+      socketService.leaveLeaderboardRoom('admin_global');
+      socketService.offLeaderboardUpdate();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -181,9 +231,12 @@ const AdminDashboard: React.FC = () => {
       if (topicFilter) params.append('topic', topicFilter);
       params.append('limit', '100');
       
+      console.log('📊 Fetching admin leaderboard...', { search: searchTerm, topic: topicFilter });
       const response = await api.get(`/admin/leaderboard?${params.toString()}`);
       setLeaderboard(response.data.leaderboard || []);
       setUsersSummary(response.data.users_summary || []);
+      setLastUpdated(new Date());
+      console.log(`✅ Admin leaderboard loaded: ${response.data.leaderboard?.length || 0} entries`);
     } catch (err: any) {
       console.error('Error fetching leaderboard:', err);
       setError(err.response?.data?.error || 'Failed to load leaderboard');
@@ -710,7 +763,38 @@ const AdminDashboard: React.FC = () => {
                 {/* Filters */}
                 <div className="card">
                   <div className="card-body">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">🏆 Global Leaderboard</h2>
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-2xl font-bold text-gray-900">🏆 Global Leaderboard</h2>
+                      
+                      {/* Real-Time Status Indicators */}
+                      <div className="flex items-center space-x-4">
+                        {/* WebSocket Connection Status */}
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                          <span className={`text-sm font-medium ${isConnected ? 'text-green-700' : 'text-red-700'}`}>
+                            {isConnected ? 'Live Updates ON' : 'Disconnected'}
+                          </span>
+                        </div>
+                        
+                        {/* Last Updated Timestamp */}
+                        <div className="text-sm text-gray-600">
+                          Last updated: {lastUpdated.toLocaleTimeString()}
+                        </div>
+                        
+                        {/* Manual Refresh Button */}
+                        <button
+                          onClick={() => {
+                            fetchLeaderboard();
+                            setAutoRefresh(true);
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all flex items-center space-x-2"
+                          title="Manually refresh leaderboard"
+                        >
+                          <span>🔄</span>
+                          <span>Refresh</span>
+                        </button>
+                      </div>
+                    </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                       <input
@@ -745,7 +829,7 @@ const AdminDashboard: React.FC = () => {
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         }`}
                       >
-                        📋 All Quiz Sessions
+                        � Recent Activity
                       </button>
                       <button
                         onClick={() => setLeaderboardView('users')}
@@ -766,10 +850,13 @@ const AdminDashboard: React.FC = () => {
                   <div className="card">
                     <div className="card-body">
                       <h3 className="text-xl font-bold text-gray-900 mb-4">
-                        All Quiz Sessions ({leaderboard.length} entries)
+                        🏆 Performance Leaderboard ({leaderboard.length} users ranked)
                       </h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Showing each user's most recent quiz attempt, ranked by: 1) Correct Answers (higher is better), 2) Time Taken (faster is better)
+                      </p>
                       {leaderboard.length === 0 ? (
-                        <p className="text-gray-600 text-center py-8">No leaderboard entries found</p>
+                        <p className="text-gray-600 text-center py-8">No quiz attempts found</p>
                       ) : (
                         <div className="overflow-x-auto">
                           <table className="min-w-full divide-y divide-gray-200">
@@ -778,24 +865,23 @@ const AdminDashboard: React.FC = () => {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Topic</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Correct Answers</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Accuracy</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quiz ID</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Taken</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted At</th>
                               </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                              {leaderboard.map((entry) => (
+                              {leaderboard.map((entry, index) => (
                                 <tr key={entry.id} className="hover:bg-gray-50">
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
-                                      {entry.rank <= 3 && (
+                                      {index < 3 && (
                                         <span className="text-2xl mr-2">
-                                          {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}
+                                          {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
                                         </span>
                                       )}
-                                      <span className="text-sm font-semibold text-gray-900">#{entry.rank}</span>
+                                      <span className="text-sm font-bold text-gray-900">#{index + 1}</span>
                                     </div>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
@@ -808,22 +894,25 @@ const AdminDashboard: React.FC = () => {
                                     </span>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm font-bold text-purple-600">{entry.score.toFixed(1)}</div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm text-gray-900">
+                                    <div className="text-sm font-bold text-gray-900">
                                       {entry.correct_count}/{entry.total_questions}
-                                      <span className="text-gray-500 ml-1">({entry.accuracy}%)</span>
                                     </div>
                                   </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`text-sm font-semibold ${
+                                      entry.accuracy >= 80 ? 'text-green-600' : 
+                                      entry.accuracy >= 60 ? 'text-blue-600' : 
+                                      entry.accuracy >= 40 ? 'text-yellow-600' : 'text-red-600'
+                                    }`}>
+                                      {entry.accuracy}%
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {Math.floor(entry.time_taken / 60)}m {entry.time_taken % 60}s
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {entry.quiz_session_id}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {new Date(entry.timestamp).toLocaleDateString()}
+                                    <div>{new Date(entry.submitted_at).toLocaleDateString()}</div>
+                                    <div className="text-xs text-gray-400">{new Date(entry.submitted_at).toLocaleTimeString()}</div>
                                   </td>
                                 </tr>
                               ))}
@@ -840,7 +929,7 @@ const AdminDashboard: React.FC = () => {
                   <div className="card">
                     <div className="card-body">
                       <h3 className="text-xl font-bold text-gray-900 mb-4">
-                        User Performance Statistics ({usersSummary.length} users)
+                        👥 User Performance Statistics ({usersSummary.length} users)
                       </h3>
                       {usersSummary.length === 0 ? (
                         <p className="text-gray-600 text-center py-8">No user statistics available</p>
@@ -853,14 +942,14 @@ const AdminDashboard: React.FC = () => {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Quizzes</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Score</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overall Accuracy</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Correct</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Questions</th>
                               </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                               {usersSummary
-                                .sort((a, b) => b.avg_score - a.avg_score)
+                                .sort((a, b) => b.overall_accuracy - a.overall_accuracy)
                                 .map((user, index) => (
                                 <tr key={user.user_id} className="hover:bg-gray-50">
                                   <td className="px-6 py-4 whitespace-nowrap">
@@ -890,11 +979,14 @@ const AdminDashboard: React.FC = () => {
                                     {user.total_quizzes}
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm font-bold text-purple-600">{user.avg_score.toFixed(1)}</div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
-                                      <div className="text-sm font-semibold text-gray-900">{user.overall_accuracy}%</div>
+                                      <div className={`text-sm font-semibold ${
+                                        user.overall_accuracy >= 80 ? 'text-green-600' :
+                                        user.overall_accuracy >= 60 ? 'text-blue-600' :
+                                        user.overall_accuracy >= 40 ? 'text-yellow-600' : 'text-red-600'
+                                      }`}>
+                                        {user.overall_accuracy}%
+                                      </div>
                                       <div className="ml-2 text-xs text-gray-500">
                                         ({user.total_correct}/{user.total_questions})
                                       </div>
@@ -902,6 +994,9 @@ const AdminDashboard: React.FC = () => {
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {user.total_correct}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {user.total_questions}
                                   </td>
                                 </tr>
                               ))}

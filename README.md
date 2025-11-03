@@ -12,6 +12,8 @@ An intelligent quiz generation platform powered by AI that creates personalized 
 
 - **[SETUP.md](SETUP.md)** - Complete installation and setup guide
 - **[PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)** - Technical documentation
+- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Recent fixes and improvements
+- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing procedures
 
 ## 🎯 Problem Statement
 
@@ -27,22 +29,65 @@ Traditional quiz and assessment systems face several critical challenges:
 ## 💡 My Solution
 
 **Smart Quizzer AI** addresses these problems with an intelligent, adaptive learning platform:
-###  **Account Creation**
 
-After running the setup script, you can create your own accounts:
+###  **Quick Start**
 
-**Creating an Admin Account:**
-- Admin accounts should be created through the database initialization script
-- Run `python init_database.py` during initial setup
-- The script will create default admin accounts
-- Contact your system administrator for admin access credentials
+**First-Time Setup (For You and Your Friends):**
 
-**Creating a User Account:**
-- Navigate to the registration page at `http://localhost:3000/register`
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+   cd Smart-Quizzer-AI
+   ```
+
+2. **Install backend dependencies:**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   ```
+
+3. **Set up environment variables:**
+   - Create `.env` file in `backend/` folder
+   - Add your Google API key: `GOOGLE_API_KEY=your_key_here`
+
+4. **Start the backend:**
+   ```bash
+   python app.py
+   ```
+   **✅ On first run, the database will auto-create with a default admin account!**
+
+5. **Install and run frontend (new terminal):**
+   ```bash
+   cd ../frontend
+   npm install
+   npm start
+   ```
+
+6. **Login with default credentials:**
+   - Navigate to `http://localhost:8080`
+   - **Username**: `admin`
+   - **Password**: `Admin@123`
+   - ⚠️ **Important**: Change the password after first login!
+
+###  **Account Creation**
+
+**Default Admin Account (Auto-Created on First Run):**
+- **Username**: `admin`
+- **Password**: `Admin@123`
+- **Role**: Administrator
+- **Note**: The database and this account are automatically created the first time you run `python app.py`
+
+**Creating Additional User Accounts:**
+- Navigate to the registration page at `http://localhost:8080/register`
 - Fill in your details (username, email, full name, password)
 - Select your skill level (Beginner, Intermediate, Advanced)
 - Click "Create Account" to register
 - Start taking quizzes immediately after registration
 
->  **Note**: All users and admins can create their own accounts during setup.
+**Creating Additional Admin Accounts:**
+- Login as the default admin
+- Navigate to the admin panel
+- Create new admin users with admin privileges
+
+>  **Note**: After cloning from GitHub, simply run `python app.py` in the backend folder. The database and default admin account will be created automatically - no manual setup required!
 

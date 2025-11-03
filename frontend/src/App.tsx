@@ -17,6 +17,7 @@ import Leaderboard from './pages/Leaderboard';
 
 const userManager = UserManager.getInstance();
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 

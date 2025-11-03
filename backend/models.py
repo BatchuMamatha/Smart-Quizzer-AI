@@ -450,6 +450,16 @@ class QuizLeaderboard(db.Model):
         return self.score
     
     def to_dict(self):
+        """Convert to dictionary - SCORE REMOVED for admin leaderboard (shows recent activity only)"""
+        # Determine submitted_at with proper null checking
+        submitted_at = None
+        if self.quiz_session and self.quiz_session.completed_at:
+            submitted_at = self.quiz_session.completed_at.isoformat()
+        elif self.timestamp:
+            submitted_at = self.timestamp.isoformat()
+        else:
+            submitted_at = datetime.utcnow().isoformat()
+        
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -458,13 +468,12 @@ class QuizLeaderboard(db.Model):
             'full_name': self.user.full_name if self.user else 'Unknown',
             'quiz_session_id': self.quiz_session_id,
             'topic': self.topic,
-            'score': round(self.score, 2),
+            # 'score': removed - admin leaderboard now shows recent activity, not rankings
             'correct_count': self.correct_count,
             'total_questions': self.total_questions,
             'accuracy': round((self.correct_count / self.total_questions * 100), 1) if self.total_questions > 0 else 0,
             'time_taken': self.time_taken,
-            'avg_difficulty_weight': round(self.avg_difficulty_weight, 2),
             'rank': self.rank,
-            'timestamp': self.timestamp.isoformat(),
-            'completed_at': self.quiz_session.completed_at.isoformat() if self.quiz_session and self.quiz_session.completed_at else self.timestamp.isoformat()
+            'timestamp': self.timestamp.isoformat() if self.timestamp else datetime.utcnow().isoformat(),
+            'submitted_at': submitted_at
         }

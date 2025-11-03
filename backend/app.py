@@ -83,16 +83,73 @@ def create_app():
     
     init_jwt(app)
     
-    # Create tables
+    # Create tables and initialize database
     with app.app_context():
-        db.create_all()
+        initialize_database()
         
         # Initialize adaptive quiz engine
         app.adaptive_engine = question_generator.adaptive_engine
-        
-        initialize_topics()
     
     return app, socketio
+
+def initialize_database():
+    """
+    Auto-initialize database on first run or if missing.
+    Creates tables and minimal required data.
+    Works on any machine without manual intervention.
+    """
+    try:
+        # Create all tables
+        db.create_all()
+        logger.info("✅ Database tables created/verified")
+        
+        # Check if database is empty (first run)
+        user_count = User.query.count()
+        topic_count = Topic.query.count()
+        
+        if user_count == 0:
+            logger.info("🔧 First run detected - initializing database...")
+            initialize_default_admin()
+        
+        if topic_count == 0:
+            logger.info("📚 Creating default topics...")
+            initialize_topics()
+        
+        logger.info("✅ Database initialization complete")
+        
+    except Exception as e:
+        logger.error(f"❌ Database initialization error: {e}")
+        # Don't crash the app, but log the error
+        import traceback
+        traceback.print_exc()
+
+def initialize_default_admin():
+    """
+    Create a default admin account on first run.
+    This ensures the system works immediately after cloning.
+    """
+    try:
+        # Create default admin user
+        admin = User(
+            username='admin',
+            email='admin@smartquizzer.local',
+            full_name='System Administrator',
+            skill_level='Advanced',
+            role='admin'
+        )
+        admin.set_password('Admin@123')  # Default password - MUST be changed in production
+        
+        db.session.add(admin)
+        db.session.commit()
+        
+        logger.info("👑 Default admin account created")
+        logger.info("   Username: admin")
+        logger.info("   Password: Admin@123")
+        logger.info("   ⚠️  IMPORTANT: Change this password immediately!")
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to create default admin: {e}")
 
 def initialize_topics():
     """Initialize default topics if not exists"""
@@ -2338,7 +2395,7 @@ def get_question_by_id(current_user_id, question_id):
 @app.route('/api/admin/leaderboard', methods=['GET'])
 @auth_required
 def get_admin_leaderboard(current_user_id):
-    """Get complete leaderboard for admin dashboard with search and filter"""
+    """Get most recent quiz attempt per user for admin dashboard - shows live activity"""
     try:
         # Verify admin access
         admin_user = User.query.get(current_user_id)
@@ -2348,16 +2405,30 @@ def get_admin_leaderboard(current_user_id):
         # Get query parameters
         search = request.args.get('search', '').strip()
         topic = request.args.get('topic', '').strip()
-        quiz_id = request.args.get('quiz_id', '').strip()
-        limit = request.args.get('limit', 50, type=int)
-        offset = request.args.get('offset', 0, type=int)
+        limit = request.args.get('limit', 100, type=int)
         
-        # Build query
-        query = QuizLeaderboard.query
+        # 🔥 NEW LOGIC: Get only the most recent quiz attempt per user
+        # Subquery to get the latest timestamp for each user
+        subquery = db.session.query(
+            QuizLeaderboard.user_id,
+            db.func.max(QuizLeaderboard.timestamp).label('max_timestamp')
+        ).group_by(QuizLeaderboard.user_id).subquery()
+        
+        # Main query: join with subquery to get only the most recent entry per user
+        query = db.session.query(QuizLeaderboard).join(
+            subquery,
+            db.and_(
+                QuizLeaderboard.user_id == subquery.c.user_id,
+                QuizLeaderboard.timestamp == subquery.c.max_timestamp
+            )
+        ).join(User).options(
+            db.joinedload(QuizLeaderboard.quiz_session),
+            db.joinedload(QuizLeaderboard.user)
+        )
         
         # Apply filters
         if search:
-            query = query.join(User).filter(
+            query = query.filter(
                 db.or_(
                     User.username.ilike(f'%{search}%'),
                     User.full_name.ilike(f'%{search}%'),
@@ -2368,23 +2439,20 @@ def get_admin_leaderboard(current_user_id):
         if topic:
             query = query.filter(QuizLeaderboard.topic.ilike(f'%{topic}%'))
         
-        if quiz_id:
-            query = query.filter(QuizLeaderboard.quiz_session_id == int(quiz_id))
-        
-        # Get total count
+        # Get total count of unique users
         total_entries = query.count()
         
-        # Get paginated results ordered by score
+        # 🏆 Order by: 1) Correct Answers (DESC - higher is better), 2) Time Taken (ASC - faster is better)
         leaderboard_entries = query.order_by(
-            QuizLeaderboard.score.desc(),
-            QuizLeaderboard.timestamp.desc()
-        ).limit(limit).offset(offset).all()
+            QuizLeaderboard.correct_count.desc(),  # Primary: Most correct answers first
+            QuizLeaderboard.time_taken.asc()       # Secondary: Fastest time wins ties
+        ).limit(limit).all()
         
-        # Calculate ranks
-        for idx, entry in enumerate(leaderboard_entries, start=offset + 1):
+        # Calculate ranks based on correct_count and time_taken
+        for idx, entry in enumerate(leaderboard_entries, start=1):
             entry.rank = idx
         
-        # Get user statistics
+        # Get user statistics (remove avg_score, keep only accuracy-based stats)
         user_stats = db.session.query(
             User.id,
             User.username,
@@ -2392,7 +2460,6 @@ def get_admin_leaderboard(current_user_id):
             User.email,
             User.role,
             db.func.count(QuizLeaderboard.id).label('total_quizzes'),
-            db.func.avg(QuizLeaderboard.score).label('avg_score'),
             db.func.sum(QuizLeaderboard.correct_count).label('total_correct'),
             db.func.sum(QuizLeaderboard.total_questions).label('total_questions')
         ).outerjoin(QuizLeaderboard).group_by(User.id).all()
@@ -2406,7 +2473,6 @@ def get_admin_leaderboard(current_user_id):
                 'email': stat.email,
                 'role': stat.role,
                 'total_quizzes': stat.total_quizzes or 0,
-                'avg_score': round(stat.avg_score, 2) if stat.avg_score else 0,
                 'total_correct': stat.total_correct or 0,
                 'total_questions': stat.total_questions or 0,
                 'overall_accuracy': round((stat.total_correct / stat.total_questions * 100), 1) if stat.total_questions else 0
@@ -2417,11 +2483,9 @@ def get_admin_leaderboard(current_user_id):
             'users_summary': users_summary,
             'total_entries': total_entries,
             'limit': limit,
-            'offset': offset,
             'filters': {
                 'search': search,
-                'topic': topic,
-                'quiz_id': quiz_id
+                'topic': topic
             }
         }), 200
         
@@ -2720,6 +2784,40 @@ def get_live_leaderboard(topic):
         
     except Exception as e:
         print(f"❌ Error fetching live leaderboard: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/leaderboard/concurrent/<topic>', methods=['GET'])
+def get_concurrent_quiz_leaderboard_endpoint(topic):
+    """
+    🔥 NEW: Get leaderboard for users taking the SAME quiz concurrently.
+    Shows ONLY users who started this topic quiz within the time window.
+    Perfect for real-time competitive quizzes.
+    
+    Query params:
+        - time_window: Minutes to look back (default: 30)
+        - limit: Max users to return (default: 50)
+    """
+    try:
+        time_window = request.args.get('time_window', 30, type=int)
+        limit = request.args.get('limit', 50, type=int)
+        
+        logger.info(f"📊 Concurrent quiz leaderboard request - topic: {topic}, window: {time_window}min")
+        
+        # Use new leaderboard service function
+        result = leaderboard_service.get_concurrent_quiz_leaderboard(
+            topic=topic,
+            time_window_minutes=time_window,
+            limit=limit
+        )
+        
+        logger.info(f"✅ Returned {len(result.get('leaderboard', []))} concurrent quiz takers")
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error fetching concurrent quiz leaderboard: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
