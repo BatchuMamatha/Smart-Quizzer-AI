@@ -115,7 +115,7 @@ const Analytics: React.FC = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
             <Header 
-                title="📊 Learning Analytics" 
+                title="Learning Analytics" 
                 subtitle="Track your progress and performance"
                 showBackButton={true}
                 backPath="/dashboard"

@@ -10,6 +10,7 @@ import requests
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import PyPDF2
+import pdfplumber
 import docx
 from bs4 import BeautifulSoup
 try:
@@ -19,6 +20,10 @@ except ImportError:
     MAGIC_AVAILABLE = False
     print("Warning: python-magic not available. File type detection will be limited.")
 import hashlib
+import google.generativeai as genai
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ContentProcessor:
     """Advanced content processor for multiple file formats and sources"""
@@ -38,6 +43,16 @@ class ContentProcessor:
         
         # Maximum file size (10MB)
         self.max_file_size = 10 * 1024 * 1024
+        
+        # Configure Google Gemini AI
+        self.gemini_api_key = os.getenv('GEMINI_API_KEY')
+        if self.gemini_api_key:
+            genai.configure(api_key=self.gemini_api_key)
+            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+            logger.info("✅ Google Gemini AI configured for PDF question generation")
+        else:
+            self.gemini_model = None
+            logger.warning("⚠️ GEMINI_API_KEY not found. PDF question generation will be limited.")
         
         print("📁 Content Processor initialized with advanced file support")
     
@@ -105,28 +120,66 @@ class ContentProcessor:
             with open(file_path, 'r', encoding='latin-1') as file:
                 return file.read().strip()
     
-    def extract_text_from_pdf(self, file_path: str) -> str:
-        """Extract text from PDF files"""
+    def extract_text_from_pdf(self, file_path: str, use_advanced: bool = True) -> str:
+        """
+        Extract text from PDF files with advanced processing
+        
+        Args:
+            file_path: Path to PDF file
+            use_advanced: Use pdfplumber for better text extraction
+        
+        Returns:
+            Extracted text content
+        """
         try:
-            text_content = []
-            
-            with open(file_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
+            if use_advanced:
+                # Use pdfplumber for better text extraction with layout preservation
+                text_content = []
                 
-                for page_num, page in enumerate(pdf_reader.pages):
-                    page_text = page.extract_text()
-                    if page_text.strip():
-                        text_content.append(f"Page {page_num + 1}:\n{page_text}")
-            
-            content = '\n\n'.join(text_content)
+                with pdfplumber.open(file_path) as pdf:
+                    for page_num, page in enumerate(pdf.pages):
+                        # Extract text with layout
+                        page_text = page.extract_text()
+                        
+                        if page_text and page_text.strip():
+                            text_content.append(f"=== Page {page_num + 1} ===\n{page_text}")
+                        
+                        # Extract tables if present
+                        tables = page.extract_tables()
+                        if tables:
+                            for table_num, table in enumerate(tables):
+                                table_text = f"\n--- Table {table_num + 1} on Page {page_num + 1} ---\n"
+                                for row in table:
+                                    if row:
+                                        # Filter out None values and join cells
+                                        row_text = " | ".join(str(cell) if cell else "" for cell in row)
+                                        table_text += row_text + "\n"
+                                text_content.append(table_text)
+                
+                content = '\n\n'.join(text_content)
+            else:
+                # Fallback to PyPDF2
+                text_content = []
+                
+                with open(file_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    
+                    for page_num, page in enumerate(pdf_reader.pages):
+                        page_text = page.extract_text()
+                        if page_text.strip():
+                            text_content.append(f"Page {page_num + 1}:\n{page_text}")
+                
+                content = '\n\n'.join(text_content)
             
             # Clean extracted text
             content = re.sub(r'\n\s*\n\s*\n', '\n\n', content)
-            content = re.sub(r'\s+', ' ', content)
+            content = re.sub(r'[ \t]+', ' ', content)  # Normalize spaces but keep line breaks
             
+            logger.info(f"✅ Extracted {len(content)} characters from PDF")
             return content.strip()
         
         except Exception as e:
+            logger.error(f"❌ PDF extraction failed: {str(e)}")
             raise Exception(f"PDF extraction failed: {str(e)}")
     
     def extract_text_from_docx(self, file_path: str) -> str:
@@ -362,6 +415,217 @@ class ContentProcessor:
             processing_result['error'] = str(e)
             print(f"❌ Content processing failed: {e}")
             return processing_result
+    
+    def generate_questions_from_content(
+        self, 
+        content: str, 
+        topic: str,
+        num_questions: int = 10,
+        difficulty: str = 'Medium',
+        question_types: List[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate quiz questions from content using Google Gemini AI
+        
+        Args:
+            content: The text content to generate questions from
+            topic: Topic/subject of the content
+            num_questions: Number of questions to generate
+            difficulty: Difficulty level (Easy, Medium, Hard)
+            question_types: List of question types to generate
+        
+        Returns:
+            Dictionary with generated questions and metadata
+        """
+        
+        if not self.gemini_model:
+            return {
+                'success': False,
+                'error': 'Gemini AI not configured. Please set GEMINI_API_KEY.',
+                'questions': []
+            }
+        
+        if question_types is None:
+            question_types = ['Multiple Choice', 'True/False', 'Short Answer']
+        
+        try:
+            # Chunk content if too long (Gemini has token limits)
+            max_content_length = 8000
+            if len(content) > max_content_length:
+                logger.warning(f"Content too long ({len(content)} chars). Truncating to {max_content_length} chars.")
+                content = content[:max_content_length] + "\n\n[Content truncated for processing]"
+            
+            # Create detailed prompt for question generation
+            prompt = f"""You are an expert quiz creator. Generate {num_questions} high-quality quiz questions based on the following content.
+
+**Topic:** {topic}
+**Difficulty Level:** {difficulty}
+**Question Types to Include:** {', '.join(question_types)}
+
+**Content:**
+{content}
+
+**Requirements:**
+1. Generate exactly {num_questions} questions
+2. Mix question types: {', '.join(question_types)}
+3. Difficulty should be {difficulty} level
+4. Each question must be clear and unambiguous
+5. For Multiple Choice questions: provide 4 options (A, B, C, D) with only ONE correct answer
+6. For True/False questions: provide a statement that is clearly true or false
+7. For Short Answer questions: provide a concise correct answer
+8. Include detailed explanations for each answer
+9. Ensure questions test comprehension, not just memorization
+
+**Output Format (STRICT JSON):**
+{{
+  "questions": [
+    {{
+      "question_text": "Question here?",
+      "question_type": "Multiple Choice" | "True/False" | "Short Answer",
+      "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],  // Only for Multiple Choice
+      "correct_answer": "Correct answer here",
+      "explanation": "Detailed explanation of why this is correct",
+      "difficulty": "{difficulty}",
+      "topic": "{topic}"
+    }}
+  ]
+}}
+
+Generate ONLY valid JSON. Do not include any text before or after the JSON."""
+
+            logger.info(f"🤖 Generating {num_questions} questions using Gemini AI...")
+            
+            # Call Gemini AI
+            response = self.gemini_model.generate_content(prompt)
+            response_text = response.text.strip()
+            
+            # Extract JSON from response (sometimes Gemini adds markdown code blocks)
+            json_match = re.search(r'```(?:json)?\s*(\{.*\})\s*```', response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group(1)
+            
+            # Parse JSON response
+            questions_data = json.loads(response_text)
+            
+            # Validate and process questions
+            generated_questions = []
+            for q in questions_data.get('questions', []):
+                # Ensure all required fields are present
+                if 'question_text' in q and 'correct_answer' in q:
+                    question = {
+                        'question_text': q['question_text'],
+                        'question_type': q.get('question_type', 'Multiple Choice'),
+                        'correct_answer': q['correct_answer'],
+                        'explanation': q.get('explanation', 'No explanation provided.'),
+                        'difficulty': difficulty,
+                        'topic': topic,
+                        'options': q.get('options', []),
+                        'generated_by': 'Gemini AI',
+                        'source': 'PDF Content'
+                    }
+                    generated_questions.append(question)
+            
+            logger.info(f"✅ Successfully generated {len(generated_questions)} questions from content")
+            
+            return {
+                'success': True,
+                'questions': generated_questions,
+                'total_generated': len(generated_questions),
+                'metadata': {
+                    'topic': topic,
+                    'difficulty': difficulty,
+                    'question_types': question_types,
+                    'generated_at': datetime.now().isoformat(),
+                    'ai_model': 'Gemini-1.5-Flash'
+                }
+            }
+        
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ Failed to parse Gemini response as JSON: {e}")
+            logger.error(f"Response: {response_text[:500]}")
+            return {
+                'success': False,
+                'error': 'Failed to parse AI response. Please try again.',
+                'questions': [],
+                'raw_response': response_text[:500]
+            }
+        
+        except Exception as e:
+            logger.error(f"❌ Question generation failed: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'questions': []
+            }
+    
+    def process_pdf_and_generate_questions(
+        self,
+        pdf_path: str,
+        topic: str,
+        num_questions: int = 10,
+        difficulty: str = 'Medium',
+        question_types: List[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Complete pipeline: Extract text from PDF and generate questions
+        
+        Args:
+            pdf_path: Path to PDF file
+            topic: Topic/subject
+            num_questions: Number of questions to generate
+            difficulty: Difficulty level
+            question_types: Types of questions to generate
+        
+        Returns:
+            Dictionary with questions and metadata
+        """
+        
+        result = {
+            'success': False,
+            'questions': [],
+            'metadata': {},
+            'error': None
+        }
+        
+        try:
+            # Step 1: Extract text from PDF
+            logger.info(f"📄 Extracting text from PDF: {pdf_path}")
+            content = self.extract_text_from_pdf(pdf_path, use_advanced=True)
+            
+            if not content or len(content.strip()) < 50:
+                result['error'] = 'Insufficient content extracted from PDF'
+                return result
+            
+            # Get content summary
+            summary = self.get_content_summary(content)
+            result['metadata']['content_summary'] = summary
+            
+            # Step 2: Generate questions using AI
+            logger.info(f"🤖 Generating {num_questions} questions from extracted content...")
+            questions_result = self.generate_questions_from_content(
+                content=content,
+                topic=topic,
+                num_questions=num_questions,
+                difficulty=difficulty,
+                question_types=question_types
+            )
+            
+            if questions_result['success']:
+                result['success'] = True
+                result['questions'] = questions_result['questions']
+                result['metadata'].update(questions_result['metadata'])
+                result['metadata']['pdf_path'] = pdf_path
+                
+                logger.info(f"✅ Successfully generated {len(result['questions'])} questions from PDF")
+            else:
+                result['error'] = questions_result.get('error', 'Unknown error')
+            
+            return result
+        
+        except Exception as e:
+            logger.error(f"❌ PDF processing and question generation failed: {e}")
+            result['error'] = str(e)
+            return result
     
     def get_content_summary(self, content: str) -> Dict[str, Any]:
         """Generate a summary of processed content"""

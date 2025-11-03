@@ -235,12 +235,12 @@ def create_flagged_questions_and_feedback(users):
     flagged_questions = random.sample(all_questions, min(num_flags, len(all_questions)))
     
     for question in flagged_questions:
-        # Pick a random user who completed this quiz
-        quiz_session = QuizSession.query.get(question.quiz_session_id)
+        # Pick a random user who completed this quiz - Fixed legacy Query.get()
+        quiz_session = db.session.get(QuizSession, question.quiz_session_id)
         if not quiz_session:
             continue
             
-        user = User.query.get(quiz_session.user_id)
+        user = db.session.get(User, quiz_session.user_id)
         if not user or user.role != 'user':
             continue
         
@@ -285,12 +285,12 @@ def create_flagged_questions_and_feedback(users):
     feedback_questions = random.sample(all_questions, min(num_feedback, len(all_questions)))
     
     for question in feedback_questions:
-        # Pick the user who answered this question
-        quiz_session = QuizSession.query.get(question.quiz_session_id)
+        # Pick the user who answered this question - Fixed legacy Query.get()
+        quiz_session = db.session.get(QuizSession, question.quiz_session_id)
         if not quiz_session:
             continue
             
-        user = User.query.get(quiz_session.user_id)
+        user = db.session.get(User, quiz_session.user_id)
         if not user or user.role != 'user':
             continue
         

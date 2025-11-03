@@ -23,7 +23,11 @@ except Exception:
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 # Import our modules
-from models import db, User, QuizSession, Question, Topic, QuizLeaderboard
+from models import (
+    db, User, QuizSession, Question, Topic, QuizLeaderboard,
+    Badge, UserBadge, PerformanceTrend, LearningPath, LearningMilestone,
+    MultiplayerRoom, MultiplayerParticipant
+)
 from auth import init_jwt, generate_tokens, auth_required
 from question_gen import question_generator
 from content_processor import ContentProcessor
@@ -37,6 +41,12 @@ from error_handler import (
 
 # Import leaderboard service
 import leaderboard_service
+
+# Import badge and analytics services
+import badge_service
+import analytics_service
+import learning_path_service
+import multiplayer_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -101,24 +111,38 @@ def initialize_database():
     try:
         # Create all tables
         db.create_all()
-        logger.info("✅ Database tables created/verified")
+        logger.info("Database tables created/verified")
         
         # Check if database is empty (first run)
         user_count = User.query.count()
         topic_count = Topic.query.count()
         
         if user_count == 0:
-            logger.info("🔧 First run detected - initializing database...")
+            logger.info("First run detected - initializing database...")
             initialize_default_admin()
         
         if topic_count == 0:
-            logger.info("📚 Creating default topics...")
+            logger.info("Creating default topics...")
             initialize_topics()
         
-        logger.info("✅ Database initialization complete")
+        # Initialize badges (if not already initialized) - Fixed has_table() deprecation
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        has_badges_table = 'badges' in inspector.get_table_names()
+        
+        if has_badges_table:
+            badge_count = db.session.query(Badge).count()
+        else:
+            badge_count = 0
+            
+        if badge_count == 0:
+            logger.info("Initializing achievement badges...")
+            badge_service.initialize_badges()
+        
+        logger.info("Database initialization complete")
         
     except Exception as e:
-        logger.error(f"❌ Database initialization error: {e}")
+        logger.error(f"Database initialization error: {e}")
         # Don't crash the app, but log the error
         import traceback
         traceback.print_exc()
@@ -210,6 +234,152 @@ def handle_leave_leaderboard(data):
         'room': room,
         'timestamp': datetime.utcnow().isoformat()
     })
+
+
+# ==================== MULTIPLAYER WEBSOCKET EVENTS ====================
+
+@socketio.on('multiplayer:join_room')
+def handle_multiplayer_join(data):
+    """Join a multiplayer room for real-time updates"""
+    room_code = data.get('room_code')
+    if room_code:
+        room = f"multiplayer_{room_code}"
+        join_room(room)
+        logger.info(f"Client {request.sid} joined multiplayer room: {room_code}")
+        emit('multiplayer:joined_room', {
+            'room_code': room_code,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+
+@socketio.on('multiplayer:leave_room')
+def handle_multiplayer_leave(data):
+    """Leave a multiplayer room"""
+    room_code = data.get('room_code')
+    if room_code:
+        room = f"multiplayer_{room_code}"
+        leave_room(room)
+        logger.info(f"Client {request.sid} left multiplayer room: {room_code}")
+        emit('multiplayer:left_room', {
+            'room_code': room_code,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+
+@socketio.on('multiplayer:answer_submit')
+def handle_multiplayer_answer(data):
+    """Handle answer submission in multiplayer game"""
+    try:
+        room_code = data.get('room_code')
+        user_id = data.get('user_id')
+        question_index = data.get('question_index')
+        user_answer = data.get('user_answer')
+        time_taken = data.get('time_taken', 0)
+        is_correct = data.get('is_correct', False)
+        points_earned = data.get('points_earned', 0)
+        
+        # Update participant score
+        from models import MultiplayerRoom
+        room = MultiplayerRoom.query.filter_by(room_code=room_code).first()
+        
+        if room:
+            participant = multiplayer_service.update_participant_score(
+                room.id,
+                user_id,
+                points_earned,
+                is_correct
+            )
+            
+            if participant:
+                # Broadcast updated scores to all players
+                emit('multiplayer:score_update', {
+                    'room_code': room_code,
+                    'user_id': user_id,
+                    'score': participant.score,
+                    'rank': participant.rank,
+                    'correct_answers': participant.correct_answers,
+                    'timestamp': datetime.utcnow().isoformat()
+                }, room=f'multiplayer_{room_code}')
+                
+                logger.info(f"Updated score for user {user_id} in room {room_code}: {points_earned} points")
+        
+    except Exception as e:
+        logger.error(f"Error handling multiplayer answer: {e}")
+        emit('error', {'message': 'Failed to update score'})
+
+
+@socketio.on('multiplayer:next_question')
+def handle_multiplayer_next_question(data):
+    """Broadcast next question to all players"""
+    try:
+        room_code = data.get('room_code')
+        question_index = data.get('question_index')
+        question_data = data.get('question')
+        
+        # Emit to all players in room
+        emit('multiplayer:question_sync', {
+            'room_code': room_code,
+            'question_index': question_index,
+            'question': question_data,
+            'timestamp': datetime.utcnow().isoformat()
+        }, room=f'multiplayer_{room_code}')
+        
+        logger.info(f"Broadcasting question {question_index} to room {room_code}")
+        
+    except Exception as e:
+        logger.error(f"Error broadcasting next question: {e}")
+
+
+@socketio.on('multiplayer:game_end')
+def handle_multiplayer_game_end(data):
+    """Handle game completion"""
+    try:
+        room_code = data.get('room_code')
+        
+        # Move to next question which will mark as completed if last question
+        room = multiplayer_service.next_question(room_code)
+        
+        if room and room.status == 'completed':
+            # Get final results
+            results = multiplayer_service.get_game_results(room_code)
+            
+            # Broadcast final results to all players
+            emit('multiplayer:game_ended', {
+                'room_code': room_code,
+                'results': results,
+                'timestamp': datetime.utcnow().isoformat()
+            }, room=f'multiplayer_{room_code}')
+            
+            logger.info(f"Game ended in room {room_code}")
+        
+    except Exception as e:
+        logger.error(f"Error ending multiplayer game: {e}")
+
+
+@socketio.on('multiplayer:chat_message')
+def handle_multiplayer_chat(data):
+    """Handle chat messages in multiplayer room"""
+    try:
+        room_code = data.get('room_code')
+        user_id = data.get('user_id')
+        message = data.get('message')
+        username = data.get('username', 'Unknown')
+        
+        # Broadcast chat message to all players
+        emit('multiplayer:chat_message', {
+            'room_code': room_code,
+            'user_id': user_id,
+            'username': username,
+            'message': message,
+            'timestamp': datetime.utcnow().isoformat()
+        }, room=f'multiplayer_{room_code}')
+        
+    except Exception as e:
+        logger.error(f"Error handling chat message: {e}")
+
+
+# ==================== ROUTES ====================
+
 
 # Root endpoint
 @app.route('/', methods=['GET'])
@@ -1201,6 +1371,7 @@ def submit_answer(current_user_id, quiz_id):
         
         # If quiz is completed, update leaderboard
         leaderboard_entry = None
+        newly_awarded_badges = []
         if is_quiz_completed:
             try:
                 # Update leaderboard with WebSocket emit
@@ -1219,6 +1390,67 @@ def submit_answer(current_user_id, quiz_id):
                     logger.warning(f"⚠️  Failed to create leaderboard entry for quiz {quiz_id}")
             except Exception as lb_error:
                 logger.error(f"❌ Error updating leaderboard for quiz {quiz_id}: {lb_error}")
+            
+            try:
+                # Update performance trends for analytics
+                analytics_service.update_performance_trend(current_user_id, quiz_id)
+                logger.info(f"✅ Performance trends updated for user {current_user_id}")
+            except Exception as pt_error:
+                logger.error(f"❌ Error updating performance trends: {pt_error}")
+            
+            try:
+                # Check and award badges
+                newly_awarded_badges = badge_service.check_and_award_badges(current_user_id, quiz_id)
+                if newly_awarded_badges:
+                    logger.info(f"🏅 Awarded {len(newly_awarded_badges)} new badges to user {current_user_id}")
+                    # Emit badge notification via WebSocket
+                    for badge in newly_awarded_badges:
+                        socketio.emit('badge:awarded', {
+                            'badge': badge.to_dict(),
+                            'user_id': current_user_id,
+                            'timestamp': datetime.utcnow().isoformat()
+                        }, room=f'user_{current_user_id}')
+            except Exception as badge_error:
+                logger.error(f"❌ Error checking badges: {badge_error}")
+            
+            try:
+                # Update learning path milestones
+                # Check all active learning paths for this user
+                from models import LearningPath, LearningMilestone
+                active_paths = LearningPath.query.filter_by(
+                    user_id=current_user_id,
+                    status='active'
+                ).all()
+                
+                for path in active_paths:
+                    # Get incomplete milestones for this path
+                    incomplete_milestones = LearningMilestone.query.filter_by(
+                        learning_path_id=path.id,
+                        is_completed=False
+                    ).all()
+                    
+                    for milestone in incomplete_milestones:
+                        # Check if this quiz matches the milestone
+                        milestone_updated = learning_path_service.update_milestone_progress(
+                            milestone.id,
+                            current_user_id,
+                            quiz_id
+                        )
+                        if milestone_updated:
+                            logger.info(f"📚 Milestone {milestone.id} completed in learning path {path.id}")
+                            # Emit WebSocket notification for milestone completion
+                            socketio.emit('milestone:completed', {
+                                'milestone_id': milestone.id,
+                                'learning_path_id': path.id,
+                                'path_name': path.name,
+                                'milestone_name': milestone.name,
+                                'progress_percentage': path.progress_percentage,
+                                'user_id': current_user_id,
+                                'timestamp': datetime.utcnow().isoformat()
+                            }, room=f'user_{current_user_id}')
+                            
+            except Exception as milestone_error:
+                logger.error(f"❌ Error updating learning path milestones: {milestone_error}")
         
         return jsonify({
             'is_correct': is_correct,
@@ -1653,6 +1885,533 @@ def get_quiz_analytics(current_user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+# ==================== BADGE & GAMIFICATION ENDPOINTS ====================
+
+@app.route('/api/badges/available', methods=['GET'])
+def get_available_badges():
+    """Get all available badges in the system"""
+    try:
+        from models import Badge
+        badges = Badge.query.all()
+        
+        # Group by category
+        badges_by_category = {}
+        for badge in badges:
+            category = badge.category
+            if category not in badges_by_category:
+                badges_by_category[category] = []
+            badges_by_category[category].append(badge.to_dict())
+        
+        return jsonify({
+            'badges': [b.to_dict() for b in badges],
+            'by_category': badges_by_category,
+            'total_badges': len(badges)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching available badges: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/user/badges', methods=['GET'])
+@auth_required
+def get_user_badges(current_user_id):
+    """Get all badges earned by the current user"""
+    try:
+        user_badges_data = badge_service.get_user_badges(current_user_id)
+        
+        return jsonify({
+            'badges': user_badges_data['badges'],
+            'total_badges': user_badges_data['total_badges'],
+            'total_points': user_badges_data['total_points'],
+            'user_id': current_user_id
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching user badges: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/user/badges/progress', methods=['GET'])
+@auth_required
+def get_badge_progress(current_user_id):
+    """Get user's progress towards unearned badges"""
+    try:
+        progress_data = badge_service.get_badge_progress(current_user_id)
+        
+        # Separate into close to completion and others
+        close_badges = [b for b in progress_data if b['is_close']]
+        other_badges = [b for b in progress_data if not b['is_close']]
+        
+        return jsonify({
+            'progress': progress_data,
+            'close_to_completion': close_badges,
+            'others': other_badges,
+            'total_available': len(progress_data)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching badge progress: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== ANALYTICS & PERFORMANCE ENDPOINTS ====================
+
+@app.route('/api/analytics/trends', methods=['GET'])
+@auth_required
+def get_performance_trends(current_user_id):
+    """Get user's performance trends over time"""
+    try:
+        days = request.args.get('days', 30, type=int)
+        topic = request.args.get('topic')
+        
+        trends_data = analytics_service.get_performance_trends(
+            user_id=current_user_id,
+            days=days,
+            topic=topic
+        )
+        
+        return jsonify(trends_data), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching performance trends: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analytics/topic-mastery', methods=['GET'])
+@auth_required
+def get_topic_mastery(current_user_id):
+    """Get topic mastery heatmap data"""
+    try:
+        mastery_data = analytics_service.get_topic_mastery_analysis(current_user_id)
+        
+        return jsonify(mastery_data), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching topic mastery: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analytics/weekly-report', methods=['GET'])
+@auth_required
+def get_weekly_report(current_user_id):
+    """Get weekly performance report"""
+    try:
+        report = analytics_service.get_weekly_report(current_user_id)
+        
+        return jsonify(report), 200
+        
+    except Exception as e:
+        logger.error(f"Error generating weekly report: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analytics/monthly-report', methods=['GET'])
+@auth_required
+def get_monthly_report(current_user_id):
+    """Get monthly performance report"""
+    try:
+        report = analytics_service.get_monthly_report(current_user_id)
+        
+        return jsonify(report), 200
+        
+    except Exception as e:
+        logger.error(f"Error generating monthly report: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analytics/recommendations', methods=['GET'])
+@auth_required
+def get_learning_recommendations(current_user_id):
+    """Get personalized learning recommendations based on performance"""
+    try:
+        analysis = analytics_service.get_strength_weakness_analysis(current_user_id)
+        
+        return jsonify(analysis), 200
+        
+    except Exception as e:
+        logger.error(f"Error generating recommendations: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== LEARNING PATH ENDPOINTS ====================
+
+@app.route('/api/learning-paths', methods=['GET'])
+@auth_required
+def get_learning_paths(current_user_id):
+    """Get all learning paths for current user"""
+    try:
+        status = request.args.get('status')  # active, paused, completed
+        
+        paths = learning_path_service.get_user_learning_paths(current_user_id, status)
+        
+        logger.info(f"📚 Retrieved {len(paths)} learning paths for user {current_user_id}")
+        
+        return jsonify({
+            'learning_paths': paths,
+            'total': len(paths)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error retrieving learning paths: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/learning-paths', methods=['POST'])
+@auth_required
+def create_learning_path(current_user_id):
+    """Create a new custom learning path"""
+    try:
+        data = request.json
+        
+        name = data.get('name')
+        topics = data.get('topics', [])
+        difficulty_progression = data.get('difficulty_progression', [])
+        description = data.get('description')
+        estimated_duration_days = data.get('estimated_duration_days', 30)
+        
+        if not name or not topics:
+            return jsonify({'error': 'Name and topics are required'}), 400
+        
+        # Validate difficulty progression
+        if len(difficulty_progression) != len(topics):
+            # Default to Medium if not specified
+            difficulty_progression = ['Medium'] * len(topics)
+        
+        path = learning_path_service.create_learning_path(
+            user_id=current_user_id,
+            name=name,
+            topics=topics,
+            difficulty_progression=difficulty_progression,
+            estimated_duration_days=estimated_duration_days,
+            description=description
+        )
+        
+        if path:
+            logger.info(f"✅ Created learning path '{name}' for user {current_user_id}")
+            return jsonify(path.to_dict()), 201
+        else:
+            return jsonify({'error': 'Failed to create learning path'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error creating learning path: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/learning-paths/recommended', methods=['POST'])
+@auth_required
+def generate_recommended_path(current_user_id):
+    """Generate AI-recommended learning path based on user performance"""
+    try:
+        path = learning_path_service.generate_recommended_path(current_user_id)
+        
+        if path:
+            logger.info(f"🎯 Generated recommended learning path for user {current_user_id}")
+            return jsonify(path.to_dict()), 201
+        else:
+            return jsonify({'error': 'Failed to generate recommended path'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error generating recommended path: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/learning-paths/<int:path_id>', methods=['GET'])
+@auth_required
+def get_learning_path_details(current_user_id, path_id):
+    """Get detailed information about a specific learning path"""
+    try:
+        path = learning_path_service.get_learning_path_details(path_id, current_user_id)
+        
+        if path:
+            return jsonify(path), 200
+        else:
+            return jsonify({'error': 'Learning path not found'}), 404
+        
+    except Exception as e:
+        logger.error(f"Error retrieving learning path details: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/learning-paths/<int:path_id>/next-quiz', methods=['GET'])
+@auth_required
+def get_next_recommended_quiz(current_user_id, path_id):
+    """Get the next recommended quiz for a learning path"""
+    try:
+        recommendation = learning_path_service.get_next_recommended_quiz(current_user_id, path_id)
+        
+        if recommendation:
+            return jsonify(recommendation), 200
+        else:
+            return jsonify({'error': 'No more quizzes in this path or path not found'}), 404
+        
+    except Exception as e:
+        logger.error(f"Error getting next quiz recommendation: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/learning-paths/<int:path_id>/pause', methods=['PUT'])
+@auth_required
+def pause_learning_path(current_user_id, path_id):
+    """Pause an active learning path"""
+    try:
+        success = learning_path_service.pause_learning_path(path_id, current_user_id)
+        
+        if success:
+            logger.info(f"⏸️ Paused learning path {path_id} for user {current_user_id}")
+            return jsonify({'message': 'Learning path paused'}), 200
+        else:
+            return jsonify({'error': 'Learning path not found or cannot be paused'}), 404
+        
+    except Exception as e:
+        logger.error(f"Error pausing learning path: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/learning-paths/<int:path_id>/resume', methods=['PUT'])
+@auth_required
+def resume_learning_path(current_user_id, path_id):
+    """Resume a paused learning path"""
+    try:
+        success = learning_path_service.resume_learning_path(path_id, current_user_id)
+        
+        if success:
+            logger.info(f"▶️ Resumed learning path {path_id} for user {current_user_id}")
+            return jsonify({'message': 'Learning path resumed'}), 200
+        else:
+            return jsonify({'error': 'Learning path not found or cannot be resumed'}), 404
+        
+    except Exception as e:
+        logger.error(f"Error resuming learning path: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/learning-paths/<int:path_id>', methods=['DELETE'])
+@auth_required
+def delete_learning_path(current_user_id, path_id):
+    """Delete a learning path"""
+    try:
+        success = learning_path_service.delete_learning_path(path_id, current_user_id)
+        
+        if success:
+            logger.info(f"🗑️ Deleted learning path {path_id} for user {current_user_id}")
+            return jsonify({'message': 'Learning path deleted'}), 200
+        else:
+            return jsonify({'error': 'Learning path not found'}), 404
+        
+    except Exception as e:
+        logger.error(f"Error deleting learning path: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== MULTIPLAYER ENDPOINTS ====================
+
+@app.route('/api/multiplayer/rooms', methods=['GET'])
+@auth_required
+def get_multiplayer_rooms(current_user_id):
+    """Get list of available multiplayer rooms"""
+    try:
+        topic = request.args.get('topic')
+        status = request.args.get('status', 'waiting')
+        
+        rooms = multiplayer_service.get_available_rooms(topic, status)
+        
+        logger.info(f"🎮 Retrieved {len(rooms)} multiplayer rooms")
+        
+        return jsonify({
+            'rooms': rooms,
+            'total': len(rooms)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error retrieving multiplayer rooms: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/multiplayer/rooms', methods=['POST'])
+@auth_required
+def create_multiplayer_room(current_user_id):
+    """Create a new multiplayer room"""
+    try:
+        data = request.json
+        
+        topic = data.get('topic')
+        difficulty = data.get('difficulty', 'Medium')
+        max_players = data.get('max_players', 10)
+        question_count = data.get('question_count', 10)
+        time_limit_per_question = data.get('time_limit_per_question', 30)
+        
+        if not topic:
+            return jsonify({'error': 'Topic is required'}), 400
+        
+        room = multiplayer_service.create_room(
+            host_user_id=current_user_id,
+            topic=topic,
+            difficulty=difficulty,
+            max_players=max_players,
+            question_count=question_count,
+            time_limit_per_question=time_limit_per_question
+        )
+        
+        if room:
+            room_details = multiplayer_service.get_room_details(room.room_code, current_user_id)
+            logger.info(f"✅ Created multiplayer room {room.room_code}")
+            return jsonify(room_details), 201
+        else:
+            return jsonify({'error': 'Failed to create room'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error creating multiplayer room: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/multiplayer/rooms/<room_code>', methods=['GET'])
+@auth_required
+def get_room_details(current_user_id, room_code):
+    """Get details of a specific multiplayer room"""
+    try:
+        room_details = multiplayer_service.get_room_details(room_code, current_user_id)
+        
+        if room_details:
+            return jsonify(room_details), 200
+        else:
+            return jsonify({'error': 'Room not found'}), 404
+        
+    except Exception as e:
+        logger.error(f"Error retrieving room details: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/multiplayer/rooms/<room_code>/join', methods=['POST'])
+@auth_required
+def join_multiplayer_room(current_user_id, room_code):
+    """Join a multiplayer room"""
+    try:
+        room, message = multiplayer_service.join_room(room_code, current_user_id)
+        
+        if room:
+            room_details = multiplayer_service.get_room_details(room_code, current_user_id)
+            
+            # Emit WebSocket event to notify other players
+            socketio.emit('multiplayer:player_joined', {
+                'room_code': room_code,
+                'user_id': current_user_id,
+                'current_players': room.current_players,
+                'timestamp': datetime.utcnow().isoformat()
+            }, room=f'multiplayer_{room_code}')
+            
+            return jsonify({
+                'message': message,
+                'room': room_details
+            }), 200
+        else:
+            return jsonify({'error': message}), 400
+        
+    except Exception as e:
+        logger.error(f"Error joining multiplayer room: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/multiplayer/rooms/<room_code>/leave', methods=['POST'])
+@auth_required
+def leave_multiplayer_room(current_user_id, room_code):
+    """Leave a multiplayer room"""
+    try:
+        success, message = multiplayer_service.leave_room(room_code, current_user_id)
+        
+        if success:
+            # Emit WebSocket event to notify other players
+            socketio.emit('multiplayer:player_left', {
+                'room_code': room_code,
+                'user_id': current_user_id,
+                'timestamp': datetime.utcnow().isoformat()
+            }, room=f'multiplayer_{room_code}')
+            
+            return jsonify({'message': message}), 200
+        else:
+            return jsonify({'error': message}), 400
+        
+    except Exception as e:
+        logger.error(f"Error leaving multiplayer room: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/multiplayer/rooms/<room_code>/ready', methods=['POST'])
+@auth_required
+def toggle_ready(current_user_id, room_code):
+    """Toggle player's ready status"""
+    try:
+        participant = multiplayer_service.toggle_ready_status(room_code, current_user_id)
+        
+        if participant:
+            # Emit WebSocket event to notify other players
+            socketio.emit('multiplayer:player_ready', {
+                'room_code': room_code,
+                'user_id': current_user_id,
+                'is_ready': participant.is_ready,
+                'timestamp': datetime.utcnow().isoformat()
+            }, room=f'multiplayer_{room_code}')
+            
+            return jsonify({
+                'is_ready': participant.is_ready,
+                'message': 'Ready status updated'
+            }), 200
+        else:
+            return jsonify({'error': 'Participant not found'}), 404
+        
+    except Exception as e:
+        logger.error(f"Error toggling ready status: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/multiplayer/rooms/<room_code>/start', methods=['POST'])
+@auth_required
+def start_multiplayer_game(current_user_id, room_code):
+    """Start a multiplayer game (host only)"""
+    try:
+        room, message = multiplayer_service.start_game(room_code, current_user_id)
+        
+        if room:
+            # Emit WebSocket event to start game for all players
+            socketio.emit('multiplayer:game_started', {
+                'room_code': room_code,
+                'topic': room.topic,
+                'difficulty': room.difficulty,
+                'question_count': room.question_count,
+                'time_limit_per_question': room.time_limit_per_question,
+                'timestamp': datetime.utcnow().isoformat()
+            }, room=f'multiplayer_{room_code}')
+            
+            return jsonify({
+                'message': message,
+                'room': room.to_dict()
+            }), 200
+        else:
+            return jsonify({'error': message}), 400
+        
+    except Exception as e:
+        logger.error(f"Error starting multiplayer game: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/multiplayer/rooms/<room_code>/results', methods=['GET'])
+@auth_required
+def get_multiplayer_results(current_user_id, room_code):
+    """Get results of a completed multiplayer game"""
+    try:
+        results = multiplayer_service.get_game_results(room_code)
+        
+        if results:
+            return jsonify(results), 200
+        else:
+            return jsonify({'error': 'Results not available'}), 404
+        
+    except Exception as e:
+        logger.error(f"Error retrieving multiplayer results: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/leaderboard', methods=['GET'])
 @auth_required
 def get_leaderboard(current_user_id):
@@ -1944,6 +2703,257 @@ def analyze_text_content(current_user_id):
     except Exception as e:
         print(f"❌ Content analysis error: {e}")
         return jsonify({'error': f'Content analysis failed: {str(e)}'}), 500
+
+
+# ==================== PDF QUESTION GENERATION ENDPOINTS ====================
+
+@app.route('/api/questions/generate-from-pdf', methods=['POST'])
+@auth_required
+def generate_questions_from_pdf(current_user_id):
+    """
+    Generate quiz questions from uploaded PDF using AI
+    
+    Expected form data:
+    - file: PDF file
+    - topic: Topic/subject name
+    - num_questions: Number of questions (default 10)
+    - difficulty: Easy/Medium/Hard (default Medium)
+    - question_types: Comma-separated list (default: all types)
+    """
+    try:
+        # Check if file is present
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        # Validate file extension
+        if not file.filename.lower().endswith('.pdf'):
+            return jsonify({'error': 'Only PDF files are supported'}), 400
+        
+        # Get parameters from form data
+        topic = request.form.get('topic', 'General Knowledge')
+        num_questions = int(request.form.get('num_questions', 10))
+        difficulty = request.form.get('difficulty', 'Medium')
+        question_types_str = request.form.get('question_types', 'Multiple Choice,True/False,Short Answer')
+        
+        # Parse question types
+        question_types = [qt.strip() for qt in question_types_str.split(',')]
+        
+        # Validate difficulty
+        if difficulty not in ['Easy', 'Medium', 'Hard']:
+            return jsonify({'error': 'Invalid difficulty. Must be Easy, Medium, or Hard'}), 400
+        
+        # Validate number of questions
+        if num_questions < 1 or num_questions > 50:
+            return jsonify({'error': 'Number of questions must be between 1 and 50'}), 400
+        
+        # Save file temporarily
+        import uuid
+        temp_filename = f"{uuid.uuid4()}_{file.filename}"
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
+        
+        try:
+            file.save(temp_path)
+            
+            # Initialize content processor
+            content_processor = ContentProcessor(app.config['UPLOAD_FOLDER'])
+            
+            # Process PDF and generate questions
+            logger.info(f"📄 Processing PDF: {file.filename} for user {current_user_id}")
+            result = content_processor.process_pdf_and_generate_questions(
+                pdf_path=temp_path,
+                topic=topic,
+                num_questions=num_questions,
+                difficulty=difficulty,
+                question_types=question_types
+            )
+            
+            if result['success']:
+                # Store generated questions in database
+                from models import Topic
+                
+                # Find or create topic
+                db_topic = Topic.query.filter_by(name=topic).first()
+                if not db_topic:
+                    db_topic = Topic(name=topic, description=f"Questions generated from PDF: {file.filename}")
+                    db.session.add(db_topic)
+                    db.session.flush()
+                
+                # Create quiz session for these questions
+                from models import QuizSession, Question
+                
+                quiz_session = QuizSession(
+                    user_id=current_user_id,
+                    topic=topic,
+                    difficulty=difficulty,
+                    status='active',
+                    total_questions=len(result['questions'])
+                )
+                db.session.add(quiz_session)
+                db.session.flush()
+                
+                # Add questions to database
+                stored_questions = []
+                for q_data in result['questions']:
+                    question = Question(
+                        quiz_session_id=quiz_session.id,
+                        question_text=q_data['question_text'],
+                        question_type=q_data['question_type'],
+                        options=json.dumps(q_data.get('options', [])),
+                        correct_answer=q_data['correct_answer'],
+                        explanation=q_data['explanation'],
+                        difficulty=difficulty,
+                        topic=topic
+                    )
+                    db.session.add(question)
+                    stored_questions.append(question)
+                
+                db.session.commit()
+                
+                logger.info(f"✅ Generated and stored {len(stored_questions)} questions from PDF")
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Successfully generated {len(stored_questions)} questions from PDF',
+                    'quiz_session_id': quiz_session.id,
+                    'questions': [q.to_dict() for q in stored_questions],
+                    'metadata': result['metadata'],
+                    'pdf_filename': file.filename
+                }), 201
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': result.get('error', 'Failed to generate questions')
+                }), 500
+        
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                logger.info(f"🗑️ Cleaned up temporary file: {temp_filename}")
+        
+    except ValueError as e:
+        logger.error(f"❌ Validation error: {e}")
+        return jsonify({'error': str(e)}), 400
+    
+    except Exception as e:
+        logger.error(f"❌ PDF question generation error: {e}")
+        return jsonify({'error': f'Failed to generate questions from PDF: {str(e)}'}), 500
+
+
+@app.route('/api/questions/generate-from-text', methods=['POST'])
+@auth_required
+def generate_questions_from_text(current_user_id):
+    """
+    Generate quiz questions from text content using AI
+    
+    Expected JSON:
+    {
+        "content": "Text content here",
+        "topic": "Topic name",
+        "num_questions": 10,
+        "difficulty": "Medium",
+        "question_types": ["Multiple Choice", "True/False"]
+    }
+    """
+    try:
+        data = request.json
+        
+        if not data or 'content' not in data:
+            return jsonify({'error': 'No content provided'}), 400
+        
+        content = data['content']
+        topic = data.get('topic', 'General Knowledge')
+        num_questions = data.get('num_questions', 10)
+        difficulty = data.get('difficulty', 'Medium')
+        question_types = data.get('question_types', ['Multiple Choice', 'True/False', 'Short Answer'])
+        
+        # Validate inputs
+        if len(content.strip()) < 50:
+            return jsonify({'error': 'Content too short. Minimum 50 characters required.'}), 400
+        
+        if difficulty not in ['Easy', 'Medium', 'Hard']:
+            return jsonify({'error': 'Invalid difficulty'}), 400
+        
+        if num_questions < 1 or num_questions > 50:
+            return jsonify({'error': 'Number of questions must be between 1 and 50'}), 400
+        
+        # Initialize content processor
+        content_processor = ContentProcessor()
+        
+        # Generate questions
+        logger.info(f"🤖 Generating {num_questions} questions from text for user {current_user_id}")
+        result = content_processor.generate_questions_from_content(
+            content=content,
+            topic=topic,
+            num_questions=num_questions,
+            difficulty=difficulty,
+            question_types=question_types
+        )
+        
+        if result['success']:
+            # Store questions in database
+            from models import Topic, QuizSession, Question
+            
+            # Find or create topic
+            db_topic = Topic.query.filter_by(name=topic).first()
+            if not db_topic:
+                db_topic = Topic(name=topic, description=f"Custom topic: {topic}")
+                db.session.add(db_topic)
+                db.session.flush()
+            
+            # Create quiz session
+            quiz_session = QuizSession(
+                user_id=current_user_id,
+                topic=topic,
+                difficulty=difficulty,
+                status='active',
+                total_questions=len(result['questions'])
+            )
+            db.session.add(quiz_session)
+            db.session.flush()
+            
+            # Add questions
+            stored_questions = []
+            for q_data in result['questions']:
+                question = Question(
+                    quiz_session_id=quiz_session.id,
+                    question_text=q_data['question_text'],
+                    question_type=q_data['question_type'],
+                    options=json.dumps(q_data.get('options', [])),
+                    correct_answer=q_data['correct_answer'],
+                    explanation=q_data['explanation'],
+                    difficulty=difficulty,
+                    topic=topic
+                )
+                db.session.add(question)
+                stored_questions.append(question)
+            
+            db.session.commit()
+            
+            logger.info(f"✅ Generated and stored {len(stored_questions)} questions from text")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Successfully generated {len(stored_questions)} questions',
+                'quiz_session_id': quiz_session.id,
+                'questions': [q.to_dict() for q in stored_questions],
+                'metadata': result['metadata']
+            }), 201
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', 'Failed to generate questions')
+            }), 500
+    
+    except Exception as e:
+        logger.error(f"❌ Text question generation error: {e}")
+        return jsonify({'error': f'Failed to generate questions: {str(e)}'}), 500
+
 
 @app.route('/api/content/formats', methods=['GET'])
 def get_supported_formats():

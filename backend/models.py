@@ -477,3 +477,259 @@ class QuizLeaderboard(db.Model):
             'timestamp': self.timestamp.isoformat() if self.timestamp else datetime.utcnow().isoformat(),
             'submitted_at': submitted_at
         }
+
+
+class Badge(db.Model):
+    """Achievement badges for gamification"""
+    __tablename__ = 'badges'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    icon = db.Column(db.String(50), nullable=False)  # Emoji or icon identifier
+    category = db.Column(db.String(50), nullable=False)  # achievement, milestone, special
+    criteria_type = db.Column(db.String(50), nullable=False)  # quiz_count, perfect_score, streak, speed, accuracy
+    criteria_value = db.Column(db.Integer, nullable=False)  # Threshold value
+    rarity = db.Column(db.String(20), nullable=False, default='common')  # common, rare, epic, legendary
+    points = db.Column(db.Integer, nullable=False, default=10)  # Badge points value
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user_badges = db.relationship('UserBadge', backref='badge', lazy=True, cascade='all, delete-orphan')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'icon': self.icon,
+            'category': self.category,
+            'criteria_type': self.criteria_type,
+            'criteria_value': self.criteria_value,
+            'rarity': self.rarity,
+            'points': self.points,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class UserBadge(db.Model):
+    """User's earned badges"""
+    __tablename__ = 'user_badges'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    badge_id = db.Column(db.Integer, db.ForeignKey('badges.id'), nullable=False)
+    earned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    progress_data = db.Column(db.Text, nullable=True)  # JSON for tracking progress towards badge
+    
+    # Relationships
+    user = db.relationship('User', backref='badges')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'badge_id': self.badge_id,
+            'badge': self.badge.to_dict() if self.badge else None,
+            'earned_at': self.earned_at.isoformat(),
+            'progress_data': json.loads(self.progress_data) if self.progress_data else None
+        }
+
+
+class PerformanceTrend(db.Model):
+    """Track user performance over time for analytics"""
+    __tablename__ = 'performance_trends'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
+    topic = db.Column(db.String(100), nullable=True)  # Null = overall performance
+    
+    # Daily aggregated metrics
+    quizzes_completed = db.Column(db.Integer, default=0)
+    total_questions = db.Column(db.Integer, default=0)
+    correct_answers = db.Column(db.Integer, default=0)
+    accuracy_rate = db.Column(db.Float, default=0.0)  # Percentage
+    avg_time_per_question = db.Column(db.Float, default=0.0)  # Seconds
+    difficulty_distribution = db.Column(db.Text, nullable=True)  # JSON: {easy: x, medium: y, hard: z}
+    
+    # Streak tracking
+    daily_streak = db.Column(db.Integer, default=0)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='performance_trends')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'date': self.date.isoformat(),
+            'topic': self.topic,
+            'quizzes_completed': self.quizzes_completed,
+            'total_questions': self.total_questions,
+            'correct_answers': self.correct_answers,
+            'accuracy_rate': round(self.accuracy_rate, 2),
+            'avg_time_per_question': round(self.avg_time_per_question, 2),
+            'difficulty_distribution': json.loads(self.difficulty_distribution) if self.difficulty_distribution else {},
+            'daily_streak': self.daily_streak,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class LearningPath(db.Model):
+    """Personalized learning paths for users"""
+    __tablename__ = 'learning_paths'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    topics = db.Column(db.Text, nullable=False)  # JSON array of topics
+    difficulty_progression = db.Column(db.Text, nullable=False)  # JSON: recommended difficulty path
+    estimated_duration_days = db.Column(db.Integer, default=30)
+    current_position = db.Column(db.Integer, default=0)  # Which step user is on
+    status = db.Column(db.String(20), default='active')  # active, completed, paused
+    
+    # Progress tracking
+    total_steps = db.Column(db.Integer, default=0)
+    completed_steps = db.Column(db.Integer, default=0)
+    progress_percentage = db.Column(db.Float, default=0.0)
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relationships
+    user = db.relationship('User', backref='learning_paths')
+    milestones = db.relationship('LearningMilestone', backref='learning_path', lazy=True, cascade='all, delete-orphan')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'name': self.name,
+            'description': self.description,
+            'topics': json.loads(self.topics) if self.topics else [],
+            'difficulty_progression': json.loads(self.difficulty_progression) if self.difficulty_progression else [],
+            'estimated_duration_days': self.estimated_duration_days,
+            'current_position': self.current_position,
+            'status': self.status,
+            'total_steps': self.total_steps,
+            'completed_steps': self.completed_steps,
+            'progress_percentage': round(self.progress_percentage, 2),
+            'created_at': self.created_at.isoformat(),
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None
+        }
+
+
+class LearningMilestone(db.Model):
+    """Milestones within learning paths"""
+    __tablename__ = 'learning_milestones'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    learning_path_id = db.Column(db.Integer, db.ForeignKey('learning_paths.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    order_index = db.Column(db.Integer, nullable=False)
+    topic = db.Column(db.String(100), nullable=False)
+    difficulty = db.Column(db.String(20), nullable=False)
+    required_accuracy = db.Column(db.Float, default=70.0)  # Percentage to pass
+    is_completed = db.Column(db.Boolean, default=False)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'learning_path_id': self.learning_path_id,
+            'name': self.name,
+            'description': self.description,
+            'order_index': self.order_index,
+            'topic': self.topic,
+            'difficulty': self.difficulty,
+            'required_accuracy': self.required_accuracy,
+            'is_completed': self.is_completed,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None
+        }
+
+
+class MultiplayerRoom(db.Model):
+    """Multiplayer quiz rooms for real-time competition"""
+    __tablename__ = 'multiplayer_rooms'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    room_code = db.Column(db.String(10), unique=True, nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    host_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    topic = db.Column(db.String(100), nullable=False)
+    difficulty = db.Column(db.String(20), nullable=False)
+    num_questions = db.Column(db.Integer, default=10)
+    max_players = db.Column(db.Integer, default=10)
+    current_players = db.Column(db.Integer, default=0)
+    status = db.Column(db.String(20), default='waiting')  # waiting, in_progress, completed
+    
+    # Game settings
+    time_per_question = db.Column(db.Integer, default=30)  # Seconds
+    is_public = db.Column(db.Boolean, default=True)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    started_at = db.Column(db.DateTime, nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relationships
+    host = db.relationship('User', backref='hosted_rooms')
+    participants = db.relationship('MultiplayerParticipant', backref='room', lazy=True, cascade='all, delete-orphan')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'room_code': self.room_code,
+            'name': self.name,
+            'host_user_id': self.host_user_id,
+            'host_username': self.host.username if self.host else 'Unknown',
+            'topic': self.topic,
+            'difficulty': self.difficulty,
+            'num_questions': self.num_questions,
+            'max_players': self.max_players,
+            'current_players': self.current_players,
+            'status': self.status,
+            'time_per_question': self.time_per_question,
+            'is_public': self.is_public,
+            'created_at': self.created_at.isoformat(),
+            'started_at': self.started_at.isoformat() if self.started_at else None
+        }
+
+
+class MultiplayerParticipant(db.Model):
+    """Participants in multiplayer rooms"""
+    __tablename__ = 'multiplayer_participants'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.Integer, db.ForeignKey('multiplayer_rooms.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    score = db.Column(db.Integer, default=0)
+    correct_answers = db.Column(db.Integer, default=0)
+    rank = db.Column(db.Integer, nullable=True)
+    is_ready = db.Column(db.Boolean, default=False)
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='multiplayer_sessions')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'room_id': self.room_id,
+            'user_id': self.user_id,
+            'username': self.user.username if self.user else 'Unknown',
+            'full_name': self.user.full_name if self.user else 'Unknown',
+            'score': self.score,
+            'correct_answers': self.correct_answers,
+            'rank': self.rank,
+            'is_ready': self.is_ready,
+            'joined_at': self.joined_at.isoformat()
+        }

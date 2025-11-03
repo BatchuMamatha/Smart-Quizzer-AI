@@ -134,6 +134,168 @@ export interface QuizResultsResponse {
   };
 }
 
+// Badge & Gamification Types
+export interface Badge {
+  id: number;
+  name: string;
+  description: string;
+  icon: string;
+  category: 'milestone' | 'perfect_score' | 'speed' | 'streak' | 'daily_streak' | 'accuracy' | 'topic_master' | 'special';
+  criteria_type: string;
+  criteria_value: number;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  points: number;
+  created_at: string;
+}
+
+export interface UserBadge {
+  id: number;
+  user_id: number;
+  badge_id: number;
+  earned_at: string;
+  progress_data?: any;
+  badge: Badge;
+}
+
+export interface BadgeProgress {
+  badge: Badge;
+  current_value: number;
+  required_value: number;
+  progress_percentage: number;
+  is_close_to_completion: boolean;
+}
+
+// Analytics Types
+export interface PerformanceTrend {
+  id: number;
+  user_id: number;
+  date: string;
+  topic?: string;
+  quizzes_completed: number;
+  accuracy_rate: number;
+  avg_time_per_question: number;
+  difficulty_distribution: any;
+  daily_streak: number;
+}
+
+export interface TopicMastery {
+  topic: string;
+  total_quizzes: number;
+  avg_accuracy: number;
+  total_questions: number;
+  mastery_level: 'expert' | 'proficient' | 'developing' | 'beginner';
+  color: string;
+}
+
+export interface WeeklyReport {
+  week_start: string;
+  week_end: string;
+  quizzes_completed: number;
+  avg_accuracy: number;
+  total_questions: number;
+  correct_answers: number;
+  accuracy_change: number;
+  quiz_count_change: number;
+  topic_breakdown: Record<string, any>;
+  current_streak: number;
+  improvement_trend: 'improving' | 'declining' | 'stable';
+}
+
+export interface Recommendation {
+  type: 'focus_area' | 'practice_more' | 'try_harder' | 'maintain';
+  message: string;
+  topic?: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+// Learning Path Types
+export interface LearningMilestone {
+  id: number;
+  learning_path_id: number;
+  name: string;
+  description: string;
+  order_index: number;
+  topic: string;
+  difficulty: string;
+  required_accuracy: number;
+  is_completed: boolean;
+  completed_at?: string;
+}
+
+export interface LearningPath {
+  id: number;
+  user_id: number;
+  name: string;
+  description: string;
+  topics: string[];
+  difficulty_progression: string[];
+  total_steps: number;
+  completed_steps: number;
+  current_position: number;
+  progress_percentage: number;
+  status: 'active' | 'paused' | 'completed';
+  estimated_duration_days: number;
+  created_at: string;
+  completed_at?: string;
+  milestones?: LearningMilestone[];
+}
+
+// Multiplayer Types
+export interface MultiplayerParticipant {
+  id: number;
+  room_id: number;
+  user_id: number;
+  username: string;
+  is_host: boolean;
+  is_ready: boolean;
+  score: number;
+  rank: number;
+  correct_answers: number;
+  answers_submitted: number;
+  joined_at: string;
+}
+
+export interface MultiplayerRoom {
+  id: number;
+  room_code: string;
+  host_user_id: number;
+  host_username?: string;
+  topic: string;
+  difficulty: string;
+  max_players: number;
+  current_players: number;
+  question_count: number;
+  time_limit_per_question: number;
+  current_question_index: number;
+  status: 'waiting' | 'in_progress' | 'completed';
+  created_at: string;
+  started_at?: string;
+  ended_at?: string;
+  participants?: MultiplayerParticipant[];
+  is_participant?: boolean;
+  is_host?: boolean;
+  is_ready?: boolean;
+}
+
+export interface MultiplayerResults {
+  room_code: string;
+  topic: string;
+  difficulty: string;
+  total_questions: number;
+  started_at?: string;
+  ended_at?: string;
+  results: Array<{
+    rank: number;
+    user_id: number;
+    username: string;
+    score: number;
+    correct_answers: number;
+    answers_submitted: number;
+    accuracy: number;
+  }>;
+  winner?: any;
+}
+
 // API Methods
 export const authAPI = {
   register: async (data: {
@@ -292,6 +454,253 @@ export const quizAPI = {
     };
   }> => {
     const response = await api.get('/leaderboard', { params });
+    return response.data;
+  },
+};
+
+// Badge API
+export const badgeAPI = {
+  getAvailableBadges: async (): Promise<{
+    badges: Badge[];
+    by_category: Record<string, Badge[]>;
+    total_badges: number;
+  }> => {
+    const response = await api.get('/badges/available');
+    return response.data;
+  },
+
+  getUserBadges: async (): Promise<{
+    badges: UserBadge[];
+    total_badges: number;
+    total_points: number;
+    user_id: number;
+  }> => {
+    const response = await api.get('/user/badges');
+    return response.data;
+  },
+
+  getBadgeProgress: async (): Promise<{
+    progress: BadgeProgress[];
+    close_to_completion: BadgeProgress[];
+    others: BadgeProgress[];
+    total_available: number;
+  }> => {
+    const response = await api.get('/user/badges/progress');
+    return response.data;
+  },
+};
+
+// Analytics API
+export const analyticsAPI = {
+  getPerformanceTrends: async (params?: {
+    days?: number;
+    topic?: string;
+  }): Promise<{
+    trends: PerformanceTrend[];
+    period_days: number;
+    data_points: number;
+    current_streak: number;
+  }> => {
+    const response = await api.get('/analytics/trends', { params });
+    return response.data;
+  },
+
+  getTopicMastery: async (): Promise<{
+    topics: TopicMastery[];
+    strengths: string[];
+    weaknesses: string[];
+    best_topic: TopicMastery;
+    weakest_topic: TopicMastery;
+  }> => {
+    const response = await api.get('/analytics/topic-mastery');
+    return response.data;
+  },
+
+  getWeeklyReport: async (): Promise<WeeklyReport> => {
+    const response = await api.get('/analytics/weekly-report');
+    return response.data;
+  },
+
+  getMonthlyReport: async (): Promise<{
+    total_days: number;
+    active_days: number;
+    activity_rate: number;
+    weekly_breakdown: any[];
+    best_day: any;
+    worst_day: any;
+    longest_streak: number;
+  }> => {
+    const response = await api.get('/analytics/monthly-report');
+    return response.data;
+  },
+
+  getRecommendations: async (): Promise<{
+    topic_mastery: Record<string, any>;
+    question_type_performance: any[];
+    difficulty_performance: any[];
+    recommendations: Recommendation[];
+  }> => {
+    const response = await api.get('/analytics/recommendations');
+    return response.data;
+  },
+};
+
+// Learning Path API
+export const learningPathAPI = {
+  getLearningPaths: async (status?: string): Promise<{
+    learning_paths: LearningPath[];
+    total: number;
+  }> => {
+    const response = await api.get('/learning-paths', { params: { status } });
+    return response.data;
+  },
+
+  createLearningPath: async (data: {
+    name: string;
+    topics: string[];
+    difficulty_progression: string[];
+    description?: string;
+    estimated_duration_days?: number;
+  }): Promise<LearningPath> => {
+    const response = await api.post('/learning-paths', data);
+    return response.data;
+  },
+
+  generateRecommendedPath: async (): Promise<LearningPath> => {
+    const response = await api.post('/learning-paths/recommended');
+    return response.data;
+  },
+
+  getLearningPathDetails: async (pathId: number): Promise<LearningPath> => {
+    const response = await api.get(`/learning-paths/${pathId}`);
+    return response.data;
+  },
+
+  getNextQuiz: async (pathId: number): Promise<{
+    topic: string;
+    difficulty: string;
+    milestone_id: number;
+    milestone_name: string;
+    required_accuracy: number;
+    order: number;
+    total_steps: number;
+  }> => {
+    const response = await api.get(`/learning-paths/${pathId}/next-quiz`);
+    return response.data;
+  },
+
+  pauseLearningPath: async (pathId: number): Promise<{ message: string }> => {
+    const response = await api.put(`/learning-paths/${pathId}/pause`);
+    return response.data;
+  },
+
+  resumeLearningPath: async (pathId: number): Promise<{ message: string }> => {
+    const response = await api.put(`/learning-paths/${pathId}/resume`);
+    return response.data;
+  },
+
+  deleteLearningPath: async (pathId: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/learning-paths/${pathId}`);
+    return response.data;
+  },
+};
+
+// Multiplayer API
+export const multiplayerAPI = {
+  getRooms: async (params?: {
+    topic?: string;
+    status?: string;
+  }): Promise<{
+    rooms: MultiplayerRoom[];
+    total: number;
+  }> => {
+    const response = await api.get('/multiplayer/rooms', { params });
+    return response.data;
+  },
+
+  createRoom: async (data: {
+    topic: string;
+    difficulty?: string;
+    max_players?: number;
+    question_count?: number;
+    time_limit_per_question?: number;
+  }): Promise<MultiplayerRoom> => {
+    const response = await api.post('/multiplayer/rooms', data);
+    return response.data;
+  },
+
+  getRoomDetails: async (roomCode: string): Promise<MultiplayerRoom> => {
+    const response = await api.get(`/multiplayer/rooms/${roomCode}`);
+    return response.data;
+  },
+
+  joinRoom: async (roomCode: string): Promise<{
+    message: string;
+    room: MultiplayerRoom;
+  }> => {
+    const response = await api.post(`/multiplayer/rooms/${roomCode}/join`);
+    return response.data;
+  },
+
+  leaveRoom: async (roomCode: string): Promise<{ message: string }> => {
+    const response = await api.post(`/multiplayer/rooms/${roomCode}/leave`);
+    return response.data;
+  },
+
+  toggleReady: async (roomCode: string): Promise<{
+    is_ready: boolean;
+    message: string;
+  }> => {
+    const response = await api.post(`/multiplayer/rooms/${roomCode}/ready`);
+    return response.data;
+  },
+
+  startGame: async (roomCode: string): Promise<{
+    message: string;
+    room: MultiplayerRoom;
+  }> => {
+    const response = await api.post(`/multiplayer/rooms/${roomCode}/start`);
+    return response.data;
+  },
+
+  getResults: async (roomCode: string): Promise<MultiplayerResults> => {
+    const response = await api.get(`/multiplayer/rooms/${roomCode}/results`);
+    return response.data;
+  },
+};
+
+// PDF Question Generation API
+export const pdfAPI = {
+  generateFromPDF: async (formData: FormData): Promise<{
+    success: boolean;
+    message: string;
+    quiz_session_id: number;
+    questions: Question[];
+    metadata: any;
+    pdf_filename: string;
+  }> => {
+    const response = await api.post('/questions/generate-from-pdf', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  generateFromText: async (data: {
+    content: string;
+    topic: string;
+    num_questions?: number;
+    difficulty?: string;
+    question_types?: string[];
+  }): Promise<{
+    success: boolean;
+    message: string;
+    quiz_session_id: number;
+    questions: Question[];
+    metadata: any;
+  }> => {
+    const response = await api.post('/questions/generate-from-text', data);
     return response.data;
   },
 };
