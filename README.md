@@ -305,11 +305,6 @@ Smart-Quizzer-AI/
 - **[setup.md](setup.md)** - Step-by-step installation and configuration guide for all platforms
 - **[project_documentation.md](project_documentation.md)** - Detailed architecture, API reference, and development guidelines
 
-**Quick Links**:
-- [Backend API Documentation](project_documentation.md#api-reference)
-- [Database Schema](project_documentation.md#database-schema)
-- [Deployment Guide](setup.md#production-deployment)
-- [Troubleshooting](setup.md#troubleshooting)
 
 ---
 
