@@ -298,16 +298,6 @@ Smart-Quizzer-AI/
 
 ---
 
-## Documentation
-
-📖 **Comprehensive Documentation Available**:
-
-- **[setup.md](setup.md)** - Step-by-step installation and configuration guide for all platforms
-- **[project_documentation.md](project_documentation.md)** - Detailed architecture, API reference, and development guidelines
-
-
----
-
 ## Contributing
 
 We welcome contributions from the community! Here's how you can help:
