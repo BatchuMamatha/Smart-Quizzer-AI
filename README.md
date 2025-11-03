@@ -1,294 +1,585 @@
-# Smart Quizzer AI 🎓# Smart Quizzer AI - Adaptive Learning Platform 🎓
+# Smart Quizzer AI# Smart Quizzer AI 🎓# Smart Quizzer AI - Adaptive Learning Platform 🎓
 
 
 
-An intelligent, adaptive quiz generation platform powered by AI that creates personalized learning experiences with real-time feedback, dynamic difficulty adjustment, and comprehensive analytics.An intelligent quiz generation platform powered by AI that creates personalized learning experiences with real-time feedback, adaptive difficulty adjustment, and comprehensive admin management tools.
+**An intelligent, adaptive quiz generation platform powered by artificial intelligence**
 
 
 
-[![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)[![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)
+Smart Quizzer AI is a modern learning platform that creates personalized quizzes, evaluates answers with semantic understanding, and adapts difficulty in real-time based on user performance.An intelligent, adaptive quiz generation platform powered by AI that creates personalized learning experiences with real-time feedback, dynamic difficulty adjustment, and comprehensive analytics.An intelligent quiz generation platform powered by AI that creates personalized learning experiences with real-time feedback, adaptive difficulty adjustment, and comprehensive admin management tools.
+
+
+
+[![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)
+
+[![Flask](https://img.shields.io/badge/Flask-3.0.0-green.svg)](https://flask.palletsprojects.com/)
+
+[![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org/)[![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)[![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)
+
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [![Flask](https://img.shields.io/badge/Flask-3.0.0-green.svg)](https://flask.palletsprojects.com/)[![Flask](https://img.shields.io/badge/Flask-2.3.3-green.svg)](https://flask.palletsprojects.com/)
 
+---
+
 [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org/)[![AI Powered](https://img.shields.io/badge/AI-Google%20Gemini-orange.svg)](https://ai.google.dev/)
+
+## Overview
 
 [![AI Powered](https://img.shields.io/badge/AI-Google%20Gemini-orange.svg)](https://ai.google.dev/)[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
+Smart Quizzer AI solves the limitations of traditional assessment systems by providing:
+
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)[![Production Ready](https://img.shields.io/badge/Production-Ready-success.svg)](https://github.com/BatchuMamatha/Smart-Quizzer-AI)
 
+- **AI-Generated Questions** from custom content (PDFs, documents, URLs)
+
+- **Adaptive Difficulty** that adjusts in real-time based on performance  
+
+- **Intelligent Evaluation** using NLP for semantic answer matching
+
+- **Comprehensive Analytics** with performance trends and topic mastery---## 📚 Documentation
+
+- **Gamification** through 21 achievement badges and global leaderboards
+
+- **Real-time Multiplayer** quiz competitions via WebSocket
 
 
----## 📚 Documentation
+
+**Target Users**: Students, educators, self-learners, and training organizations## 📖 Table of Contents- **[SETUP.md](SETUP.md)** - Complete installation and setup guide
 
 
 
-## 📖 Table of Contents- **[SETUP.md](SETUP.md)** - Complete installation and setup guide
+---- **[PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)** - Technical documentation
 
-- **[PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)** - Technical documentation
 
-- [Overview](#overview)- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Recent fixes and improvements
 
-- [Key Features](#key-features)- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing procedures
+## Key Features- [Overview](#overview)- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Recent fixes and improvements
 
-- [Technology Stack](#technology-stack)
 
-- [Quick Start](#quick-start)## 🎯 Problem Statement
+
+### Core Functionality- [Key Features](#key-features)- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing procedures
+
+- **AI Question Generation**: Google Gemini AI creates contextually relevant questions
+
+- **Multi-format Support**: Upload PDFs, Word docs, text files, or URLs- [Technology Stack](#technology-stack)
+
+- **Question Types**: Multiple choice, True/False, and short answer
+
+- **Adaptive Engine**: Real-time difficulty adjustment (Easy/Medium/Hard)- [Quick Start](#quick-start)## 🎯 Problem Statement
+
+- **Smart Evaluation**: NLP-based semantic similarity for open-ended answers
 
 - [Project Structure](#project-structure)
 
-- [Usage Guide](#usage-guide)Traditional quiz and assessment systems face several critical challenges:
+### Analytics & Gamification
 
-- [System Architecture](#system-architecture)
+- **Performance Trends**: Visual charts for 7, 14, 30, 60, 90-day periods- [Usage Guide](#usage-guide)Traditional quiz and assessment systems face several critical challenges:
+
+- **Topic Mastery**: Heatmap visualization of strengths and weaknesses
+
+- **21 Badges**: Achievement system from "First Steps" to "Quiz Legend"- [System Architecture](#system-architecture)
+
+- **Global Leaderboard**: Topic-specific and overall rankings with live updates
 
 - [API Documentation](#api-documentation)- **Static Content**: Fixed questions that don't adapt to individual learning needs
 
-- [Future Enhancements](#future-enhancements)- **One-Size-Fits-All**: Same difficulty level for all users regardless of skill
+### Advanced Features
 
-- [Contributing](#contributing)- **Limited Feedback**: Basic correct/incorrect responses without detailed explanations
+- **Personalized Learning Paths**: AI-recommended study routes with milestones- [Future Enhancements](#future-enhancements)- **One-Size-Fits-All**: Same difficulty level for all users regardless of skill
+
+- **Multiplayer Quizzes**: Real-time competitions with friends
+
+- **Admin Dashboard**: User management, question moderation, system analytics- [Contributing](#contributing)- **Limited Feedback**: Basic correct/incorrect responses without detailed explanations
+
+- **Custom Content**: Generate quizzes from your own study materials
 
 - [License](#license)- **Manual Content Creation**: Time-intensive process to create diverse questions
 
+---
+
 - **No Learning Analytics**: Lack of insights into student progress and performance
+
+## Technology Stack
 
 ---- **Poor User Experience**: Outdated interfaces with limited interactivity
 
+**Backend**
 
+- Flask 3.0.0 (Python 3.13)
 
-## 🎯 Overview## 💡 My Solution
+- SQLAlchemy 2.0 with SQLite
 
+- Google Gemini AI## 🎯 Overview## 💡 My Solution
 
+- Sentence-Transformers (NLP)
+
+- Flask-SocketIO (WebSocket)
+
+- JWT Authentication
 
 **Smart Quizzer AI** is a modern, adaptive learning platform that leverages artificial intelligence to generate personalized quizzes, provide intelligent feedback, and track user progress. The system automatically adjusts question difficulty based on user performance, making it ideal for students, educators, and lifelong learners.**Smart Quizzer AI** addresses these problems with an intelligent, adaptive learning platform:
 
+**Frontend**
+
+- React 18.2.0 with TypeScript
+
+- Tailwind CSS
+
+- Axios### Problem Statement###  **Quick Start**
+
+- React Router v6
 
 
-### Problem Statement###  **Quick Start**
 
+**AI/ML**
 
+- Google Gemini 1.5 Flash (question generation)Traditional assessment systems suffer from:**First-Time Setup (For You and Your Friends):**
 
-Traditional assessment systems suffer from:**First-Time Setup (For You and Your Friends):**
+- Sentence-BERT (semantic similarity)
 
-- **Static content** that doesn't adapt to individual learning needs
+- Bloom's Taxonomy classification- **Static content** that doesn't adapt to individual learning needs
+
+- Multi-factor difficulty analysis
 
 - **One-size-fits-all** approach regardless of skill level1. **Clone the repository:**
 
+---
+
 - **Limited feedback** with basic correct/incorrect responses   ```bash
+
+## Quick Start
 
 - **Manual content creation** that is time-intensive   git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
 
-- **No analytics** to track learning progress   cd Smart-Quizzer-AI
+### Prerequisites
 
-- **Poor user experience** with outdated interfaces   ```
+- Python 3.13+- **No analytics** to track learning progress   cd Smart-Quizzer-AI
+
+- Node.js 16+
+
+- Google Gemini API Key ([Get free key](https://ai.google.dev/))- **Poor user experience** with outdated interfaces   ```
 
 
 
-### Solution2. **Install backend dependencies:**
+### Installation
 
-   ```bash
 
-Smart Quizzer AI addresses these challenges with:   cd backend
 
-- ✅ **AI-powered question generation** from custom content (PDFs, text, URLs)   pip install -r requirements.txt
+**1. Clone Repository**### Solution2. **Install backend dependencies:**
 
-- ✅ **Adaptive difficulty** that adjusts in real-time based on performance   ```
+```bash
+
+git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git   ```bash
+
+cd Smart-Quizzer-AI
+
+```Smart Quizzer AI addresses these challenges with:   cd backend
+
+
+
+**2. Backend Setup**- ✅ **AI-powered question generation** from custom content (PDFs, text, URLs)   pip install -r requirements.txt
+
+```bash
+
+cd backend- ✅ **Adaptive difficulty** that adjusts in real-time based on performance   ```
+
+pip install -r requirements.txt
 
 - ✅ **Intelligent answer evaluation** with detailed explanations
 
-- ✅ **Comprehensive analytics** including performance trends and topic mastery3. **Set up environment variables:**
+# Create .env file
 
-- ✅ **Gamification** with badges, achievements, and leaderboards   - Create `.env` file in `backend/` folder
+echo "GOOGLE_API_KEY=your_api_key_here" > .env- ✅ **Comprehensive analytics** including performance trends and topic mastery3. **Set up environment variables:**
 
-- ✅ **Modern UI/UX** built with React and responsive design   - Add your Google API key: `GOOGLE_API_KEY=your_key_here`
+echo "SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(32))')" >> .env
+
+echo "JWT_SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(32))')" >> .env- ✅ **Gamification** with badges, achievements, and leaderboards   - Create `.env` file in `backend/` folder
 
 
 
----4. **Start the backend:**
+# Start backend (auto-creates database)- ✅ **Modern UI/UX** built with React and responsive design   - Add your Google API key: `GOOGLE_API_KEY=your_key_here`
 
-   ```bash
+python app.py
 
-## ✨ Key Features   python app.py
+```
+
+
+
+**3. Frontend Setup** (new terminal)---4. **Start the backend:**
+
+```bash
+
+cd frontend   ```bash
+
+npm install
+
+npm start## ✨ Key Features   python app.py
+
+```
 
    ```
 
-### 🤖 AI-Powered Quiz Generation   **✅ On first run, the database will auto-create with a default admin account!**
+**4. Access Application**
+
+- Frontend: http://localhost:8080### 🤖 AI-Powered Quiz Generation   **✅ On first run, the database will auto-create with a default admin account!**
+
+- Backend API: http://localhost:5000
 
 - **Google Gemini AI Integration**: Generates high-quality, contextually relevant questions
 
-- **Multi-format Support**: Upload PDFs, Word documents, or paste text to create quizzes5. **Install and run frontend (new terminal):**
+**5. Create Account**
 
-- **URL Processing**: Extract content from web pages for quiz generation   ```bash
+- Navigate to http://localhost:8080/register- **Multi-format Support**: Upload PDFs, Word documents, or paste text to create quizzes5. **Install and run frontend (new terminal):**
 
-- **Question Types**: Multiple Choice, True/False, and Short Answer questions   cd ../frontend
+- Register with your details
 
-- **Bloom's Taxonomy**: Questions classified by cognitive levels (Remember, Understand, Apply, Analyze, Evaluate, Create)   npm install
+- Start taking quizzes!- **URL Processing**: Extract content from web pages for quiz generation   ```bash
 
-   npm start
 
-### 🎯 Adaptive Learning Engine   ```
+
+> **Note**: Database and default topics are created automatically on first run.- **Question Types**: Multiple Choice, True/False, and Short Answer questions   cd ../frontend
+
+
+
+---- **Bloom's Taxonomy**: Questions classified by cognitive levels (Remember, Understand, Apply, Analyze, Evaluate, Create)   npm install
+
+
+
+## Documentation   npm start
+
+
+
+- **[SETUP.md](SETUP.md)** - Detailed installation and configuration guide### 🎯 Adaptive Learning Engine   ```
+
+- **[PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)** - Complete technical documentation
 
 - **Real-time Difficulty Adjustment**: Automatically increases/decreases difficulty based on performance
 
+---
+
 - **Personalized Learning Paths**: AI-recommended study paths with milestones6. **Login with default credentials:**
+
+## Project Structure
 
 - **Skill Level Tracking**: Beginner, Intermediate, and Advanced classifications   - Navigate to `http://localhost:8080`
 
-- **Smart Recommendations**: AI suggests focus areas based on performance analytics   - **Username**: `admin`
+```
 
-   - **Password**: `Admin@123`
+Smart-Quizzer-AI/- **Smart Recommendations**: AI suggests focus areas based on performance analytics   - **Username**: `admin`
 
-### 📊 Advanced Analytics Dashboard   - ⚠️ **Important**: Change the password after first login!
+├── backend/                 # Flask backend
 
-- **Performance Trends**: Visual charts showing progress over time (7, 14, 30, 60, 90 days)
+│   ├── app.py              # Main application (90+ API endpoints)   - **Password**: `Admin@123`
 
-- **Topic Mastery Heatmap**: Color-coded visualization of strengths and weaknesses###  **Account Creation**
+│   ├── models.py           # Database models (15 models)
 
-- **Weekly/Monthly Reports**: Detailed statistics on quizzes taken, average scores, and streaks
+│   ├── question_gen.py     # AI question generation### 📊 Advanced Analytics Dashboard   - ⚠️ **Important**: Change the password after first login!
 
-- **Learning Insights**: AI-generated recommendations for improvement**Default Admin Account (Auto-Created on First Run):**
+│   ├── badge_service.py    # Achievement system
 
-- **Username**: `admin`
+│   ├── analytics_service.py # Performance analytics- **Performance Trends**: Visual charts showing progress over time (7, 14, 30, 60, 90 days)
 
-### 🏆 Gamification & Achievements- **Password**: `Admin@123`
+│   ├── learning_path_service.py # Learning paths
 
-- **21 Unique Badges**: From "First Steps" to "Quiz Legend"- **Role**: Administrator
+│   ├── multiplayer_service.py # Multiplayer features- **Topic Mastery Heatmap**: Color-coded visualization of strengths and weaknesses###  **Account Creation**
+
+│   └── requirements.txt    # Python dependencies
+
+├── frontend/               # React frontend- **Weekly/Monthly Reports**: Detailed statistics on quizzes taken, average scores, and streaks
+
+│   ├── src/
+
+│   │   ├── pages/         # 13 page components- **Learning Insights**: AI-generated recommendations for improvement**Default Admin Account (Auto-Created on First Run):**
+
+│   │   ├── components/    # 8 reusable components
+
+│   │   └── lib/api.ts     # API client- **Username**: `admin`
+
+│   └── package.json       # Node dependencies
+
+├── README.md              # This file### 🏆 Gamification & Achievements- **Password**: `Admin@123`
+
+├── SETUP.md               # Setup guide
+
+└── PROJECT_DOCUMENTATION.md # Technical docs- **21 Unique Badges**: From "First Steps" to "Quiz Legend"- **Role**: Administrator
+
+```
 
   - Participation badges (First Quiz, Marathon Runner)- **Note**: The database and this account are automatically created the first time you run `python app.py`
 
+---
+
   - Performance badges (Perfect Score, Consistency King)
+
+## Usage
 
   - Mastery badges (Subject Expert, Renaissance Scholar)**Creating Additional User Accounts:**
 
+### For Students
+
   - Streak badges (7-day, 30-day, 100-day streaks)- Navigate to the registration page at `http://localhost:8080/register`
 
-- **Progress Tracking**: Visual indicators showing badge completion percentage- Fill in your details (username, email, full name, password)
+1. **Register** - Create account with skill level selection
 
-- **User Rewards**: Unlock achievements as you learn- Select your skill level (Beginner, Intermediate, Advanced)
+2. **Take Quiz** - Select topic or upload custom content- **Progress Tracking**: Visual indicators showing badge completion percentage- Fill in your details (username, email, full name, password)
 
-- Click "Create Account" to register
+3. **Answer Questions** - Receive instant feedback and explanations
 
-### 🌐 Real-time Multiplayer Quizzes- Start taking quizzes immediately after registration
-
-- **Room Creation**: Create private quiz rooms with custom codes
-
-- **Live Competition**: Compete with friends in real-time**Creating Additional Admin Accounts:**
-
-- **WebSocket Integration**: Synchronized question delivery and answer submission- Login as the default admin
-
-- **Leaderboard**: Real-time ranking during multiplayer sessions- Navigate to the admin panel
-
-- **Chat Feature**: Communicate with other participants- Create new admin users with admin privileges
+4. **Track Progress** - View analytics, earned badges, leaderboard rank- **User Rewards**: Unlock achievements as you learn- Select your skill level (Beginner, Intermediate, Advanced)
 
 
 
-### 📈 Global Leaderboard System>  **Note**: After cloning from GitHub, simply run `python app.py` in the backend folder. The database and default admin account will be created automatically - no manual setup required!
+### For Admins- Click "Create Account" to register
 
-- **Topic-specific Rankings**: See how you rank in different subjects
+
+
+1. **Monitor System** - View statistics, user activity### 🌐 Real-time Multiplayer Quizzes- Start taking quizzes immediately after registration
+
+2. **Manage Content** - Review flagged questions, user feedback
+
+3. **Moderate Users** - Update skill levels, manage accounts- **Room Creation**: Create private quiz rooms with custom codes
+
+
+
+---- **Live Competition**: Compete with friends in real-time**Creating Additional Admin Accounts:**
+
+
+
+## API Endpoints- **WebSocket Integration**: Synchronized question delivery and answer submission- Login as the default admin
+
+
+
+### Authentication- **Leaderboard**: Real-time ranking during multiplayer sessions- Navigate to the admin panel
+
+- `POST /api/auth/register` - User registration
+
+- `POST /api/auth/login` - Login with JWT tokens- **Chat Feature**: Communicate with other participants- Create new admin users with admin privileges
+
+- `GET /api/auth/profile` - Get user profile
+
+
+
+### Quiz Management
+
+- `POST /api/quiz/start` - Start quiz session### 📈 Global Leaderboard System>  **Note**: After cloning from GitHub, simply run `python app.py` in the backend folder. The database and default admin account will be created automatically - no manual setup required!
+
+- `POST /api/quiz/{id}/answer` - Submit answer
+
+- `POST /api/quiz/{id}/complete` - Complete quiz- **Topic-specific Rankings**: See how you rank in different subjects
+
+- `GET /api/quiz/history` - Quiz history
 
 - **Global Standings**: Overall performance across all quizzes
-- **Live Updates**: Real-time leaderboard refreshes via WebSockets
-- **User Statistics**: View detailed stats for any user
 
-### 📝 Content Management
+### Analytics- **Live Updates**: Real-time leaderboard refreshes via WebSockets
+
+- `GET /api/analytics/trends` - Performance trends- **User Statistics**: View detailed stats for any user
+
+- `GET /api/analytics/topic-mastery` - Topic mastery data
+
+- `GET /api/analytics/recommendations` - AI recommendations### 📝 Content Management
+
 - **Custom Content Upload**: PDF, DOCX, TXT file support
-- **Advanced PDF Processing**: Extract text with pdfplumber for accurate parsing
-- **Content Analysis**: AI analyzes uploaded content for quiz suitability
-- **Multi-topic Support**: 20+ predefined topics across various domains
+
+### Badges & Leaderboard- **Advanced PDF Processing**: Extract text with pdfplumber for accurate parsing
+
+- `GET /api/badges/available` - All badges- **Content Analysis**: AI analyzes uploaded content for quiz suitability
+
+- `GET /api/user/badges` - User's earned badges- **Multi-topic Support**: 20+ predefined topics across various domains
+
+- `GET /api/leaderboard` - Global leaderboard
 
 ### 👤 User Features
-- **Profile Management**: Update skill levels, view statistics
-- **Quiz History**: Complete history of all quizzes taken with detailed results
-- **Answer Explanations**: Detailed feedback for every question
-- **Flag Questions**: Report incorrect or unclear questions
-- **Question Feedback**: Provide ratings and comments
 
-### 🛡️ Admin Dashboard
-- **User Management**: View all users, update skill levels
-- **Flagged Questions Review**: Review and resolve reported questions
-- **Feedback Analysis**: Monitor user feedback on questions
-- **System Statistics**: Total users, quizzes, questions, and performance metrics
-- **Leaderboard Moderation**: Monitor and manage global rankings
+**90+ total endpoints** - See [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md) for complete API reference- **Profile Management**: Update skill levels, view statistics
+
+- **Quiz History**: Complete history of all quizzes taken with detailed results
+
+---- **Answer Explanations**: Detailed feedback for every question
+
+- **Flag Questions**: Report incorrect or unclear questions
+
+## Database Schema- **Question Feedback**: Provide ratings and comments
+
+
+
+**15 Models**:### 🛡️ Admin Dashboard
+
+- User, QuizSession, Question, Topic- **User Management**: View all users, update skill levels
+
+- Badge, UserBadge, PerformanceTrend- **Flagged Questions Review**: Review and resolve reported questions
+
+- LearningPath, LearningMilestone- **Feedback Analysis**: Monitor user feedback on questions
+
+- MultiplayerRoom, MultiplayerParticipant- **System Statistics**: Total users, quizzes, questions, and performance metrics
+
+- QuizLeaderboard, FlaggedQuestion, QuestionFeedback- **Leaderboard Moderation**: Monitor and manage global rankings
+
+- PasswordResetToken
+
+---
 
 ---
 
 ## 🛠️ Technology Stack
 
+## Development
+
 ### Backend
-- **Framework**: Flask 3.0.0 (Python 3.13)
-- **Database**: SQLite with SQLAlchemy 2.0.43 ORM
-- **AI Engine**: Google Gemini AI for question generation and evaluation
-- **NLP**: Sentence-Transformers, NLTK for semantic analysis
-- **Real-time**: Flask-SocketIO for WebSocket connections
+
+### Run Tests- **Framework**: Flask 3.0.0 (Python 3.13)
+
+```bash- **Database**: SQLite with SQLAlchemy 2.0.43 ORM
+
+# Backend tests- **AI Engine**: Google Gemini AI for question generation and evaluation
+
+cd backend- **NLP**: Sentence-Transformers, NLTK for semantic analysis
+
+pytest- **Real-time**: Flask-SocketIO for WebSocket connections
+
 - **Authentication**: JWT-based authentication with Flask-JWT-Extended
-- **Security**: Bcrypt for password hashing
 
-### Frontend
-- **Framework**: React 18.2.0 with TypeScript
+# Frontend tests- **Security**: Bcrypt for password hashing
+
+cd frontend
+
+npm test### Frontend
+
+```- **Framework**: React 18.2.0 with TypeScript
+
 - **Styling**: Tailwind CSS for responsive design
-- **Routing**: React Router v6
-- **HTTP Client**: Axios with interceptors
-- **Build Tool**: Create React App with Webpack
 
-### AI & ML Components
+### Production Build- **Routing**: React Router v6
+
+```bash- **HTTP Client**: Axios with interceptors
+
+# Frontend production build- **Build Tool**: Create React App with Webpack
+
+cd frontend
+
+npm run build### AI & ML Components
+
 - **Question Generation**: Google Gemini 1.5 Flash
-- **Difficulty Classification**: Multi-factor analysis (Bloom's Taxonomy 40%, Semantic Complexity 30%, Text Metrics 20%, Historical Data 10%)
-- **Answer Evaluation**: NLP-based semantic similarity with threshold-based grading
-- **Content Processing**: PyPDF2, pdfplumber, python-docx, BeautifulSoup4
+
+# Backend with Gunicorn- **Difficulty Classification**: Multi-factor analysis (Bloom's Taxonomy 40%, Semantic Complexity 30%, Text Metrics 20%, Historical Data 10%)
+
+cd backend- **Answer Evaluation**: NLP-based semantic similarity with threshold-based grading
+
+gunicorn -w 4 -b 0.0.0.0:5000 --worker-class eventlet app:app- **Content Processing**: PyPDF2, pdfplumber, python-docx, BeautifulSoup4
+
+```
 
 ### Database Schema
-15 interconnected models:
+
+---15 interconnected models:
+
 - User, QuizSession, Question, Topic
-- Badge, UserBadge, PerformanceTrend
+
+## Troubleshooting- Badge, UserBadge, PerformanceTrend
+
 - LearningPath, LearningMilestone
-- MultiplayerRoom, MultiplayerParticipant
-- QuizLeaderboard, FlaggedQuestion, QuestionFeedback
+
+**Issue: "GOOGLE_API_KEY not found"**  - MultiplayerRoom, MultiplayerParticipant
+
+Solution: Create `.env` file in `backend/` with your API key- QuizLeaderboard, FlaggedQuestion, QuestionFeedback
+
 - PasswordResetToken
 
----
+**Issue: Module not found errors**  
 
-## 🚀 Quick Start
+Solution: `pip install -r backend/requirements.txt --force-reinstall`---
+
+
+
+**Issue: Port already in use**  ## 🚀 Quick Start
+
+Solution: `kill -9 $(lsof -ti:5000)` (Mac/Linux) or change port in `app.py`
 
 ### Prerequisites
-- Python 3.13+ installed
+
+**More solutions**: See [SETUP.md](SETUP.md#troubleshooting)- Python 3.13+ installed
+
 - Node.js 16+ and npm installed
-- Google Gemini API Key ([Get one here](https://ai.google.dev/))
+
+---- Google Gemini API Key ([Get one here](https://ai.google.dev/))
+
 - Git installed
+
+## Contributing
 
 ### Installation
 
+Contributions welcome! Please:
+
 #### 1. Clone the Repository
-```bash
-git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
-cd Smart-Quizzer-AI
-```
+
+1. Fork the repository```bash
+
+2. Create feature branch: `git checkout -b feature/AmazingFeature`git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+
+3. Commit changes: `git commit -m 'Add AmazingFeature'`cd Smart-Quizzer-AI
+
+4. Push to branch: `git push origin feature/AmazingFeature````
+
+5. Open Pull Request
 
 #### 2. Backend Setup
-```bash
-# Navigate to backend directory
-cd backend
 
-# Create virtual environment (optional but recommended)
+---```bash
+
+# Navigate to backend directory
+
+## Licensecd backend
+
+
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.# Create virtual environment (optional but recommended)
+
 python -m venv venv
 
+---
+
 # Activate virtual environment
-# Windows:
+
+## Author# Windows:
+
 venv\Scripts\activate
-# Mac/Linux:
-source venv/bin/activate
+
+**Mamatha Bachu**  # Mac/Linux:
+
+GitHub: [@BatchuMamatha](https://github.com/BatchuMamatha)  source venv/bin/activate
+
+Repository: [Smart-Quizzer-AI](https://github.com/BatchuMamatha/Smart-Quizzer-AI)
 
 # Install dependencies
-pip install -r requirements.txt
 
-# Create .env file
+---pip install -r requirements.txt
+
+
+
+## Acknowledgments# Create .env file
+
 echo GOOGLE_API_KEY=your_api_key_here > .env
-echo SECRET_KEY=your_secret_key_here >> .env
-echo JWT_SECRET_KEY=your_jwt_secret_here >> .env
+
+- Google Gemini AI for question generationecho SECRET_KEY=your_secret_key_here >> .env
+
+- Hugging Face for NLP modelsecho JWT_SECRET_KEY=your_jwt_secret_here >> .env
+
+- React and Flask communities
 
 # Start backend server (auto-creates database on first run)
-python app.py
+
+---python app.py
+
 ```
 
-**Note**: On first run, `app.py` automatically:
-- Creates all database tables
+**Version**: 1.0.0  
+
+**Last Updated**: November 2025  **Note**: On first run, `app.py` automatically:
+
+**Status**: Production Ready- Creates all database tables
+
 - Initializes 21 achievement badges
 - Creates default topics
 - No manual database setup required!
