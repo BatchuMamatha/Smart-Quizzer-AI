@@ -29,7 +29,6 @@ const Header: React.FC<HeaderProps> = ({
   const navigationItems = [
     { path: '/dashboard', label: '🏠 Dashboard' },
     { path: '/analytics', label: '📊 Analytics' },
-    { path: '/analytics-dashboard', label: '✨ Full Dashboard', highlight: true },
     { path: '/history', label: '📜 History' },
     { path: '/leaderboard', label: '🏆 Leaderboard' },
     { path: '/content-upload', label: '📁 Upload Content' },

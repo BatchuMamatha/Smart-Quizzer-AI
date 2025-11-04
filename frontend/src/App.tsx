@@ -14,7 +14,6 @@ import ContentUploadPage from './pages/ContentUploadPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminDashboard from './pages/AdminDashboard';
 import Leaderboard from './pages/Leaderboard';
-import AnalyticsDashboard from './pages/AnalyticsDashboard';
 
 const userManager = UserManager.getInstance();
 
@@ -187,14 +186,6 @@ const App: React.FC = () => {
             element={
               <UserRoute>
                 <Analytics />
-              </UserRoute>
-            } 
-          />
-          <Route 
-            path="/analytics-dashboard" 
-            element={
-              <UserRoute>
-                <AnalyticsDashboard />
               </UserRoute>
             } 
           />

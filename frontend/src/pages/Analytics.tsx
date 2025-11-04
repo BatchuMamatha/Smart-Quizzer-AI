@@ -1,7 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserManager } from '../lib/userManager';
-import { quizAPI } from '../lib/api';
+import { quizAPI, analyticsAPI, Recommendation } from '../lib/api';
 import Header from '../components/Header';
+import BadgeShowcase from '../components/BadgeShowcase';
+import BadgeProgress from '../components/BadgeProgress';
+import PerformanceChart from '../components/PerformanceChart';
+import WeeklyReport from '../components/WeeklyReport';
+import RecommendationCard from '../components/RecommendationCard';
 
 interface RealTimeStats {
     total_quizzes: number;
@@ -12,9 +18,34 @@ interface RealTimeStats {
 }
 
 const Analytics: React.FC = () => {
+    const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<'overview' | 'badges' | 'recommendations'>('overview');
     const [stats, setStats] = useState<RealTimeStats | null>(null);
+    const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const tabs = [
+        { id: 'overview' as const, label: '📊 Overview', icon: '📊' },
+        { id: 'badges' as const, label: '🏆 Badges', icon: '🏆' },
+        { id: 'recommendations' as const, label: '🤖 AI Insights', icon: '🤖' },
+    ];
+
+    const fetchRecommendations = useCallback(async () => {
+        try {
+            const response = await analyticsAPI.getRecommendations();
+            setRecommendations(response.recommendations);
+        } catch (error) {
+            console.error('Failed to fetch recommendations:', error);
+        }
+    }, []);
+
+    // Fetch recommendations when tab is active
+    useEffect(() => {
+        if (activeTab === 'recommendations' && recommendations.length === 0) {
+            fetchRecommendations();
+        }
+    }, [activeTab, recommendations.length, fetchRecommendations]);
 
     useEffect(() => {
         const userManager = UserManager.getInstance();
@@ -83,9 +114,18 @@ const Analytics: React.FC = () => {
         }
     };
 
+    const handleRecommendationAction = (recommendation: Recommendation) => {
+        // Navigate to quiz creation with the recommended topic
+        if (recommendation.topic) {
+            navigate('/quiz', { state: { topic: recommendation.topic } });
+        } else {
+            navigate('/quiz');
+        }
+    };
+
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                     <p className="mt-4 text-gray-600">Loading analytics...</p>
@@ -94,15 +134,15 @@ const Analytics: React.FC = () => {
         );
     }
 
-    if (error || !stats) {
+    if (error && !stats) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
                 <div className="text-center">
                     <div className="text-red-500 text-6xl mb-4">📊</div>
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">Analytics Unavailable</h2>
                     <p className="text-gray-600 mb-4">{error || 'Take a quiz to start tracking your progress!'}</p>
                     <button
-                        onClick={() => window.location.href = '/dashboard'}
+                        onClick={() => navigate('/dashboard')}
                         className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                         Back to Dashboard
@@ -113,7 +153,7 @@ const Analytics: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="min-h-screen bg-gray-50">
             <Header 
                 title="Learning Analytics" 
                 subtitle="Track your progress and performance"
@@ -121,109 +161,177 @@ const Analytics: React.FC = () => {
                 backPath="/dashboard"
             />
             
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Main Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-                        <div className="text-5xl font-bold text-blue-600 mb-2">{stats.total_quizzes}</div>
-                        <div className="text-gray-600 font-medium">Total Quizzes</div>
-                        <div className="text-3xl mt-2">📝</div>
-                    </div>
-                    
-                    <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-                        <div className="text-5xl font-bold text-green-600 mb-2">{Math.round(stats.average_score)}%</div>
-                        <div className="text-gray-600 font-medium">Average Score</div>
-                        <div className="text-3xl mt-2">🎯</div>
-                    </div>
-                    
-                    <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-                        <div className="text-5xl font-bold text-purple-600 mb-2">{stats.questions_answered}</div>
-                        <div className="text-gray-600 font-medium">Questions Answered</div>
-                        <div className="text-3xl mt-2">💡</div>
-                    </div>
-                </div>
-
-                {/* Topic Performance */}
-                <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">📚 Topic Performance</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-green-50 rounded-lg p-6 border-2 border-green-200">
-                            <div className="text-lg font-semibold text-gray-700 mb-2">🏆 Best Topic</div>
-                            <div className="text-2xl font-bold text-green-700">{stats.best_topic}</div>
-                        </div>
-                        
-                        <div className="bg-orange-50 rounded-lg p-6 border-2 border-orange-200">
-                            <div className="text-lg font-semibold text-gray-700 mb-2">📖 Focus Area</div>
-                            <div className="text-2xl font-bold text-orange-700">{stats.worst_topic}</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Progress Visual */}
-                <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">📈 Your Progress</h2>
-                    <div className="space-y-4">
-                        <div>
-                            <div className="flex justify-between mb-2">
-                                <span className="text-gray-700 font-medium">Overall Performance</span>
-                                <span className="text-gray-900 font-bold">{Math.round(stats.average_score)}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-6">
-                                <div 
-                                    className={`h-6 rounded-full ${
-                                        stats.average_score >= 80 ? 'bg-green-500' : 
-                                        stats.average_score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Tabs */}
+                <div className="bg-white rounded-lg shadow-sm mb-6">
+                    <div className="border-b border-gray-200">
+                        <nav className="flex -mb-px overflow-x-auto">
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors ${
+                                        activeTab === tab.id
+                                            ? 'border-b-2 border-indigo-600 text-indigo-600'
+                                            : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
-                                    style={{ width: `${stats.average_score}%` }}
-                                ></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="mt-6 text-center">
-                        {stats.average_score >= 80 && (
-                            <div className="text-green-600 font-semibold">
-                                <span className="text-2xl mr-2">🎉</span>
-                                Excellent Performance! Keep it up!
-                            </div>
-                        )}
-                        {stats.average_score >= 60 && stats.average_score < 80 && (
-                            <div className="text-yellow-600 font-semibold">
-                                <span className="text-2xl mr-2">👍</span>
-                                Good Progress! Keep practicing!
-                            </div>
-                        )}
-                        {stats.average_score < 60 && stats.average_score > 0 && (
-                            <div className="text-orange-600 font-semibold">
-                                <span className="text-2xl mr-2">💪</span>
-                                Keep practicing! You're improving!
-                            </div>
-                        )}
+                                >
+                                    <span className="mr-2">{tab.icon}</span>
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </nav>
                     </div>
                 </div>
 
-                {/* Full Analytics Dashboard Link */}
-                <div className="bg-gradient-to-r from-indigo-100 to-purple-100 border-2 border-indigo-300 rounded-xl p-6 mb-8 text-center">
-                    <h3 className="text-xl font-bold text-indigo-900 mb-2">🎯 Want More Insights?</h3>
-                    <p className="text-indigo-700 mb-4">Access the full Analytics Dashboard with badges, charts, heatmaps, and AI recommendations!</p>
-                    <button
-                        onClick={() => window.location.href = '/analytics-dashboard'}
-                        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg font-semibold text-lg"
-                    >
-                        📊 Open Full Analytics Dashboard
-                    </button>
+                {/* Tab Content */}
+                <div className="space-y-6">
+                    {activeTab === 'overview' && stats && (
+                        <>
+                            {/* Main Stats Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+                                    <div className="text-5xl font-bold text-blue-600 mb-2">{stats.total_quizzes}</div>
+                                    <div className="text-gray-600 font-medium">Total Quizzes</div>
+                                    <div className="text-3xl mt-2">📝</div>
+                                </div>
+                                
+                                <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+                                    <div className="text-5xl font-bold text-green-600 mb-2">{Math.round(stats.average_score)}%</div>
+                                    <div className="text-gray-600 font-medium">Average Score</div>
+                                    <div className="text-3xl mt-2">🎯</div>
+                                </div>
+                                
+                                <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+                                    <div className="text-5xl font-bold text-purple-600 mb-2">{stats.questions_answered}</div>
+                                    <div className="text-gray-600 font-medium">Questions Answered</div>
+                                    <div className="text-3xl mt-2">💡</div>
+                                </div>
+                            </div>
+
+                            {/* Topic Performance */}
+                            <div className="bg-white rounded-xl shadow-lg p-8">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">📚 Topic Performance</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-green-50 rounded-lg p-6 border-2 border-green-200">
+                                        <div className="text-lg font-semibold text-gray-700 mb-2">🏆 Best Topic</div>
+                                        <div className="text-2xl font-bold text-green-700">{stats.best_topic}</div>
+                                    </div>
+                                    
+                                    <div className="bg-orange-50 rounded-lg p-6 border-2 border-orange-200">
+                                        <div className="text-lg font-semibold text-gray-700 mb-2">📖 Focus Area</div>
+                                        <div className="text-2xl font-bold text-orange-700">{stats.worst_topic}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Weekly Report */}
+                            <div className="bg-white rounded-lg shadow-sm p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Weekly Report</h2>
+                                <WeeklyReport />
+                            </div>
+
+                            {/* Performance Chart */}
+                            <div className="bg-white rounded-lg shadow-sm p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Performance Trends</h2>
+                                <PerformanceChart days={30} />
+                            </div>
+
+                            {/* Progress Visual */}
+                            <div className="bg-white rounded-xl shadow-lg p-8">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">📈 Your Overall Progress</h2>
+                                <div className="space-y-4">
+                                    <div>
+                                        <div className="flex justify-between mb-2">
+                                            <span className="text-gray-700 font-medium">Overall Performance</span>
+                                            <span className="text-gray-900 font-bold">{Math.round(stats.average_score)}%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-6">
+                                            <div 
+                                                className={`h-6 rounded-full ${
+                                                    stats.average_score >= 80 ? 'bg-green-500' : 
+                                                    stats.average_score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                                                }`}
+                                                style={{ width: `${stats.average_score}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-6 text-center">
+                                    {stats.average_score >= 80 && (
+                                        <div className="text-green-600 font-semibold">
+                                            <span className="text-2xl mr-2">🎉</span>
+                                            Excellent Performance! Keep it up!
+                                        </div>
+                                    )}
+                                    {stats.average_score >= 60 && stats.average_score < 80 && (
+                                        <div className="text-yellow-600 font-semibold">
+                                            <span className="text-2xl mr-2">👍</span>
+                                            Good Progress! Keep practicing!
+                                        </div>
+                                    )}
+                                    {stats.average_score < 60 && stats.average_score > 0 && (
+                                        <div className="text-orange-600 font-semibold">
+                                            <span className="text-2xl mr-2">💪</span>
+                                            Keep practicing! You're improving!
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {activeTab === 'badges' && (
+                        <>
+                            {/* Badge Showcase */}
+                            <div className="bg-white rounded-lg shadow-sm p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Badges</h2>
+                                <BadgeShowcase />
+                            </div>
+
+                            {/* Badge Progress */}
+                            <div className="bg-white rounded-lg shadow-sm p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Badge Progress</h2>
+                                <BadgeProgress />
+                            </div>
+                        </>
+                    )}
+
+                    {activeTab === 'recommendations' && (
+                        <div className="space-y-6">
+                            <div className="bg-white rounded-lg shadow-sm p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">🤖 AI Learning Recommendations</h2>
+                                {recommendations.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {recommendations.map((rec, idx) => (
+                                            <RecommendationCard 
+                                                key={idx}
+                                                recommendation={rec}
+                                                onAction={handleRecommendationAction}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-500">
+                                        <p>📚 No recommendations yet. Complete more quizzes to get personalized insights!</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Action Buttons */}
-                <div className="text-center space-x-4">
+                <div className="text-center space-x-4 mt-8">
                     <button
-                        onClick={() => window.location.href = '/dashboard'}
+                        onClick={() => navigate('/dashboard')}
                         className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg font-semibold"
                     >
                         🚀 Take Another Quiz
                     </button>
                     <button
-                        onClick={() => window.location.href = '/history'}
+                        onClick={() => navigate('/history')}
                         className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg font-semibold"
                     >
                         📜 View History

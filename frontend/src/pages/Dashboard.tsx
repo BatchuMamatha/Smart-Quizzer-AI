@@ -360,15 +360,6 @@ const Dashboard: React.FC = () => {
                       Analytics Overview
                       <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
                     </button>
-                    
-                    <button
-                      onClick={() => navigate('/analytics-dashboard')}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 group border-2 border-purple-400"
-                    >
-                      <span className="mr-2">✨</span>
-                      Full Analytics Dashboard
-                      <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
-                    </button>
                   
                   </div>
                 </div>
