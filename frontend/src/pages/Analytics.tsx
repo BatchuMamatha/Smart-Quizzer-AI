@@ -202,6 +202,18 @@ const Analytics: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Full Analytics Dashboard Link */}
+                <div className="bg-gradient-to-r from-indigo-100 to-purple-100 border-2 border-indigo-300 rounded-xl p-6 mb-8 text-center">
+                    <h3 className="text-xl font-bold text-indigo-900 mb-2">🎯 Want More Insights?</h3>
+                    <p className="text-indigo-700 mb-4">Access the full Analytics Dashboard with badges, charts, heatmaps, and AI recommendations!</p>
+                    <button
+                        onClick={() => window.location.href = '/analytics-dashboard'}
+                        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg font-semibold text-lg"
+                    >
+                        📊 Open Full Analytics Dashboard
+                    </button>
+                </div>
+
                 {/* Action Buttons */}
                 <div className="text-center space-x-4">
                     <button
