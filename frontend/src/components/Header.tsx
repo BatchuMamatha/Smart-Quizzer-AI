@@ -58,8 +58,8 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="relative bg-white bg-opacity-80 backdrop-blur-md shadow-lg border-b border-white border-opacity-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="relative bg-white bg-opacity-80 backdrop-blur-md shadow-lg border-b border-white border-opacity-20 overflow-visible">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-visible">
         <div className="flex justify-between items-center py-6">
           <div className="flex items-center space-x-4 animate-fade-in-up flex-1">
             {showBackButton && (
@@ -80,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({
           </div>
           <div className="flex items-center space-x-3 animate-slide-in-right">
             {/* Navigation Menu Dropdown */}
-            <div className="relative" ref={menuRef}>
+            <div className="relative z-50" ref={menuRef}>
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 whitespace-nowrap"
@@ -89,8 +89,8 @@ const Header: React.FC<HeaderProps> = ({
                 Go To
               </button>
               {showMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-2xl border border-gray-200 z-50 top-full">
-                  <div className="p-2 space-y-1">
+                <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-2xl border border-gray-200 z-50 min-w-max top-12">
+                  <div className="p-2 space-y-1 max-h-96 overflow-y-auto">
                     {navigationItems.map((item) => (
                       <button
                         key={item.path}
