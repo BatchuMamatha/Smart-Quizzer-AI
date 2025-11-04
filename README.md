@@ -91,108 +91,8 @@ Smart Quizzer AI is a modern web-based learning platform that combines the power
 
 
 ### 🌐 Real-Time Multiplayer- [Contact](#contact)
-
-- Live quiz rooms for competing with friends or classmates
-
-- WebSocket-powered instant updates and live rankings
-
-- Synchronized quiz sessions with real-time leaderboard changes
-
 ---
 
-### 👨‍💼 Admin Dashboard
-
-- User management and activity monitoring- [Overview](#overview)
-
-- Content moderation (review flagged questions and user feedback)
-
-- Platform-wide analytics and system health metrics## Project Overview
-
-
-
----- [Key Features](#key-features)
-
-
-
-## 🛠️ Technology StackSmart Quizzer AI revolutionizes the learning experience by combining artificial intelligence with adaptive assessment methodologies. The platform generates contextually relevant quiz questions from custom content, evaluates answers using natural language processing, and dynamically adjusts difficulty based on real-time user performance.
-
-
-
-### Frontend- [Technology Stack](#technology-stack)
-
-| Technology | Version | Purpose |
-
-|------------|---------|---------|**Target Users**: Students, educators, self-learners, corporate training teams
-
-| **React** | 18.2.0 | UI library and component framework |
-
-| **TypeScript** | 4.8 | Type-safe JavaScript development |- [Quick Start](#quick-start)
-
-| **Tailwind CSS** | 3.3.0 | Utility-first CSS framework |
-
-| **React Router** | 6.4.0 | Client-side routing |**Core Value Proposition**:
-
-| **Axios** | 1.5.0 | HTTP client for API requests |
-
-| **Socket.IO Client** | 4.8.1 | WebSocket client for real-time features |- Transform any content (PDFs, documents, URLs, text) into interactive quizzes- [Project Structure](#project-structure)
-
-
-
-### Backend- Get intelligent feedback beyond simple right/wrong answers with semantic understanding- [Documentation](#documentation)
-
-| Technology | Version | Purpose |
-
-|------------|---------|---------|- Track learning progress with comprehensive analytics and visual dashboards- [Contributing](#contributing)
-
-| **Flask** | 3.0.0 | Web framework and REST API |
-
-| **SQLAlchemy** | 3.1.1 | ORM for database management |- Compete globally through leaderboards and real-time multiplayer quiz modes- [License](#license)
-
-| **Flask-SocketIO** | 5.3.6 | Real-time WebSocket communication |
-
-| **Flask-JWT-Extended** | 4.6.0 | JWT-based authentication |- Earn badges and achievements to stay motivated- [Contact](#contact)
-
-| **Google Gemini AI** | Latest | AI question generation (gemini-1.5-flash) |
-
-| **Sentence-Transformers** | 2.7.0+ | NLP semantic similarity (all-MiniLM-L6-v2) |
-
-| **BCrypt** | 4.1.2 | Password hashing |
-
-| **SQLite** | Built-in | Development database |------
-
-| **PostgreSQL** | 13+ | Production database (optional) |
-
-
-
-### AI/ML & Processing
-
-- **PyPDF2 / pdfplumber** - PDF text extraction## Key Features## Overview
-
-- **python-docx** - DOCX document processing
-
-- **BeautifulSoup4** - Web content scraping
-
-- **NLTK** - Natural language processing utilities
-
-- **scikit-learn** - Machine learning utilities### 🤖 AI-Powered Question GenerationSmart Quizzer AI revolutionizes the learning experience by combining artificial intelligence with adaptive assessment methodologies. The platform generates contextually relevant quiz questions from custom content, evaluates answers using natural language processing, and dynamically adjusts difficulty based on real-time user performance.
-
-
-
----- **Google Gemini AI Integration**: Generates high-quality, contextually relevant questions from uploaded content
-
-
-
-## 🚀 Installation- **Multiple Content Formats**: Supports PDF, DOCX, plain text, and web URLs**Target Users**: Students, educators, self-learners, corporate training teams
-
-
-
-### Prerequisites- **Bloom's Taxonomy Classification**: Questions categorized across six cognitive levels (Remember, Understand, Apply, Analyze, Evaluate, Create)
-
-- **Python** 3.9 or higher
-
-- **Node.js** 16 or higher- **Three Difficulty Tiers**: Easy, Medium, and Hard questions with intelligent multi-factor classification**Core Value Proposition**:
-
----
 # Smart Quizzer AI 🎓
 
 [![React](https://img.shields.io/badge/React-18.2.0-61dafb?logo=react&logoColor=white)](https://reactjs.org/)
@@ -231,6 +131,100 @@ Who it's for: students, educators, self-learners, and corporate training teams.
 - Semantic answer evaluation (Sentence-Transformers)
 - Adaptive difficulty and personalized learning paths
 - Multiple question types: MCQ, True/False, Short Answer
+- Real-time multiplayer quiz rooms and leaderboards
+- Gamification with badges and achievements
+- Admin dashboard for content moderation and analytics
+
+---
+
+## 🛠️ Technology Stack
+
+Frontend: React (18.2.0), TypeScript, Tailwind CSS, React Router, Axios, Socket.IO Client
+
+Backend: Flask (3.0.0), SQLAlchemy, Flask-SocketIO, Flask-JWT-Extended, Google Gemini AI, Sentence-Transformers, BCrypt
+
+Database: SQLite (development), PostgreSQL recommended for production
+
+Tools & libs: pdfplumber / PyPDF2, python-docx, BeautifulSoup4, NLTK
+
+---
+
+## 🚀 Quick Start (development)
+
+1. Clone the repo:
+
+```powershell
+git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+cd Smart-Quizzer-AI
+```
+
+2. Backend (Windows example):
+
+```powershell
+cd backend
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+# copy .env.example to .env and add your keys
+python app.py
+# Backend runs on http://localhost:5000
+```
+
+3. Frontend:
+
+```powershell
+cd ../frontend
+npm install
+npm start
+# Frontend runs on http://localhost:8080
+```
+
+For full setup details, see `SETUP.md`.
+
+---
+
+## 📁 Project Structure (high-level)
+
+Smart-Quizzer-AI/
+- backend/        # Flask backend (API, AI services, DB models)
+- frontend/       # React app (pages, components, styles)
+- PROJECT_DOCUMENTATION.md
+- SETUP.md
+- PRESENTATION.md
+- LICENSE
+
+See the repository for a more detailed layout.
+
+---
+
+## 🎮 Demo / Usage (brief)
+
+1. Register and log in.
+2. Upload content (PDF/DOCX/URL/text) in Content Upload.
+3. Generate a quiz (choose topic, difficulty, and length).
+4. Take the quiz — get semantic evaluation and explanations.
+5. Review analytics and learning recommendations.
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome — fork, create a feature branch, add tests, and open a PR. Please follow the commit message conventions: `type: short description` (e.g., `feat: add similarity threshold config`). See `CONTRIBUTING` or open an issue first for larger changes.
+
+---
+
+## 📄 License & Contact
+
+This project is licensed under the MIT License — see `LICENSE` for details.
+
+Maintainer: Mamatha Bachu — https://github.com/BatchuMamatha
+
+Issues & feature requests: https://github.com/BatchuMamatha/Smart-Quizzer-AI/issues
+
+---
+
+Thank you for using Smart Quizzer AI — empowering learners with AI-driven adaptive assessments.
+
 - Real-time multiplayer quiz rooms and leaderboards
 - Gamification with badges and achievements
 - Admin dashboard for content moderation and analytics
