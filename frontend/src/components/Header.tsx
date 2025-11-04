@@ -26,7 +26,7 @@ const Header: React.FC<HeaderProps> = ({
     navigate('/login');
   };
 
-  const navigationItems = [
+  const navigationItems: { path: string; label: string; highlight?: boolean }[] = [
     { path: '/dashboard', label: '🏠 Dashboard' },
     { path: '/analytics', label: '📊 Analytics' },
     { path: '/history', label: '📜 History' },
@@ -81,8 +81,6 @@ const Header: React.FC<HeaderProps> = ({
                         className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
                           location.pathname === item.path
                             ? 'bg-blue-100 text-blue-700 font-semibold'
-                            : item.highlight
-                            ? 'bg-purple-50 text-purple-700 hover:bg-purple-100 font-semibold'
                             : 'text-gray-700 hover:bg-gray-100'
                         }`}
                       >
