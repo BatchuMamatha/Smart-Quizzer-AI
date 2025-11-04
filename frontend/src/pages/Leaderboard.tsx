@@ -132,6 +132,7 @@ const Leaderboard: React.FC = () => {
     return `${secs}s`;
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getRankBadgeColor = (rank: number): string => {
     if (rank === 1) return 'bg-yellow-500 text-white';
     if (rank === 2) return 'bg-gray-400 text-white';
@@ -139,6 +140,7 @@ const Leaderboard: React.FC = () => {
     return 'bg-blue-500 text-white';
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getRankIcon = (rank: number): string => {
     if (rank === 1) return '🏆';
     if (rank === 2) return '🥈';
