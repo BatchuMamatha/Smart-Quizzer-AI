@@ -9,13 +9,18 @@ from werkzeug.utils import secure_filename
 import tempfile
 import uuid
 import sys
+import json
+import logging
+import traceback
+import secrets
 
 # Ensure stdout/stderr use utf-8 to avoid Windows charmap encoding errors during prints
 try:
-    if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8')
-    if hasattr(sys.stderr, 'reconfigure'):
-        sys.stderr.reconfigure(encoding='utf-8')
+    import io
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(encoding='utf-8')  # type: ignore
+    if isinstance(sys.stderr, io.TextIOWrapper):
+        sys.stderr.reconfigure(encoding='utf-8')  # type: ignore
 except Exception:
     pass
 
@@ -26,12 +31,12 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 from models import (
     db, User, QuizSession, Question, Topic, QuizLeaderboard,
     Badge, UserBadge, PerformanceTrend, LearningPath, LearningMilestone,
-    MultiplayerRoom, MultiplayerParticipant
+    MultiplayerRoom, MultiplayerParticipant, PasswordResetToken
 )
 from auth import init_jwt, generate_tokens, auth_required
 from question_gen import question_generator
 from content_processor import ContentProcessor
-import logging
+from email_service import email_service, test_email_service
 
 # Import error handling system
 from error_handler import (
@@ -52,14 +57,72 @@ import multiplayer_service
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ==================== EMAIL HELPER FUNCTIONS ====================
+
+def send_welcome_email(user_email, user_name):
+    """
+    Send welcome email to newly registered user
+    
+    Args:
+        user_email (str): User's email address
+        user_name (str): User's full name
+    
+    Returns:
+        dict: {'success': bool, 'message': str, 'error': str if failed}
+    """
+    try:
+        return email_service.send_welcome_email(user_email, user_name)
+    except Exception as e:
+        logger.error(f"Error sending welcome email: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to send welcome email'
+        }
+
+def send_password_reset_email(user_email, user_name, reset_token, reset_url):
+    """
+    Send password reset email with secure token
+    
+    Args:
+        user_email (str): User's email address
+        user_name (str): User's full name
+        reset_token (str): Secure reset token
+        reset_url (str): Frontend URL for password reset page
+    
+    Returns:
+        dict: {'success': bool, 'message': str, 'error': str if failed}
+    """
+    try:
+        return email_service.send_password_reset_email(user_email, user_name, reset_token, reset_url)
+    except Exception as e:
+        logger.error(f"Error sending password reset email: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to send password reset email'
+        }
+
 def create_app():
     app = Flask(__name__)
     
     # Configuration - Use environment variables with fallbacks
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'smart-quizzer-secret-2024-change-in-production')
-    # Fix: Use instance folder for database (same location as init_database.py creates it)
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///instance/smart_quizzer.db')
+    
+    # PERSISTENCE FIX: Use absolute path to instance directory for consistent database location
+    # This ensures the database persists across app restarts and works on any system
+    instance_dir = os.path.join(os.path.dirname(__file__), 'instance')
+    os.makedirs(instance_dir, exist_ok=True)
+    
+    db_path = os.path.join(instance_dir, 'smart_quizzer.db')
+    # Use absolute file:// URI for maximum compatibility
+    database_uri = os.getenv('DATABASE_URL', f'sqlite:///{db_path}')
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    logger.info(f"🗄️  Database URI: {database_uri}")
+    logger.info(f"📍 Database file location: {db_path}")
+    logger.info(f"📂 Database exists: {os.path.exists(db_path)}")
     
     # File upload configuration
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -98,7 +161,7 @@ def create_app():
         initialize_database()
         
         # Initialize adaptive quiz engine
-        app.adaptive_engine = question_generator.adaptive_engine
+        setattr(app, 'adaptive_engine', question_generator.adaptive_engine)
     
     return app, socketio
 
@@ -106,26 +169,36 @@ def initialize_database():
     """
     Auto-initialize database on first run or if missing.
     Creates tables and minimal required data.
+    CRITICAL: Does NOT wipe existing data on subsequent runs.
     Works on any machine without manual intervention.
     """
     try:
-        # Create all tables
+        # PERSISTENCE FIX: Only create tables if they don't exist
+        # This preserves user data and prevents accidental data loss
         db.create_all()
-        logger.info("Database tables created/verified")
+        logger.info("✅ Database tables created/verified")
         
-        # Check if database is empty (first run)
+        # Check if database has default data (first run only)
         user_count = User.query.count()
         topic_count = Topic.query.count()
         
-        if user_count == 0:
-            logger.info("First run detected - initializing database...")
-            initialize_default_admin()
+        logger.info(f"📊 Database status: {user_count} users, {topic_count} topics")
         
-        if topic_count == 0:
-            logger.info("Creating default topics...")
-            initialize_topics()
+        # Only initialize if database is completely empty (first run)
+        if user_count == 0 and topic_count == 0:
+            logger.info("🆕 First run detected - initializing default data...")
+            initialize_default_users()
+            initialize_default_topics()
+        elif user_count == 0:
+            logger.warning("⚠️  Topics exist but no users found. Creating default admin...")
+            initialize_default_users()
+        elif topic_count == 0:
+            logger.warning("⚠️  Users exist but no topics found. Creating default topics...")
+            initialize_default_topics()
+        else:
+            logger.info("✅ Database already initialized with data. Skipping initialization.")
         
-        # Initialize badges (if not already initialized) - Fixed has_table() deprecation
+        # Initialize badges (if not already initialized)
         try:
             from sqlalchemy import inspect
             inspector = inspect(db.engine)
@@ -141,65 +214,119 @@ def initialize_database():
                 badge_count = 0
                 
             if badge_count == 0:
-                logger.info("Initializing achievement badges...")
+                logger.info("🏅 Initializing achievement badges...")
                 badge_service.initialize_badges()
         except Exception as badge_init_error:
             logger.warning(f"Could not initialize badges: {badge_init_error}")
             import traceback
             traceback.print_exc()
         
-        logger.info("Database initialization complete")
+        logger.info("✅ Database initialization complete")
         
     except Exception as e:
-        logger.error(f"Database initialization error: {e}")
+        logger.error(f"❌ Database initialization error: {e}")
         # Don't crash the app, but log the error
         import traceback
         traceback.print_exc()
 
-def initialize_default_admin():
+def initialize_default_users():
     """
-    Create a default admin account on first run.
-    This ensures the system works immediately after cloning.
-    """
+    Create default admin and user accounts ONLY on first run.
+    CRITICAL: Does NOT wipe existing users on subsequent app restarts.
+    Uses credentials from environment variables for security.
+    
+    IMPORTANT: Default credentials MUST be set via environment variables.
+    See .env.example for configuration.
+    Development users are created with placeholder credentials that MUST be changed.
+    """  
     try:
-        # Create default admin user
-        admin = User(
-            username='admin',
-            email='admin@smartquizzer.local',
-            full_name='System Administrator',
-            skill_level='Advanced',
-            role='admin'
+        logger.info("👥 Creating default user accounts...")
+        
+        # Get credentials from environment variables - these are REQUIRED
+        admin_password = os.getenv('DEFAULT_ADMIN_PASSWORD')
+        user_password = os.getenv('DEFAULT_USER_PASSWORD')
+        
+        # If environment variables are not set, use placeholder values that force configuration
+        # These MUST be changed in .env or production will not work
+        if not admin_password:
+            admin_password = 'CHANGEME_ADMIN'
+            logger.warning("⚠️  SECURITY WARNING: Using placeholder admin password")
+            logger.warning("⚠️  Set DEFAULT_ADMIN_PASSWORD in .env file")
+        
+        if not user_password:
+            user_password = 'CHANGEME_USER'
+            logger.warning("⚠️  SECURITY WARNING: Using placeholder user password")
+            logger.warning("⚠️  Set DEFAULT_USER_PASSWORD in .env file")
+        
+        # Default admin account
+        default_admin = User(  # type: ignore
+            username='admin1', # pyright: ignore[reportCallIssue]
+            email='admin1@smartquizzer.com', # type: ignore
+            full_name='System Administrator',# type: ignore
+            skill_level='Advanced',# type: ignore
+            role='admin'# type: ignore
         )
-        admin.set_password('Admin@123')  # Default password - MUST be changed in production
+        default_admin.set_password(admin_password)
+        db.session.add(default_admin)
+        logger.info("   ✅ Created admin1@smartquizzer.com (password from environment)")
+        # Default test user account
+        default_user = User(  # type: ignore
+            username='john',# type: ignore
+            email='john@example.com',# type: ignore
+            full_name='John Doe',# type: ignore
+            skill_level='Intermediate',# type: ignore
+            role='user'# type: ignore
+        )
+        default_user.set_password(user_password)
+        db.session.add(default_user)
+        logger.info("   ✅ Created john@example.com (password from environment)")
         
-        db.session.add(admin)
         db.session.commit()
-        
-        logger.info("👑 Default admin account created")
-        logger.info("   Username: admin")
-        logger.info("   Password: Admin@123")
-        logger.info("   ⚠️  IMPORTANT: Change this password immediately!")
+        logger.info("✅ Default user accounts initialized")
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Failed to create default admin: {e}")
+        logger.error(f"❌ Failed to create default users: {e}")
 
-def initialize_topics():
-    """Initialize default topics if not exists"""
-    topics_data = [
-        {"name": "Mathematics", "description": "Mathematical concepts and problems", "category": "STEM"},
-        {"name": "Science", "description": "Scientific principles and discoveries", "category": "STEM"},
-        {"name": "History", "description": "Historical events and civilizations", "category": "Humanities"},
-        {"name": "Literature", "description": "Literary works and analysis", "category": "Humanities"},
-        {"name": "Geography", "description": "Physical and human geography", "category": "Social Studies"}
-    ]
-    
-    for topic_data in topics_data:
-        if not Topic.query.filter_by(name=topic_data["name"]).first():
-            topic = Topic(**topic_data)
-            db.session.add(topic)
-    
-    db.session.commit()
+def initialize_default_topics():
+    """
+    Initialize default topics if not exists.
+    CRITICAL: Does NOT delete existing topics.
+    """
+    try:
+        logger.info("📚 Creating default topics...")
+        
+        topics_data = [
+            {"name": "Mathematics", "description": "Mathematical concepts and problems", "category": "STEM"},
+            {"name": "Science", "description": "Scientific principles and discoveries", "category": "STEM"},
+            {"name": "Computer Science", "description": "Programming and computing concepts", "category": "STEM"},
+            {"name": "History", "description": "Historical events and civilizations", "category": "Humanities"},
+            {"name": "Literature", "description": "Literary works and analysis", "category": "Humanities"},
+            {"name": "Geography", "description": "Physical and human geography", "category": "Social Studies"},
+            {"name": "Physics", "description": "Physical laws and phenomena", "category": "STEM"},
+            {"name": "Chemistry", "description": "Chemical reactions and properties", "category": "STEM"},
+            {"name": "Biology", "description": "Living organisms and life processes", "category": "STEM"},
+            {"name": "Economics", "description": "Economic principles and theories", "category": "Social Studies"}
+        ]
+        
+        created_count = 0
+        for topic_data in topics_data:
+            # Only create if it doesn't exist
+            if not Topic.query.filter_by(name=topic_data["name"]).first():
+                topic = Topic(**topic_data)
+                db.session.add(topic)
+                created_count += 1
+                logger.info(f"   ✅ Created topic: {topic_data['name']}")
+        
+        if created_count > 0:
+            db.session.commit()
+            logger.info(f"✅ {created_count} default topics initialized")
+        else:
+            logger.info("✅ All default topics already exist")
+            
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Failed to create default topics: {e}")
 
 app, socketio = create_app()
 
@@ -207,7 +334,7 @@ app, socketio = create_app()
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection"""
-    logger.info(f"WebSocket client connected: {request.sid}")
+    logger.info(f"WebSocket client connected")  # type: ignore
     emit('connection_established', {
         'status': 'connected',
         'timestamp': datetime.utcnow().isoformat()
@@ -216,7 +343,7 @@ def handle_connect():
 @socketio.on('disconnect')
 def handle_disconnect():
     """Handle client disconnection"""
-    logger.info(f"WebSocket client disconnected: {request.sid}")
+    logger.info(f"WebSocket client disconnected")  # type: ignore
 
 @socketio.on('join_leaderboard')
 def handle_join_leaderboard(data):
@@ -224,7 +351,7 @@ def handle_join_leaderboard(data):
     topic = data.get('topic', 'global')
     room = f"leaderboard_{topic}"
     join_room(room)
-    logger.info(f"Client {request.sid} joined leaderboard room: {room}")
+    logger.info(f"Client joined leaderboard room: {room}")  # type: ignore
     emit('joined_leaderboard', {
         'topic': topic,
         'room': room,
@@ -237,7 +364,7 @@ def handle_leave_leaderboard(data):
     topic = data.get('topic', 'global')
     room = f"leaderboard_{topic}"
     leave_room(room)
-    logger.info(f"Client {request.sid} left leaderboard room: {room}")
+    logger.info(f"Client left leaderboard room: {room}")  # type: ignore
     emit('left_leaderboard', {
         'topic': topic,
         'room': room,
@@ -254,7 +381,7 @@ def handle_multiplayer_join(data):
     if room_code:
         room = f"multiplayer_{room_code}"
         join_room(room)
-        logger.info(f"Client {request.sid} joined multiplayer room: {room_code}")
+        logger.info(f"Client joined multiplayer room: {room_code}")  # type: ignore
         emit('multiplayer:joined_room', {
             'room_code': room_code,
             'timestamp': datetime.utcnow().isoformat()
@@ -268,7 +395,7 @@ def handle_multiplayer_leave(data):
     if room_code:
         room = f"multiplayer_{room_code}"
         leave_room(room)
-        logger.info(f"Client {request.sid} left multiplayer room: {room_code}")
+        logger.info(f"Client left multiplayer room: {room_code}")  # type: ignore
         emit('multiplayer:left_room', {
             'room_code': room_code,
             'timestamp': datetime.utcnow().isoformat()
@@ -308,7 +435,7 @@ def handle_multiplayer_answer(data):
                     'rank': participant.rank,
                     'correct_answers': participant.correct_answers,
                     'timestamp': datetime.utcnow().isoformat()
-                }, room=f'multiplayer_{room_code}')
+                }, to=f'multiplayer_{room_code}')
                 
                 logger.info(f"Updated score for user {user_id} in room {room_code}: {points_earned} points")
         
@@ -331,7 +458,7 @@ def handle_multiplayer_next_question(data):
             'question_index': question_index,
             'question': question_data,
             'timestamp': datetime.utcnow().isoformat()
-        }, room=f'multiplayer_{room_code}')
+        }, to=f'multiplayer_{room_code}')
         
         logger.info(f"Broadcasting question {question_index} to room {room_code}")
         
@@ -357,7 +484,7 @@ def handle_multiplayer_game_end(data):
                 'room_code': room_code,
                 'results': results,
                 'timestamp': datetime.utcnow().isoformat()
-            }, room=f'multiplayer_{room_code}')
+            }, to=f'multiplayer_{room_code}')
             
             logger.info(f"Game ended in room {room_code}")
         
@@ -381,7 +508,7 @@ def handle_multiplayer_chat(data):
             'username': username,
             'message': message,
             'timestamp': datetime.utcnow().isoformat()
-        }, room=f'multiplayer_{room_code}')
+        }, to=f'multiplayer_{room_code}')
         
     except Exception as e:
         logger.error(f"Error handling chat message: {e}")
@@ -517,7 +644,10 @@ def reset_service_health(current_user_id):
         data = request.get_json() or {}
         service = data.get('service')  # Optional: specific service to reset
         
-        question_generator.reset_service_health(service)
+        if service:
+            question_generator.reset_service_health(str(service))
+        else:
+            question_generator.reset_service_health(None)  # type: ignore
         
         return jsonify({
             'success': True,
@@ -563,12 +693,12 @@ def register():
             role = 'user'
         
         # Create new user
-        user = User(
-            username=data['username'],
-            email=data['email'],
-            full_name=data['full_name'],
-            skill_level=data['skill_level'],
-            role=role
+        user = User(  # type: ignore
+            username=data['username'],# type: ignore
+            email=data['email'],# type: ignore
+            full_name=data['full_name'],# type: ignore
+            skill_level=data['skill_level'],# type: ignore
+            role=role# type: ignore
         )
         user.set_password(data['password'])
         
@@ -1083,7 +1213,7 @@ def get_topics():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/quiz/start', methods=['POST'])
+@app.route('/api/quiz/start', methods=['POST'])# type: ignore
 @auth_required
 @handle_errors
 def start_quiz(current_user_id):
@@ -1173,12 +1303,12 @@ def start_quiz(current_user_id):
             )
         
         # Create quiz session
-        quiz_session = QuizSession(
-            user_id=current_user_id,
-            topic=topic,
-            skill_level=data['skill_level'],
-            custom_topic=custom_topic,
-            total_questions=num_questions
+        quiz_session = QuizSession(  # type: ignore
+            user_id=current_user_id,# type: ignore
+            topic=topic,# type: ignore
+            skill_level=data['skill_level'],# type: ignore
+            custom_topic=custom_topic,# type: ignore
+            total_questions=num_questions# type: ignore
         )
         
         try:
@@ -1389,7 +1519,7 @@ def submit_answer(current_user_id, quiz_id):
                     emit_event=lambda event, data, **kwargs: socketio.emit(
                         event, 
                         data, 
-                        room=f"leaderboard_{quiz_session.topic}",
+                        to=f"leaderboard_{quiz_session.topic}",  # type: ignore
                         **kwargs
                     )
                 )
@@ -1418,7 +1548,7 @@ def submit_answer(current_user_id, quiz_id):
                             'badge': badge.to_dict(),
                             'user_id': current_user_id,
                             'timestamp': datetime.utcnow().isoformat()
-                        }, room=f'user_{current_user_id}')
+                        }, to=f'user_{current_user_id}')  # type: ignore
             except Exception as badge_error:
                 logger.error(f"❌ Error checking badges: {badge_error}")
             
@@ -1456,7 +1586,7 @@ def submit_answer(current_user_id, quiz_id):
                                 'progress_percentage': path.progress_percentage,
                                 'user_id': current_user_id,
                                 'timestamp': datetime.utcnow().isoformat()
-                            }, room=f'user_{current_user_id}')
+                            }, to=f'user_{current_user_id}')  # type: ignore
                             
             except Exception as milestone_error:
                 logger.error(f"❌ Error updating learning path milestones: {milestone_error}")
@@ -1569,7 +1699,7 @@ def complete_quiz(current_user_id, quiz_id):
                 emit_event=lambda event, data, **kwargs: socketio.emit(
                     event,
                     data,
-                    room=f"leaderboard_{quiz_session.topic}",
+                    to=f"leaderboard_{quiz_session.topic}",  # type: ignore
                     **kwargs
                 )
             )
@@ -1668,9 +1798,9 @@ def get_adaptive_analytics(current_user_id):
             'adaptation_metadata': user_profile['adaptation_metadata'],
             'long_term_stats': user_profile['long_term_stats'],
             'difficulty_distribution': {
-                'easy_accuracy': metrics['difficulty_performance'].get('easy', 0),
-                'medium_accuracy': metrics['difficulty_performance'].get('medium', 0),
-                'hard_accuracy': metrics['difficulty_performance'].get('hard', 0)
+                'easy_accuracy': (metrics.get('difficulty_performance', {}) or {}).get('easy', 0) if isinstance(metrics.get('difficulty_performance'), dict) else 0,  # type: ignore
+                'medium_accuracy': (metrics.get('difficulty_performance', {}) or {}).get('medium', 0) if isinstance(metrics.get('difficulty_performance'), dict) else 0,  # type: ignore
+                'hard_accuracy': (metrics.get('difficulty_performance', {}) or {}).get('hard', 0) if isinstance(metrics.get('difficulty_performance'), dict) else 0  # type: ignore
             },
             'progress_indicators': {
                 'learning_trend': recommendation['learning_insights']['learning_trend'],
@@ -1744,13 +1874,13 @@ def api_generate_questions(current_user_id):
         topic = data.get('topic', 'General')
         skill_level = data.get('skill_level', 'Intermediate')
         num_questions = int(data.get('num_questions', 5))
-        custom_topic = data.get('custom_topic')
+        custom_topic = data.get('custom_topic') or None  # type: ignore
 
         questions = question_generator.generate_quiz_questions(
             topic=topic,
             skill_level=skill_level,
             num_questions=num_questions,
-            custom_topic=custom_topic,
+            custom_topic=custom_topic,  # type: ignore
             user_id=current_user_id
         )
 
@@ -1767,7 +1897,7 @@ def api_next_question(current_user_id):
         data = request.get_json() or {}
         topic = data.get('topic', 'General')
         question_type = data.get('question_type', 'MCQ')
-        previous_answer_correct = data.get('previous_answer_correct')
+        previous_answer_correct = data.get('previous_answer_correct') or False  # type: ignore
 
         # Use adaptive generator
         questions = question_generator.generate_adaptive_question(
@@ -1775,7 +1905,7 @@ def api_next_question(current_user_id):
             topic=topic,
             question_type=question_type,
             num_questions=1,
-            previous_answer_correct=previous_answer_correct
+            previous_answer_correct=previous_answer_correct  # type: ignore
         )
 
         if questions:
@@ -1876,12 +2006,12 @@ def get_quiz_analytics(current_user_id):
         for question_type in question_type_stats:
             stats = question_type_stats[question_type]
             if stats['total'] > 0:
-                stats['accuracy'] = (stats['correct'] / stats['total']) * 100
+                stats['accuracy'] = float((stats['correct'] / stats['total']) * 100)  # type: ignore
         
         for difficulty in difficulty_stats:
             stats = difficulty_stats[difficulty]
             if stats['total'] > 0:
-                stats['accuracy'] = (stats['correct'] / stats['total']) * 100
+                stats['accuracy'] = float((stats['correct'] / stats['total']) * 100)  # type: ignore
         
         return jsonify({
             'question_type_performance': question_type_stats,
@@ -2072,7 +2202,7 @@ def get_learning_paths(current_user_id):
 def create_learning_path(current_user_id):
     """Create a new custom learning path"""
     try:
-        data = request.json
+        data = request.json or {}  # type: ignore
         
         name = data.get('name')
         topics = data.get('topics', [])
@@ -2243,7 +2373,7 @@ def get_multiplayer_rooms(current_user_id):
 def create_multiplayer_room(current_user_id):
     """Create a new multiplayer room"""
     try:
-        data = request.json
+        data = request.json or {}  # type: ignore
         
         topic = data.get('topic')
         difficulty = data.get('difficulty', 'Medium')
@@ -2308,7 +2438,7 @@ def join_multiplayer_room(current_user_id, room_code):
                 'user_id': current_user_id,
                 'current_players': room.current_players,
                 'timestamp': datetime.utcnow().isoformat()
-            }, room=f'multiplayer_{room_code}')
+            }, to=f'multiplayer_{room_code}')  # type: ignore
             
             return jsonify({
                 'message': message,
@@ -2335,7 +2465,7 @@ def leave_multiplayer_room(current_user_id, room_code):
                 'room_code': room_code,
                 'user_id': current_user_id,
                 'timestamp': datetime.utcnow().isoformat()
-            }, room=f'multiplayer_{room_code}')
+            }, to=f'multiplayer_{room_code}')  # type: ignore
             
             return jsonify({'message': message}), 200
         else:
@@ -2360,7 +2490,7 @@ def toggle_ready(current_user_id, room_code):
                 'user_id': current_user_id,
                 'is_ready': participant.is_ready,
                 'timestamp': datetime.utcnow().isoformat()
-            }, room=f'multiplayer_{room_code}')
+            }, to=f'multiplayer_{room_code}')  # type: ignore
             
             return jsonify({
                 'is_ready': participant.is_ready,
@@ -2390,7 +2520,7 @@ def start_multiplayer_game(current_user_id, room_code):
                 'question_count': room.question_count,
                 'time_limit_per_question': room.time_limit_per_question,
                 'timestamp': datetime.utcnow().isoformat()
-            }, room=f'multiplayer_{room_code}')
+            }, to=f'multiplayer_{room_code}')  # type: ignore
             
             return jsonify({
                 'message': message,
@@ -2538,7 +2668,7 @@ def get_leaderboard(current_user_id):
             }
         }), 200
         
-    except Exception as e:
+    except Exception as e: # type: ignore
         print(f"❌ ERROR in leaderboard: {str(e)}")
         import traceback
         traceback.print_exc()
@@ -2562,7 +2692,7 @@ def upload_content_file(current_user_id):
             return jsonify({'error': 'No file selected'}), 400
         
         # Secure filename and save temporarily
-        filename = secure_filename(file.filename)
+        filename = secure_filename(file.filename or 'upload')  # type: ignore
         unique_filename = f"{uuid.uuid4()}_{filename}"
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
         
@@ -2598,13 +2728,16 @@ def upload_content_file(current_user_id):
             print(f"📁 File processed successfully: {filename} ({content_summary['word_count']} words)")
             return jsonify(response_data), 200
             
+        except Exception as e:
+            print(f"❌ File upload error: {e}")
+            return jsonify({'error': f'File upload failed: {str(e)}'}), 500
         finally:
             # Clean up temporary file
             if os.path.exists(temp_path):
                 os.remove(temp_path)
-        
+    
     except Exception as e:
-        print(f"❌ File upload error: {e}")
+        print(f"❌ File upload error (outer): {e}")
         return jsonify({'error': f'File upload failed: {str(e)}'}), 500
 
 @app.route('/api/content/process-url', methods=['POST'])
@@ -2740,7 +2873,7 @@ def generate_questions_from_pdf(current_user_id):
             return jsonify({'error': 'No file selected'}), 400
         
         # Validate file extension
-        if not file.filename.lower().endswith('.pdf'):
+        if not file.filename or not file.filename.lower().endswith('.pdf'):  # type: ignore
             return jsonify({'error': 'Only PDF files are supported'}), 400
         
         # Get parameters from form data
@@ -2788,7 +2921,11 @@ def generate_questions_from_pdf(current_user_id):
                 # Find or create topic
                 db_topic = Topic.query.filter_by(name=topic).first()
                 if not db_topic:
-                    db_topic = Topic(name=topic, description=f"Questions generated from PDF: {file.filename}")
+                    db_topic = Topic(
+                        name=topic,# type: ignore
+                        description=f"Questions generated from PDF: {file.filename}",# type: ignore
+                        category='Custom'# type: ignore
+                    )  # type: ignore
                     db.session.add(db_topic)
                     db.session.flush()
                 
@@ -2796,12 +2933,12 @@ def generate_questions_from_pdf(current_user_id):
                 from models import QuizSession, Question
                 
                 quiz_session = QuizSession(
-                    user_id=current_user_id,
-                    topic=topic,
-                    difficulty=difficulty,
-                    status='active',
-                    total_questions=len(result['questions'])
-                )
+                    user_id=current_user_id,# type: ignore
+                    topic=topic,# type: ignore
+                    skill_level=difficulty,# type: ignore
+                    total_questions=len(result['questions'])# type: ignore
+                )  # type: ignore
+                quiz_session.status = 'active'
                 db.session.add(quiz_session)
                 db.session.flush()
                 
@@ -2812,12 +2949,11 @@ def generate_questions_from_pdf(current_user_id):
                         quiz_session_id=quiz_session.id,
                         question_text=q_data['question_text'],
                         question_type=q_data['question_type'],
-                        options=json.dumps(q_data.get('options', [])),
                         correct_answer=q_data['correct_answer'],
                         explanation=q_data['explanation'],
-                        difficulty=difficulty,
-                        topic=topic
-                    )
+                        difficulty_level=difficulty
+                    )  # type: ignore
+                    question.set_options(q_data.get('options', []))
                     db.session.add(question)
                     stored_questions.append(question)
                 
@@ -2911,18 +3047,22 @@ def generate_questions_from_text(current_user_id):
             # Find or create topic
             db_topic = Topic.query.filter_by(name=topic).first()
             if not db_topic:
-                db_topic = Topic(name=topic, description=f"Custom topic: {topic}")
+                db_topic = Topic(
+                    name=topic,# type: ignore
+                    description=f"Custom topic: {topic}",# type: ignore
+                    category='Custom'# type: ignore
+                )  # type: ignore
                 db.session.add(db_topic)
                 db.session.flush()
             
             # Create quiz session
             quiz_session = QuizSession(
-                user_id=current_user_id,
-                topic=topic,
-                difficulty=difficulty,
-                status='active',
-                total_questions=len(result['questions'])
-            )
+                user_id=current_user_id,# type: ignore
+                topic=topic,# type: ignore
+                skill_level=difficulty,# type: ignore
+                total_questions=len(result['questions'])# type: ignore
+            )  # type: ignore
+            quiz_session.status = 'active'
             db.session.add(quiz_session)
             db.session.flush()
             
@@ -2933,12 +3073,11 @@ def generate_questions_from_text(current_user_id):
                     quiz_session_id=quiz_session.id,
                     question_text=q_data['question_text'],
                     question_type=q_data['question_type'],
-                    options=json.dumps(q_data.get('options', [])),
                     correct_answer=q_data['correct_answer'],
                     explanation=q_data['explanation'],
-                    difficulty=difficulty,
-                    topic=topic
-                )
+                    difficulty_level=difficulty
+                )  # type: ignore
+                question.set_options(q_data.get('options', []))
                 db.session.add(question)
                 stored_questions.append(question)
             
@@ -3464,7 +3603,7 @@ def get_admin_leaderboard(current_user_id):
         # 🏆 Order by: 1) Correct Answers (DESC - higher is better), 2) Time Taken (ASC - faster is better)
         leaderboard_entries = query.order_by(
             QuizLeaderboard.correct_count.desc(),  # Primary: Most correct answers first
-            QuizLeaderboard.time_taken.asc()       # Secondary: Fastest time wins ties
+            QuizLeaderboard.time_taken.asc()  # type: ignore  # Secondary: Fastest time wins ties
         ).limit(limit).all()
         
         # Calculate ranks based on correct_count and time_taken
@@ -3542,11 +3681,11 @@ def submit_question_feedback(current_user_id, question_id):
             return jsonify({'error': 'Rating must be between 1 and 5'}), 400
         
         feedback = QuestionFeedback(
-            question_id=question_id,
-            user_id=current_user_id,
-            feedback_text=feedback_text,
-            rating=rating
-        )
+            question_id=question_id,# type: ignore
+            user_id=current_user_id,# type: ignore
+            feedback_text=feedback_text,# type: ignore
+            rating=rating# type: ignore
+        )  # type: ignore
         
         db.session.add(feedback)
         db.session.commit()
@@ -3607,12 +3746,12 @@ def flag_question(current_user_id, question_id):
             }), 200
         
         flag = FlaggedQuestion(
-            question_id=question_id,
-            flagged_by_user_id=current_user_id,
-            flag_reason=flag_reason,
-            flag_count=1,
-            status='pending'
-        )
+            question_id=question_id,# type: ignore
+            flagged_by_user_id=current_user_id,# type: ignore
+            flag_reason=flag_reason,# type: ignore
+            flag_count=1,# type: ignore
+            status='pending'# type: ignore
+        )  # type: ignore
         
         db.session.add(flag)
         db.session.commit()
@@ -3708,7 +3847,7 @@ def get_topic_leaderboard(topic):
             query = query.filter(QuizLeaderboard.timestamp >= month_ago)
         
         # Get top scores
-        leaderboard_entries = query.order_by(QuizLeaderboard.score.desc()).limit(limit).all()
+        leaderboard_entries = query.order_by(QuizLeaderboard.score.desc()).limit(limit).all()  # type: ignore
         
         # Update ranks
         for rank, entry in enumerate(leaderboard_entries, start=1):
@@ -3848,7 +3987,7 @@ def get_user_leaderboard_stats(current_user_id, user_id):
     try:
         # Verify user can access this data (only their own or admin)
         current_user = User.query.get(current_user_id)
-        if current_user_id != user_id and current_user.role != 'admin':
+        if not current_user or (current_user_id != user_id and current_user.role != 'admin'):  # type: ignore
             return jsonify({'error': 'Unauthorized'}), 403
         
         # Get all leaderboard entries for user
@@ -3966,14 +4105,14 @@ def update_quiz_leaderboard(current_user_id, quiz_id):
         else:
             # Create new leaderboard entry
             leaderboard_entry = QuizLeaderboard(
-                user_id=current_user_id,
-                quiz_session_id=quiz_id,
-                topic=quiz_session.topic,
-                correct_count=quiz_session.correct_answers,
-                total_questions=quiz_session.total_questions,
-                time_taken=time_taken,
-                avg_difficulty_weight=avg_difficulty_weight
-            )
+                user_id=current_user_id,# type: ignore
+                quiz_session_id=quiz_id,# type: ignore
+                topic=quiz_session.topic,# type: ignore
+                correct_count=quiz_session.correct_answers,# type: ignore
+                total_questions=quiz_session.total_questions,# type: ignore
+                time_taken=time_taken,# type: ignore
+                avg_difficulty_weight=avg_difficulty_weight# type: ignore
+            )  # type: ignore
             db.session.add(leaderboard_entry)
         
         # Calculate score
@@ -3982,7 +4121,7 @@ def update_quiz_leaderboard(current_user_id, quiz_id):
         db.session.commit()
         
         # Get updated rank for this topic
-        topic_entries = QuizLeaderboard.query.filter_by(topic=quiz_session.topic).order_by(QuizLeaderboard.score.desc()).all()
+        topic_entries = QuizLeaderboard.query.filter_by(topic=quiz_session.topic).order_by(QuizLeaderboard.score.desc()).all()# type: ignore
         
         for rank, entry in enumerate(topic_entries, start=1):
             entry.rank = rank

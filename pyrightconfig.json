@@ -1,0 +1,10 @@
+{
+  "include": ["init_database.py", "backend"],
+  "pythonVersion": "3.9",
+  "pythonPlatform": "Windows",
+  "typeCheckingMode": "basic",
+  "extraPaths": ["./backend"],
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "stubPath": "./typings"
+}

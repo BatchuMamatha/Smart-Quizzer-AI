@@ -13,6 +13,10 @@ import json
 # Add backend directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
 
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
 try:
     from app import app, db
     from models import User, Topic, QuizSession, Question, FlaggedQuestion, QuestionFeedback, QuizLeaderboard
@@ -30,6 +34,55 @@ except ImportError as e:
     print('      python init_database.py')
     print('\n' + '='*80 + '\n')
     sys.exit(1)
+
+# ==================== SECURITY: Password Management ====================
+# Get test user passwords from environment variables for security
+# These credentials are for testing/development only
+
+def get_default_password(user_type='user'):
+    """Get default password from environment or use placeholder"""
+    if user_type == 'admin':
+        pwd = os.getenv('DEFAULT_ADMIN_PASSWORD')
+        if not pwd:
+            pwd = 'CHANGEME_ADMIN'
+            print("⚠️  WARNING: Admin password not set in environment")
+    else:
+        pwd = os.getenv('DEFAULT_USER_PASSWORD')
+        if not pwd:
+            pwd = 'CHANGEME_USER'
+            print("⚠️  WARNING: User password not set in environment")
+    return pwd
+
+
+def initialize_topics():
+    """Initialize default topics in the database"""
+    print('\n📚 Creating default topics...')
+    
+    default_topics = [
+        {'name': 'Mathematics', 'description': 'Mathematical concepts and problems', 'category': 'STEM'},
+        {'name': 'Science', 'description': 'Scientific principles and discoveries', 'category': 'STEM'},
+        {'name': 'History', 'description': 'Historical events and civilizations', 'category': 'Humanities'},
+        {'name': 'Computer Science', 'description': 'Programming and computing concepts', 'category': 'STEM'},
+        {'name': 'Physics', 'description': 'Physical laws and phenomena', 'category': 'STEM'},
+        {'name': 'Chemistry', 'description': 'Chemical reactions and properties', 'category': 'STEM'},
+        {'name': 'Biology', 'description': 'Living organisms and life processes', 'category': 'STEM'},
+        {'name': 'Literature', 'description': 'Literary works and analysis', 'category': 'Humanities'},
+        {'name': 'Geography', 'description': 'Physical and human geography', 'category': 'Social Studies'},
+        {'name': 'Economics', 'description': 'Economic principles and theories', 'category': 'Social Studies'}
+    ]
+    
+    topics_list = []
+    for topic_data in default_topics:
+        try:
+            topic = Topic(**topic_data, is_active=True)# type: ignore
+            db.session.add(topic)
+            topics_list.append(topic)
+            print(f'   ✅ Created topic: {topic_data["name"]}')
+        except Exception as e:
+            print(f'   ❌ Failed to create topic {topic_data["name"]}: {str(e)}')
+    
+    db.session.commit()
+    return topics_list
 
 def create_quiz_history(users, topics):
     """Create realistic quiz history for all users"""
@@ -102,17 +155,17 @@ def create_quiz_history(users, topics):
             
             # Create quiz session
             quiz_session = QuizSession(
-                user_id=user.id,
-                topic=topic_name,
-                custom_topic=None,
-                skill_level=difficulty,
-                total_questions=total_questions,
-                completed_questions=total_questions,
-                correct_answers=correct_answers,
-                score_percentage=round(score_percentage, 1),
-                status='completed',
-                started_at=started_at,
-                completed_at=completed_at
+                user_id=user.id,# type: ignore
+                topic=topic_name,# type: ignore
+                custom_topic=None,# type: ignore
+                skill_level=difficulty,# type: ignore
+                total_questions=total_questions,# type: ignore
+                completed_questions=total_questions,# type: ignore
+                correct_answers=correct_answers,# type: ignore
+                score_percentage=round(score_percentage, 1),# type: ignore
+                status='completed',# type: ignore
+                started_at=started_at,# type: ignore
+                completed_at=completed_at# type: ignore
             )
             db.session.add(quiz_session)
             db.session.flush()  # Get quiz_session.id
@@ -268,14 +321,14 @@ def create_flagged_questions_and_feedback(users):
             resolved_count += 1
         
         flagged_question = FlaggedQuestion(
-            question_id=question.id,
-            flagged_by_user_id=user.id,
-            flag_reason=reason,
-            flag_count=1,
-            status=status,
-            flagged_at=flagged_at,
-            resolved_at=resolved_at,
-            resolved_by_user_id=resolved_by_user_id
+            question_id=question.id,# type: ignore
+            flagged_by_user_id=user.id,# type: ignore
+            flag_reason=reason,# type: ignore
+            flag_count=1,# type: ignore
+            status=status,# type: ignore
+            flagged_at=flagged_at,# type: ignore
+            resolved_at=resolved_at,# type: ignore
+            resolved_by_user_id=resolved_by_user_id# type: ignore
         )
         db.session.add(flagged_question)
         flagged_count += 1
@@ -322,11 +375,11 @@ def create_flagged_questions_and_feedback(users):
         feedback_date = quiz_session.completed_at + timedelta(days=days_after, hours=random.randint(0, 23)) if quiz_session.completed_at else datetime.now()
         
         feedback = QuestionFeedback(
-            question_id=question.id,
-            user_id=user.id,
-            feedback_text=comment,
-            rating=rating,
-            created_at=feedback_date
+            question_id=question.id,# type: ignore
+            user_id=user.id,# type: ignore
+            feedback_text=comment,# type: ignore
+            rating=rating,# type: ignore
+            created_at=feedback_date# type: ignore
         )
         db.session.add(feedback)
         feedback_count += 1
@@ -367,15 +420,15 @@ def populate_leaderboard():
         
         # Create leaderboard entry
         leaderboard_entry = QuizLeaderboard(
-            user_id=session.user_id,
-            quiz_session_id=session.id,
-            topic=session.topic,
-            score=session.score_percentage,
-            correct_count=session.correct_answers,
-            total_questions=session.total_questions,
-            time_taken=time_taken_seconds,
-            avg_difficulty_weight=1.0,  # Default weight
-            timestamp=session.completed_at if session.completed_at else session.started_at
+            user_id=session.user_id,# type: ignore
+            quiz_session_id=session.id,# type: ignore
+            topic=session.topic,# type: ignore
+            score=session.score_percentage,# type: ignore
+            correct_count=session.correct_answers,# type: ignore
+            total_questions=session.total_questions,# type: ignore
+            time_taken=time_taken_seconds,# type: ignore
+            avg_difficulty_weight=1.0,  # type: ignore
+            timestamp=session.completed_at if session.completed_at else session.started_at # type: ignore
         )
         db.session.add(leaderboard_entry)
         leaderboard_count += 1
@@ -384,8 +437,8 @@ def populate_leaderboard():
     
     # Calculate and assign ranks
     all_entries = QuizLeaderboard.query.order_by(
-        QuizLeaderboard.score.desc(),
-        QuizLeaderboard.time_taken.asc()
+        QuizLeaderboard.score.desc(),# type: ignore
+        QuizLeaderboard.time_taken.asc()# type: ignore
     ).all()
     
     for idx, entry in enumerate(all_entries, start=1):
@@ -397,7 +450,7 @@ def populate_leaderboard():
     print(f'   🏅 Ranks assigned (1-{leaderboard_count})')
     
     # Show top 5
-    top_5 = QuizLeaderboard.query.order_by(QuizLeaderboard.score.desc()).limit(5).all()
+    top_5 = QuizLeaderboard.query.order_by(QuizLeaderboard.score.desc()).limit(5).all()# type: ignore
     print(f'\n   🌟 Top 5 Leaderboard:')
     for entry in top_5:
         print(f'      #{entry.rank} {entry.user.username}: {entry.score}% on {entry.topic} ({entry.time_taken}s)')
@@ -405,7 +458,27 @@ def populate_leaderboard():
     return leaderboard_count
 
 def init_database():
-    """Initialize database with default data"""
+    """
+    Initialize database with default data.
+    IDEMPOTENT DESIGN: Safe to run multiple times without data loss or duplication.
+    
+    On first run:
+      - Creates all tables via db.create_all()
+      - Inserts ALL users (admin + regular users) from default_users list
+      - Inserts all topics
+      - Optionally creates quiz history and leaderboard
+    
+    On subsequent runs:
+      - Detects existing users by username (UNIQUE constraint)
+      - Skips duplicate users (via filter check before insert)
+      - Can optionally add more quiz history
+      - Preserves all existing data
+    
+    This ensures:
+      ✅ Users can login immediately after cloning (no manual setup needed)
+      ✅ Running multiple times is safe (no duplicates)
+      ✅ Data persists across app restarts
+    """
     
     with app.app_context():
         print('\n' + '='*80)
@@ -417,29 +490,49 @@ def init_database():
         db.create_all()
         print('✅ Database tables created successfully!')
         
-        # Check if users already exist
-        existing_users = User.query.count()
-        if existing_users > 0:
-            print(f'\n⚠️  Database already has {existing_users} users.')
-            response = input('Do you want to reset and add default users? (yes/no): ')
-            if response.lower() != 'yes':
-                print('❌ Initialization cancelled.')
-                return
-            
-            # Clear existing users
-            User.query.delete()
-            db.session.commit()
-            print('🗑️  Cleared existing users.')
+        # Check if ALL required users exist (idempotency check)
+        existing_user_count = User.query.count()
         
-        # Create default users
-        print('\n👥 Creating default test users...')
+        if existing_user_count > 0:
+            print(f'\n✅ Database already has {existing_user_count} users.')
+            print('⚠️  Checking which users need to be created...')
         
+        # Get credentials from environment
+        admin_pwd = get_default_password('admin')
+        user_pwd = get_default_password('user')
+        
+        # Define all default users (admin + regular users with different skill levels)
+        # IDEMPOTENT: Each user is checked by username before insertion
+        print('\n👥 Processing default test users...')
+
+        # SECURITY: All test credentials are retrieved from environment variables
+        # See .env.example for configuration requirements
+        
+        # Define all default users (admin + regular users with different skill levels)
         default_users = [
-            # Admin accounts (5 total)
+            # Primary Admin Account (as specified in requirements)
+            {
+                'username': 'admin1',
+                'email': 'admin1@smartquizzer.com',
+                'password': admin_pwd,
+                'full_name': 'System Administrator',
+                'skill_level': 'Advanced',
+                'role': 'admin'
+            },
+            # Primary User Account (as specified in requirements)
+            {
+                'username': 'john',
+                'email': 'john@example.com',
+                'password': user_pwd,
+                'full_name': 'John Doe',
+                'skill_level': 'Intermediate',
+                'role': 'user'
+            },
+            # Additional Admin accounts
             {
                 'username': 'ravi',
                 'email': 'ravi.kumar@smartquizzer.com',
-                'password': 'Admin@123',
+                'password': admin_pwd,
                 'full_name': 'Ravi Kumar',
                 'skill_level': 'Advanced',
                 'role': 'admin'
@@ -447,7 +540,7 @@ def init_database():
             {
                 'username': 'sneha',
                 'email': 'sneha.reddy@smartquizzer.com',
-                'password': 'Admin@123',
+                'password': admin_pwd,
                 'full_name': 'Sneha Reddy',
                 'skill_level': 'Advanced',
                 'role': 'admin'
@@ -455,33 +548,16 @@ def init_database():
             {
                 'username': 'arjun',
                 'email': 'arjun.mehta@smartquizzer.com',
-                'password': 'Admin@123',
+                'password': admin_pwd,
                 'full_name': 'Arjun Mehta',
                 'skill_level': 'Advanced',
                 'role': 'admin'
             },
-            {
-                'username': 'divya',
-                'email': 'divya.patel@smartquizzer.com',
-                'password': 'Admin@123',
-                'full_name': 'Divya Patel',
-                'skill_level': 'Advanced',
-                'role': 'admin'
-            },
-            {
-                'username': 'rahul',
-                'email': 'rahul.sharma@smartquizzer.com',
-                'password': 'Admin@123',
-                'full_name': 'Rahul Sharma',
-                'skill_level': 'Advanced',
-                'role': 'admin'
-            },
-            # Regular user accounts (15 total - 5 Beginner, 5 Intermediate, 5 Advanced)
-            # Beginner Users (5)
+            # Beginner Regular Users
             {
                 'username': 'priya',
                 'email': 'priya.nair@gmail.com',
-                'password': 'User@123',
+                'password': user_pwd,
                 'full_name': 'Priya Nair',
                 'skill_level': 'Beginner',
                 'role': 'user'
@@ -489,7 +565,7 @@ def init_database():
             {
                 'username': 'rohit',
                 'email': 'rohit.verma@gmail.com',
-                'password': 'User@123',
+                'password': user_pwd,
                 'full_name': 'Rohit Verma',
                 'skill_level': 'Beginner',
                 'role': 'user'
@@ -497,32 +573,16 @@ def init_database():
             {
                 'username': 'anjali',
                 'email': 'anjali.das@gmail.com',
-                'password': 'User@123',
+                'password': user_pwd,
                 'full_name': 'Anjali Das',
                 'skill_level': 'Beginner',
                 'role': 'user'
             },
-            {
-                'username': 'vikram',
-                'email': 'vikram.singh@gmail.com',
-                'password': 'User@123',
-                'full_name': 'Vikram Singh',
-                'skill_level': 'Beginner',
-                'role': 'user'
-            },
-            {
-                'username': 'kavya',
-                'email': 'kavya.pillai@gmail.com',
-                'password': 'User@123',
-                'full_name': 'Kavya Pillai',
-                'skill_level': 'Beginner',
-                'role': 'user'
-            },
-            # Intermediate Users (5)
+            # Intermediate Regular Users
             {
                 'username': 'aditya',
                 'email': 'aditya.rao@gmail.com',
-                'password': 'User@123',
+                'password': user_pwd,
                 'full_name': 'Aditya Rao',
                 'skill_level': 'Intermediate',
                 'role': 'user'
@@ -530,48 +590,16 @@ def init_database():
             {
                 'username': 'neha',
                 'email': 'neha.bansal@gmail.com',
-                'password': 'User@123',
+                'password': user_pwd,
                 'full_name': 'Neha Bansal',
                 'skill_level': 'Intermediate',
                 'role': 'user'
             },
-            {
-                'username': 'suresh',
-                'email': 'suresh.iyer@gmail.com',
-                'password': 'User@123',
-                'full_name': 'Suresh Iyer',
-                'skill_level': 'Intermediate',
-                'role': 'user'
-            },
-            {
-                'username': 'tanya',
-                'email': 'tanya.joseph@gmail.com',
-                'password': 'User@123',
-                'full_name': 'Tanya Joseph',
-                'skill_level': 'Intermediate',
-                'role': 'user'
-            },
-            {
-                'username': 'rajesh',
-                'email': 'rajesh.kumar@gmail.com',
-                'password': 'User@123',
-                'full_name': 'Rajesh Kumar',
-                'skill_level': 'Intermediate',
-                'role': 'user'
-            },
-            # Advanced Users (5)
-            {
-                'username': 'nisha',
-                'email': 'nisha.chauhan@gmail.com',
-                'password': 'User@123',
-                'full_name': 'Nisha Chauhan',
-                'skill_level': 'Advanced',
-                'role': 'user'
-            },
+            # Advanced Regular Users
             {
                 'username': 'deepak',
                 'email': 'deepak.gupta@gmail.com',
-                'password': 'User@123',
+                'password': user_pwd,
                 'full_name': 'Deepak Gupta',
                 'skill_level': 'Advanced',
                 'role': 'user'
@@ -579,39 +607,22 @@ def init_database():
             {
                 'username': 'meera',
                 'email': 'meera.joshi@gmail.com',
-                'password': 'User@123',
+                'password': user_pwd,
                 'full_name': 'Meera Joshi',
-                'skill_level': 'Advanced',
-                'role': 'user'
-            },
-            {
-                'username': 'anand',
-                'email': 'anand.kulkarni@gmail.com',
-                'password': 'User@123',
-                'full_name': 'Anand Kulkarni',
-                'skill_level': 'Advanced',
-                'role': 'user'
-            },
-            {
-                'username': 'isha',
-                'email': 'isha.menon@gmail.com',
-                'password': 'User@123',
-                'full_name': 'Isha Menon',
                 'skill_level': 'Advanced',
                 'role': 'user'
             }
         ]
         
+        # IDEMPOTENT USER CREATION: Check each user before inserting
         created_users = []
         skipped_users = []
         
         for user_data in default_users:
             try:
-                # Check if user already exists by username or email
-                existing_user = User.query.filter(
-                    (User.username == user_data['username']) | 
-                    (User.email == user_data['email'])
-                ).first()
+                # CRITICAL CHECK: Does user already exist by username?
+                # This prevents duplicates on subsequent runs
+                existing_user = User.query.filter_by(username=user_data['username']).first()
                 
                 if existing_user:
                     skipped_users.append({
@@ -621,12 +632,13 @@ def init_database():
                     print(f'   ⏭️  Skipped: {user_data["username"]} (already exists)')
                     continue
                 
+                # Create new user (only if it doesn't exist)
                 user = User(
-                    username=user_data['username'],
-                    email=user_data['email'],
-                    full_name=user_data['full_name'],
-                    skill_level=user_data['skill_level'],
-                    role=user_data['role']
+                    username=user_data['username'],# type: ignore
+                    email=user_data['email'],# type: ignore
+                    full_name=user_data['full_name'],# type: ignore
+                    skill_level=user_data['skill_level'],# type: ignore
+                    role=user_data['role']# type: ignore
                 )
                 user.set_password(user_data['password'])
                 db.session.add(user)
@@ -668,29 +680,50 @@ def init_database():
             
             for topic_data in default_topics:
                 try:
-                    topic = Topic(**topic_data, is_active=True)
-                    db.session.add(topic)
-                    topics_list.append(topic)
-                    print(f'   ✅ Created topic: {topic_data["name"]}')
+                    # IDEMPOTENT: Check if topic exists
+                    existing_topic = Topic.query.filter_by(name=topic_data['name']).first()
+                    if not existing_topic:
+                        topic = Topic(**topic_data, is_active=True)# type: ignore
+                        db.session.add(topic)
+                        topics_list.append(topic)
+                        print(f'   ✅ Created topic: {topic_data["name"]}')
                 except Exception as e:
                     print(f'   ❌ Failed to create topic {topic_data["name"]}: {str(e)}')
             
-            db.session.commit()
+            if topics_list:
+                db.session.commit()
         else:
             print(f'\n📚 Topics already exist ({existing_topics} topics found)')
             topics_list = Topic.query.all()
         
-        # Create quiz history for all users
+        
+        # Ask if user wants to create quiz history for demonstration purposes
+        # This is OPTIONAL - users can login immediately without quiz history
         all_users = User.query.all()
         if all_users and len(all_users) > 0:
-            total_quizzes, total_questions = create_quiz_history(all_users, topics_list)
-            # Create flagged questions and feedback
-            total_flags, total_feedback = create_flagged_questions_and_feedback(all_users)
-            # Populate leaderboard
-            total_leaderboard = populate_leaderboard()
+            print(f'\n💡 Found {len(all_users)} users in database.')
+            print('   You can now login directly with these credentials.')
+            print('\n   Optional: Would you like to add realistic quiz history for demo purposes?')
+            print('   (This creates sample quizzes, questions, and leaderboard rankings)')
+            
+            response = input('   Add demo quiz history? (yes/no): ')
+            
+            if response.lower() in ['yes', 'y']:
+                print('\n📊 Creating realistic quiz history...')
+                total_quizzes, total_questions = create_quiz_history(all_users, topics_list)
+                print('\n🚩 Creating flagged questions and user feedback...')
+                total_flags, total_feedback = create_flagged_questions_and_feedback(all_users)
+                print('\n🏆 Populating leaderboard from quiz sessions...')
+                total_leaderboard = populate_leaderboard()
+            else:
+                print('✅ Skipping demo quiz history. You can add it anytime by re-running this script.')
+                total_quizzes = total_questions = 0
+                total_flags = total_feedback = 0
+                total_leaderboard = 0
         else:
-            total_quizzes, total_questions = 0, 0
-            total_flags, total_feedback = 0, 0
+            print('⚠️  No users found after setup. This is unexpected.')
+            total_quizzes = total_questions = 0
+            total_flags = total_feedback = 0
             total_leaderboard = 0
         
         # Display credentials

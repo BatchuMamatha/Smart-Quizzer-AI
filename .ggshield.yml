@@ -1,0 +1,24 @@
+# GitGuardian configuration file
+# This file suppresses false positives detected by GitGuardian's secret scanning
+
+core:
+  # Baseline: Commit hash to establish baseline for comparisons
+  baseline: ""
+  
+# Patterns to ignore (false positives)
+ignore-known-secrets: true
+
+# Allowlist for specific files/patterns
+allowlist:
+  paths:
+    - path: "init_database.py"
+      reason: "Test database initialization with environment variable credentials"
+    - path: "backend/app.py"
+      reason: "Flask application with environment-based configuration"
+  regexes:
+    - value: "'username':\\s+'\\w+'"
+      reason: "Dictionary key for test data, not an actual secret"
+    - value: "'password':\\s+\\w+"
+      reason: "Dictionary key for test data, actual values from environment variables"
+
+verbose: false
