@@ -303,12 +303,20 @@ const Analytics: React.FC = () => {
                             <div className="bg-white rounded-lg shadow-sm p-6">
                                 <h2 className="text-2xl font-bold text-gray-900 mb-6">🤖 AI Learning Recommendations</h2>
                                 {recommendations.length > 0 ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
                                         {recommendations.map((rec, idx) => (
                                             <RecommendationCard 
                                                 key={idx}
-                                                recommendation={rec}
-                                                onAction={handleRecommendationAction}
+                                                title={rec.type === 'focus_area' ? '📖 Focus Area' : 
+                                                       rec.type === 'practice_more' ? '📚 Practice More' :
+                                                       rec.type === 'try_harder' ? '💪 Push Harder' : '🌟 Maintain'}
+                                                description={rec.message}
+                                                actionText={rec.topic ? `Learn ${rec.topic}` : 'Start Quiz'}
+                                                priority={rec.priority}
+                                                onAction={() => handleRecommendationAction(rec)}
+                                                icon={rec.type === 'focus_area' ? '📖' : 
+                                                      rec.type === 'practice_more' ? '📚' :
+                                                      rec.type === 'try_harder' ? '💪' : '🌟'}
                                             />
                                         ))}
                                     </div>
