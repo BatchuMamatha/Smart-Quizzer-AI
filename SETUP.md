@@ -1,364 +1,296 @@
-# Smart Quizzer AI - Complete Setup Guide# Smart Quizzer AI - Complete Setup Guide# Smart Quizzer AI - Complete Setup Guide# Smart Quizzer AI - Setup Guide# Smart Quizzer AI - Setup Guide# Smart Quizzer AI - Complete Setup Guide
+# Smart Quizzer AI - Setup Guide# Smart Quizzer AI - Complete Setup Guide# Smart Quizzer AI - Complete Setup Guide# Smart Quizzer AI - Complete Setup Guide# Smart Quizzer AI - Setup Guide# Smart Quizzer AI - Setup Guide# Smart Quizzer AI - Complete Setup Guide
 
 
 
-**Comprehensive installation and configuration instructions for Windows, Mac, and Linux**
+Complete installation and configuration instructions for local development on Windows, Mac, and Linux.
 
 
 
-This guide will walk you through setting up Smart Quizzer AI on your local machine, from initial installation to running the complete application.**Step-by-step installation and configuration instructions for all platforms**
+---**Comprehensive installation and configuration instructions for Windows, Mac, and Linux**
 
 
 
----
+## 📋 Table of Contents
 
 
 
-## 📋 Table of ContentsThis guide provides comprehensive instructions for setting up Smart Quizzer AI on your local machine, regardless of your operating system (Windows, Mac, or Linux).**Step-by-step installation and configuration instructions**
+1. [Prerequisites](#prerequisites)This guide will walk you through setting up Smart Quizzer AI on your local machine, from initial installation to running the complete application.**Step-by-step installation and configuration instructions for all platforms**
 
+2. [Quick Setup](#quick-setup)
 
+3. [Detailed Backend Setup](#detailed-backend-setup)
 
-1. [System Requirements](#system-requirements)
+4. [Detailed Frontend Setup](#detailed-frontend-setup)
 
-2. [Prerequisites](#prerequisites)
+5. [Database Initialization](#database-initialization)---
 
-3. [Quick Setup (All Platforms)](#quick-setup-all-platforms)---
+6. [Running the Application](#running-the-application)
 
-4. [Detailed Backend Setup](#detailed-backend-setup)
+7. [Environment Variables Reference](#environment-variables-reference)
 
-5. [Detailed Frontend Setup](#detailed-frontend-setup)
+8. [Testing](#testing)
 
-6. [Database Initialization](#database-initialization)
-
-7. [Running the Application](#running-the-application)## 📋 Table of ContentsThis guide will help you set up Smart Quizzer AI on your local machine or server, regardless of your operating system.**Complete installation and configuration instructions for Smart Quizzer AI**
-
-8. [Environment Variables Reference](#environment-variables-reference)
-
-9. [Production Deployment](#production-deployment)
+9. [Production Deployment](#production-deployment)## 📋 Table of ContentsThis guide provides comprehensive instructions for setting up Smart Quizzer AI on your local machine, regardless of your operating system (Windows, Mac, or Linux).**Step-by-step installation and configuration instructions**
 
 10. [Troubleshooting](#troubleshooting)
 
-11. [Advanced Configuration](#advanced-configuration)1. [Prerequisites](#prerequisites)
-
-
-
----2. [Quick Setup](#quick-setup)
-
-
-
-## System Requirements3. [Detailed Backend Setup](#detailed-backend-setup)---
-
-
-
-### Minimum Requirements4. [Detailed Frontend Setup](#detailed-frontend-setup)
-
-
-
-| Component | Specification |5. [Database Initialization](#database-initialization)
-
-|-----------|--------------|
-
-| **Operating System** | Windows 10, macOS 10.15, or Ubuntu 20.04+ |6. [Running the Application](#running-the-application)
-
-| **RAM** | 4 GB |
-
-| **Storage** | 2 GB free space |7. [Environment Variables Reference](#environment-variables-reference)## 📋 Table of ContentsThis guide provides step-by-step instructions for setting up the Smart Quizzer AI platform on your local machine or server.Complete installation and setup guide for Smart Quizzer AI platform.This guide will help you set up Smart Quizzer AI on any laptop or environment from scratch.
-
-| **Internet** | Stable connection for API calls |
-
-8. [Production Deployment](#production-deployment)
-
-### Recommended Requirements
-
-9. [Troubleshooting](#troubleshooting)
-
-| Component | Specification |
-
-|-----------|--------------|10. [Advanced Configuration](#advanced-configuration)
-
-| **Operating System** | Windows 11, macOS 12+, or Ubuntu 22.04+ |
-
-| **RAM** | 8 GB or more |1. [Prerequisites](#prerequisites)
-
-| **Storage** | 5 GB free space |
-
-| **Internet** | High-speed connection |---
-
-
-
----2. [Quick Setup](#quick-setup)
-
-
-
-## Prerequisites## Prerequisites
-
-
-
-Before starting the installation, ensure you have the following software installed:3. [Backend Setup](#backend-setup)---
-
-
-
-### Required SoftwareBefore you begin, ensure you have the following installed on your system:
-
-
-
-1. **Python 3.9 or Higher**4. [Frontend Setup](#frontend-setup)
-
-   - Download: [python.org/downloads](https://www.python.org/downloads/)
-
-   - Verify installation: `python --version` or `python3 --version`### Required Software
-
-
-
-2. **Node.js 16 or Higher**5. [Database Initialization](#database-initialization)
-
-   - Download: [nodejs.org](https://nodejs.org/)
-
-   - Verify installation: `node --version`| Software | Minimum Version | Download Link |
-
-   - npm should be included: `npm --version`
-
-|----------|----------------|---------------|6. [Running the Application](#running-the-application)
-
-3. **Git**
-
-   - Download: [git-scm.com/downloads](https://git-scm.com/downloads)| Python | 3.9 | https://www.python.org/downloads/ |
-
-   - Verify installation: `git --version`
-
-| Node.js | 16.0 | https://nodejs.org/ |7. [Environment Variables](#environment-variables)## Table of Contents---## 📋 Prerequisites
-
-4. **Google Gemini API Key** (Required for AI features)
-
-   - Get free API key: [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)| Git | 2.30 | https://git-scm.com/downloads |
-
-   - Sign in with Google account
-
-   - Click "Create API Key"| Google Gemini API Key | N/A | https://aistudio.google.com/app/apikey |8. [Production Deployment](#production-deployment)
-
-   - Copy and save the key securely
-
 
 
 ---
 
-### System Requirements9. [Troubleshooting](#troubleshooting)
+1. [System Requirements](#system-requirements)
 
-## Quick Setup (All Platforms)
+## Prerequisites
+
+2. [Prerequisites](#prerequisites)
+
+Before beginning installation, ensure you have the following software installed:
+
+3. [Quick Setup (All Platforms)](#quick-setup-all-platforms)---
+
+### Required Software
+
+4. [Detailed Backend Setup](#detailed-backend-setup)
+
+| Software | Minimum Version | Download Link | Verification Command |
+
+|----------|----------------|---------------|---------------------|5. [Detailed Frontend Setup](#detailed-frontend-setup)
+
+| **Python** | 3.9 or higher | [python.org](https://www.python.org/downloads/) | `python --version` |
+
+| **Node.js** | 16 or higher | [nodejs.org](https://nodejs.org/) | `node --version` |6. [Database Initialization](#database-initialization)
+
+| **npm** | 8 or higher | Included with Node.js | `npm --version` |
+
+| **Git** | 2.30 or higher | [git-scm.com](https://git-scm.com/downloads) | `git --version` |7. [Running the Application](#running-the-application)## 📋 Table of ContentsThis guide will help you set up Smart Quizzer AI on your local machine or server, regardless of your operating system.**Complete installation and configuration instructions for Smart Quizzer AI**
 
 
 
-For experienced developers who want to get started quickly:
+### API Keys8. [Environment Variables Reference](#environment-variables-reference)
 
-**Minimum**:10. [Advanced Configuration](#advanced-configuration)
 
-### Windows (PowerShell)
+
+**Google Gemini API Key** (Required for AI question generation):9. [Production Deployment](#production-deployment)
+
+1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+
+2. Sign in with your Google account10. [Troubleshooting](#troubleshooting)
+
+3. Click "Create API Key"
+
+4. Copy the key (format: `AIza...`)11. [Advanced Configuration](#advanced-configuration)1. [Prerequisites](#prerequisites)
+
+5. Store securely - you'll need this for the `.env` file
+
+
+
+### System Requirements
+
+---2. [Quick Setup](#quick-setup)
+
+**Minimum**:
 
 - RAM: 4 GB
 
+- Storage: 2 GB free space
+
+- OS: Windows 10, macOS 10.15, or Ubuntu 20.04+## System Requirements3. [Detailed Backend Setup](#detailed-backend-setup)---
+
+
+
+**Recommended**:
+
+- RAM: 8 GB or more
+
+- Storage: 5 GB free space### Minimum Requirements4. [Detailed Frontend Setup](#detailed-frontend-setup)
+
+- OS: Windows 11, macOS 12+, or Ubuntu 22.04+
+
+- SSD for better performance
+
+
+
+---| Component | Specification |5. [Database Initialization](#database-initialization)
+
+
+
+## Quick Setup|-----------|--------------|
+
+
+
+For experienced developers who want to get started quickly:| **Operating System** | Windows 10, macOS 10.15, or Ubuntu 20.04+ |6. [Running the Application](#running-the-application)
+
+
+
+### Windows (PowerShell)| **RAM** | 4 GB |
+
 ```powershell
 
-# Clone repository- Storage: 2 GB free space1. [Prerequisites](#prerequisites)
+# Clone repository| **Storage** | 2 GB free space |7. [Environment Variables Reference](#environment-variables-reference)## 📋 Table of ContentsThis guide provides step-by-step instructions for setting up the Smart Quizzer AI platform on your local machine or server.Complete installation and setup guide for Smart Quizzer AI platform.This guide will help you set up Smart Quizzer AI on any laptop or environment from scratch.
 
 git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
 
-cd Smart-Quizzer-AI- OS: Windows 10, macOS 10.15, or Ubuntu 20.04+
+cd Smart-Quizzer-AI| **Internet** | Stable connection for API calls |
 
 
 
-# Backend setup---
+# Backend setup8. [Production Deployment](#production-deployment)
 
 cd backend
 
-python -m venv venv**Recommended**:
+python -m venv venv### Recommended Requirements
 
-.\venv\Scripts\Activate.ps1
+venv\Scripts\activate
 
-pip install -r requirements.txt- RAM: 8 GB or more2. [Backend Setup](#backend-setup)
-
-
-
-# Create .env file- Storage: 5 GB free space
-
-@"
-
-SECRET_KEY=your-generated-secret-key-min-32-characters- OS: Windows 11, macOS 12+, or Ubuntu 22.04+## 📦 Prerequisites
-
-JWT_SECRET_KEY=your-generated-jwt-key-min-32-characters
-
-GOOGLE_API_KEY=your-google-gemini-api-key-here
-
-FLASK_APP=app.py
-
-FLASK_ENV=development---3. [Frontend Setup](#frontend-setup)## Table of ContentsBefore you begin, ensure you have the following installed:
-
-DATABASE_URL=sqlite:///instance/smart_quizzer.db
-
-"@ | Out-File -FilePath .env -Encoding utf8
+pip install -r requirements.txt9. [Troubleshooting](#troubleshooting)
 
 
 
-# Start backend## Quick Setup### Required Software
+# Create .env file (then edit with your API key)| Component | Specification |
+
+Copy-Item .env.example .env
+
+notepad .env|-----------|--------------|10. [Advanced Configuration](#advanced-configuration)
+
+
+
+# Initialize database (auto-creates tables and sample data)| **Operating System** | Windows 11, macOS 12+, or Ubuntu 22.04+ |
 
 python app.py
 
-
-
-# Frontend setup (open new PowerShell terminal)
-
-cd ..\frontendFor experienced developers who want to get started quickly:4. [Environment Configuration](#environment-configuration)
-
-npm install
+# Press Ctrl+C after "Database initialization complete"| **RAM** | 8 GB or more |1. [Prerequisites](#prerequisites)
 
 
 
-# Create frontend .env
-
-@"### Windows (PowerShell)#### 1. Python 3.9 or Higher
-
-REACT_APP_API_URL=http://localhost:5000
-
-"@ | Out-File -FilePath .env -Encoding utf8
-
-
-
-# Start frontend```powershell- **Download**: https://www.python.org/downloads/5. [Database Initialization](#database-initialization)
-
-npm start
-
-```# Clone repository
-
-
-
-### Mac/Linux (Bash/Zsh)git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git- **Verify installation**:
-
-
-
-```bashcd Smart-Quizzer-AI
-
-# Clone repository
-
-git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git  ```bash6. [Running the Application](#running-the-application)
-
-cd Smart-Quizzer-AI
-
-# Backend setup
-
-# Backend setup
-
-cd backendcd backend  python --version
-
-python3 -m venv venv
-
-source venv/bin/activatepython -m venv venv
-
-pip install -r requirements.txt
-
-.\venv\Scripts\Activate.ps1  # Should output: Python 3.9.x or higher7. [Production Deployment](#production-deployment)1. [Prerequisites](#prerequisites)### Required Software
-
-# Create .env file
-
-cat > .env << 'EOL'pip install -r requirements.txt
-
-SECRET_KEY=your-generated-secret-key-min-32-characters
-
-JWT_SECRET_KEY=your-generated-jwt-key-min-32-characters@"  ```
-
-GOOGLE_API_KEY=your-google-gemini-api-key-here
-
-FLASK_APP=app.pySECRET_KEY=your-secret-key-here
-
-FLASK_ENV=development
-
-DATABASE_URL=sqlite:///instance/smart_quizzer.dbJWT_SECRET_KEY=your-jwt-secret-key-here8. [Troubleshooting](#troubleshooting)
-
-EOL
-
-GOOGLE_API_KEY=your-google-api-key-here
-
-# Start backend
-
-python app.py &FLASK_APP=app.py#### 2. Node.js 16 or Higher
-
-
-
-# Frontend setup (open new terminal)FLASK_ENV=development
-
-cd ../frontend
-
-npm installDATABASE_URL=sqlite:///instance/smart_quizzer.db- **Download**: https://nodejs.org/9. [Advanced Configuration](#advanced-configuration)2. [Installation](#installation)- **Python 3.8 or higher** - [Download here](https://www.python.org/downloads/)
-
-
-
-# Create frontend .env"@ | Out-File -FilePath .env -Encoding utf8
-
-cat > .env << 'EOL'
-
-REACT_APP_API_URL=http://localhost:5000python app.py &- **Verify installation**:
-
-EOL
-
-
-
-# Start frontend
-
-npm start# Frontend setup (new terminal)  ```bash
-
-```
+# Open new terminal for frontend| **Storage** | 5 GB free space |
 
 cd ..\frontend
 
----
+npm install| **Internet** | High-speed connection |---
 
-npm install  node --version  # Should output: v16.x.x or higher
+npm start
 
-## Detailed Backend Setup
 
-@"
 
-### Step 1: Clone the Repository
+# Backend in first terminal
 
-REACT_APP_API_URL=http://localhost:5000  npm --version   # Should output: 8.x.x or higher---3. [Configuration](#configuration)- **Node.js 16 or higher** - [Download here](https://nodejs.org/)
+cd backend---2. [Quick Setup](#quick-setup)
 
-Open your terminal (PowerShell on Windows, Terminal on Mac/Linux) and run:
+venv\Scripts\activate
 
-"@ | Out-File -FilePath .env -Encoding utf8
+python app.py
+
+```
+
+## Prerequisites## Prerequisites
+
+### Mac/Linux (Bash)
 
 ```bash
 
-git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.gitnpm start  ```
+# Clone repository
+
+git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.gitBefore starting the installation, ensure you have the following software installed:3. [Backend Setup](#backend-setup)---
 
 cd Smart-Quizzer-AI
 
-``````
+
+
+# Backend setup
+
+cd backend### Required SoftwareBefore you begin, ensure you have the following installed on your system:
+
+python3 -m venv venv
+
+source venv/bin/activate
+
+pip install -r requirements.txt
+
+1. **Python 3.9 or Higher**4. [Frontend Setup](#frontend-setup)
+
+# Create .env file (then edit with your API key)
+
+cp .env.example .env   - Download: [python.org/downloads](https://www.python.org/downloads/)
+
+nano .env  # or vim, code, etc.
+
+   - Verify installation: `python --version` or `python3 --version`### Required Software
+
+# Initialize database
+
+python app.py
+
+# Press Ctrl+C after "Database initialization complete"
+
+2. **Node.js 16 or Higher**5. [Database Initialization](#database-initialization)
+
+# Open new terminal for frontend
+
+cd frontend   - Download: [nodejs.org](https://nodejs.org/)
+
+npm install
+
+npm start   - Verify installation: `node --version`| Software | Minimum Version | Download Link |
 
 
 
-### Step 2: Navigate to Backend Directory
-
-
-
-```bash### Mac/Linux (Bash)
+# Backend in first terminal   - npm should be included: `npm --version`
 
 cd backend
 
-```#### 3. Git
+source venv/bin/activate|----------|----------------|---------------|6. [Running the Application](#running-the-application)
+
+python app.py
+
+```3. **Git**
 
 
 
-### Step 3: Create Python Virtual Environment```bash
+**Access the application**:   - Download: [git-scm.com/downloads](https://git-scm.com/downloads)| Python | 3.9 | https://www.python.org/downloads/ |
+
+- Frontend: http://localhost:8080
+
+- Backend API: http://localhost:5000   - Verify installation: `git --version`
 
 
 
-**Why virtual environment?** Isolates project dependencies from system Python packages.# Clone repository- **Download**: https://git-scm.com/downloads## Prerequisites4. [Running the Application](#running-the-application)- **Git** - [Download here](https://git-scm.com/downloads)
+---| Node.js | 16.0 | https://nodejs.org/ |7. [Environment Variables](#environment-variables)## Table of Contents---## 📋 Prerequisites
 
 
 
-**Windows**:git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+## Detailed Backend Setup4. **Google Gemini API Key** (Required for AI features)
 
-```powershell
 
-python -m venv venvcd Smart-Quizzer-AI- **Verify installation**:
+
+### Step 1: Clone the Repository   - Get free API key: [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)| Git | 2.30 | https://git-scm.com/downloads |
+
+
+
+```bash   - Sign in with Google account
+
+git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+
+cd Smart-Quizzer-AI   - Click "Create API Key"| Google Gemini API Key | N/A | https://aistudio.google.com/app/apikey |8. [Production Deployment](#production-deployment)
+
+```
+
+   - Copy and save the key securely
+
+### Step 2: Create Python Virtual Environment
+
+
+
+A virtual environment isolates project dependencies from system Python packages.
+
+---
+
+**Windows**:
+
+```powershell### System Requirements9. [Troubleshooting](#troubleshooting)
+
+cd backend
+
+python -m venv venv## Quick Setup (All Platforms)
 
 ```
 
@@ -366,416 +298,1263 @@ python -m venv venvcd Smart-Quizzer-AI- **Verify installation**:
 
 **Mac/Linux**:
 
-```bash# Backend setup  ```bash
+```bashFor experienced developers who want to get started quickly:
 
-python3 -m venv venv
+cd backend
+
+python3 -m venv venv**Minimum**:10. [Advanced Configuration](#advanced-configuration)
+
+```
+
+### Windows (PowerShell)
+
+### Step 3: Activate Virtual Environment
+
+- RAM: 4 GB
+
+**Windows PowerShell**:
+
+```powershell```powershell
+
+venv\Scripts\activate
+
+```# Clone repository- Storage: 2 GB free space1. [Prerequisites](#prerequisites)
+
+
+
+**Windows CMD**:git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+
+```cmd
+
+venv\Scripts\activate.batcd Smart-Quizzer-AI- OS: Windows 10, macOS 10.15, or Ubuntu 20.04+
+
+```
+
+
+
+**Mac/Linux**:
+
+```bash# Backend setup---
+
+source venv/bin/activate
 
 ```cd backend
 
 
 
-### Step 4: Activate Virtual Environmentpython3 -m venv venv  git --version
+You should see `(venv)` prefix in your terminal prompt.python -m venv venv**Recommended**:
 
 
 
-**Windows PowerShell**:source venv/bin/activate
-
-```powershell
-
-.\venv\Scripts\Activate.ps1pip install -r requirements.txt  ```### Required Software5. [Database Setup](#database-setup)
-
-```
-
-cat > .env << EOL
-
-**Windows Command Prompt**:
-
-```cmdSECRET_KEY=your-secret-key-here
-
-venv\Scripts\activate.bat
-
-```JWT_SECRET_KEY=your-jwt-secret-key-here
+### Step 4: Install Python Dependencies.\venv\Scripts\Activate.ps1
 
 
 
-**Mac/Linux**:GOOGLE_API_KEY=your-google-api-key-here### Required API Keys
+```bashpip install -r requirements.txt- RAM: 8 GB or more2. [Backend Setup](#backend-setup)
 
-```bash
-
-source venv/bin/activateFLASK_APP=app.py
-
-```
-
-FLASK_ENV=development
-
-**Success indicator**: Your prompt should now show `(venv)` prefix.
-
-DATABASE_URL=sqlite:///instance/smart_quizzer.db
-
-### Step 5: Install Python Dependencies
-
-EOL#### Google Gemini API Key (Free)**Python 3.13 or higher**6. [Troubleshooting](#troubleshooting)### Required API Keys
-
-```bash
-
-pip install -r requirements.txtpython app.py &
+pip install -r requirements.txt
 
 ```
 
 
 
-**This installs 28 packages** including:
+This installs 28 packages including:# Create .env file- Storage: 5 GB free space
 
-- Flask 3.0.0 (web framework)# Frontend setup (new terminal)
+- Flask 3.0.0 (web framework)
 
-- SQLAlchemy 2.0.43 (database ORM)
+- SQLAlchemy 3.1.1 (database ORM)@"
 
-- Google Generative AI SDK (Gemini AI)cd ../frontend1. Visit: https://ai.google.dev/- Download: https://www.python.org/downloads/
+- Flask-SocketIO 5.3.6 (WebSocket support)
 
-- Sentence-Transformers 2.7.0+ (NLP)
+- google-generativeai (Gemini AI)SECRET_KEY=your-generated-secret-key-min-32-characters- OS: Windows 11, macOS 12+, or Ubuntu 22.04+## 📦 Prerequisites
 
-- Flask-SocketIO 5.3.6 (WebSocket support)npm install
+- sentence-transformers (NLP)
 
-- BCrypt 4.1.2 (password hashing)
+- PyPDF2, pdfplumber (PDF processing)JWT_SECRET_KEY=your-generated-jwt-key-min-32-characters
 
-- PyJWT (authentication tokens)cat > .env << EOL2. Sign in with your Google account
+- python-docx (Word processing)
 
-- PyPDF2, python-docx, BeautifulSoup4 (content processing)
+- beautifulsoup4 (web scraping)GOOGLE_API_KEY=your-google-gemini-api-key-here
 
-REACT_APP_API_URL=http://localhost:5000
-
-**Installation time**: 3-5 minutes (depends on internet speed)
-
-EOL3. Navigate to "Get API Key" → "Create API Key"- Verify: `python --version` (should show 3.13+)7. [Environment Variables](#environment-variables)- **Google Gemini API Key** - [Get one free here](https://makersuite.google.com/app/apikey)
-
-### Step 6: Configure Environment Variables
-
-npm start
-
-Create a `.env` file in the `backend/` directory.
-
-```4. Copy the generated key (keep it secure)
-
-**Windows PowerShell**:
-
-```powershell
-
-@"
-
-SECRET_KEY=your-secret-key-here-minimum-32-characters-long---
-
-JWT_SECRET_KEY=your-jwt-secret-key-minimum-32-characters
-
-GOOGLE_API_KEY=your-actual-google-gemini-api-key
+- And more...
 
 FLASK_APP=app.py
 
-FLASK_ENV=development## Detailed Backend Setup> **Note**: The free tier includes 60 requests per minute, which is sufficient for development and small deployments.
+**Troubleshooting**: If installation fails:
 
-FLASK_DEBUG=True
+```bashFLASK_ENV=development---3. [Frontend Setup](#frontend-setup)## Table of ContentsBefore you begin, ensure you have the following installed:
 
-DATABASE_URL=sqlite:///instance/smart_quizzer.db
+# Upgrade pip first
 
-CORS_ORIGINS=http://localhost:8080
-
-"@ | Out-File -FilePath .env -Encoding utf8### Step 1: Clone the Repository**Node.js 16.0 or higher**
-
-```
+python -m pip install --upgrade pipDATABASE_URL=sqlite:///instance/smart_quizzer.db
 
 
 
-**Mac/Linux (Bash)**:
+# Try installing again"@ | Out-File -FilePath .env -Encoding utf8
 
-```bash```bash---
-
-cat > .env << 'EOL'
-
-SECRET_KEY=your-secret-key-here-minimum-32-characters-longgit clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
-
-JWT_SECRET_KEY=your-jwt-secret-key-minimum-32-characters
-
-GOOGLE_API_KEY=your-actual-google-gemini-api-keycd Smart-Quizzer-AI- Download: https://nodejs.org/
-
-FLASK_APP=app.py
-
-FLASK_ENV=development```
-
-FLASK_DEBUG=True
-
-DATABASE_URL=sqlite:///instance/smart_quizzer.db## ⚡ Quick Setup
-
-CORS_ORIGINS=http://localhost:8080
-
-EOL### Step 2: Navigate to Backend Directory
-
-```
-
-- Verify: `node --version` (should show v16+)------
-
-**Important**: Replace placeholder values with actual keys!
-
-```bash
-
-#### How to Generate Secure Secret Keys
-
-cd backend### For Windows
-
-**Option 1 - Python** (All platforms):
-
-```bash```
-
-python -c "import secrets; print(secrets.token_urlsafe(32))"
+pip install -r requirements.txt
 
 ```
 
 
 
-**Option 2 - PowerShell** (Windows):### Step 3: Create Python Virtual Environment
+### Step 5: Configure Environment Variables# Start backend## Quick Setup### Required Software
 
-```powershell
 
--join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object {[char]$_})```bash
 
-```
+Create a `.env` file in the `backend/` directory:python app.py
+
+
 
 **Windows**:
 
-**Option 3 - Online** (Not recommended for production):
+```powershell
 
-Visit: [randomkeygen.com](https://randomkeygen.com/)```powershell# 1. Clone repository**npm 7.0 or higher** (included with Node.js)
+Copy-Item .env.example .env# Frontend setup (open new PowerShell terminal)
 
+notepad .env
 
-
-#### How to Get Google Gemini API Keypython -m venv venv
-
-
-
-1. Visit: [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)```git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
-
-2. Sign in with your Google account
-
-3. Click "Create API Key" button
-
-4. Copy the generated key
-
-5. Paste it as the value for `GOOGLE_API_KEY` in your `.env` file**Mac/Linux**:cd Smart-Quizzer-AI- Verify: `npm --version`
+```cd ..\frontendFor experienced developers who want to get started quickly:4. [Environment Configuration](#environment-configuration)
 
 
 
-**Note**: The free tier allows 60 requests/minute, which is sufficient for development.```bash
-
-
-
-### Step 7: Initialize Database and Start Serverpython3 -m venv venv
-
-
-
-```bash```
-
-python app.py
-
-```# 2. Backend setup## Prerequisites## 🚀 Quick Setup (Automated)
-
-
-
-**What happens**:### Step 4: Activate Virtual Environment
-
-1. Creates `instance/` directory if it doesn't exist
-
-2. Generates `smart_quizzer.db` SQLite database filecd backend
-
-3. Creates all 15 database tables:
-
-   - user, quiz_session, question, topic, badge**Windows (PowerShell)**:
-
-   - user_badge, performance_trend, learning_path, learning_milestone
-
-   - multiplayer_room, multiplayer_participant, quiz_leaderboard```powershellpython -m venv venv**Git** (for cloning repository)
-
-   - flagged_question, question_feedback, password_reset_token
-
-4. Inserts default data:.\venv\Scripts\Activate.ps1
-
-   - 10 quiz topics (Python, JavaScript, Data Structures, etc.)
-
-   - 21 achievement badges```venv\Scripts\activate
-
-5. Starts Flask development server on port 5000
-
-
-
-**Expected output**:
-
-```**Windows (Command Prompt)**:pip install -r requirements.txt- Download: https://git-scm.com/downloads
-
- * Serving Flask app 'app.py'
-
- * Debug mode: on```cmd
-
-WARNING: This is a development server. Do not use it in production.
-
-Use a production WSGI server instead.venv\Scripts\activate.bat
-
- * Running on http://127.0.0.1:5000
-
-Press CTRL+C to quit```
-
-```
-
-# 3. Create .env file- Verify: `git --version`
-
-**Backend is now running on**: `http://localhost:5000`
-
-**Mac/Linux**:
-
-**Keep this terminal window open!**
-
-```bashecho GOOGLE_API_KEY=your_api_key_here > .env
-
----
-
-source venv/bin/activate
-
-## Detailed Frontend Setup
-
-```### Required Software### Windows
-
-Open a **new terminal window** for the frontend setup.
-
-
-
-### Step 1: Navigate to Frontend Directory
-
-You should see `(venv)` prefix in your terminal prompt.# Generate secret keys
+**Mac/Linux**:npm install
 
 ```bash
 
-cd frontend
+cp .env.example .env
 
-```
+nano .env  # or your preferred editor
 
-### Step 5: Install Python Dependenciespython -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))" >> .env### Required API Keys
-
-(If you're at the project root. If you're in `backend/`, use `cd ../frontend`)
+```# Create frontend .env
 
 
 
-### Step 2: Install Node.js Dependencies
-
-```bashpython -c "import secrets; print('JWT_SECRET_KEY=' + secrets.token_hex(32))" >> .env
-
-```bash
-
-npm installpip install -r requirements.txt
-
-```
-
-```
-
-**This installs 1000+ packages** including:
-
-- React 18.2.0
-
-- TypeScript 4.9.5
-
-- Tailwind CSS 3.3.0This installs 28 packages including:# 4. Start backend
-
-- React Router 6.4.0
-
-- Axios 1.5.0- Flask 3.0.0 (web framework)
-
-- Socket.IO Client 4.8.1
-
-- Recharts 2.8.0 (for charts)- SQLAlchemy 2.0.43 (database ORM)python app.py**Google Gemini API Key** (Free tier available)
-
-- And many development dependencies
-
-- Google Generative AI SDK (Gemini AI)
-
-**Installation time**: 2-4 minutes
-
-- Sentence-Transformers (NLP for answer evaluation)```
-
-**Possible warnings**: You might see peer dependency warnings - these are normal and can be safely ignored.
-
-- Flask-SocketIO (real-time WebSocket support)
-
-### Step 3: Configure Frontend Environment
-
-- And more...1. Visit: https://ai.google.dev/1. **Python 3.13+**```bash
-
-Create a `.env` file in the `frontend/` directory.
+**Edit the `.env` file** with these values:@"### Windows (PowerShell)#### 1. Python 3.9 or Higher
 
 
 
-**Windows PowerShell**:
+```envREACT_APP_API_URL=http://localhost:5000
 
-```powershell**Installation time**: Approximately 3-5 minutes depending on internet speed.Open a **new terminal**:
+# Flask Configuration
 
-@"
+SECRET_KEY=your-secret-key-here-minimum-32-characters-long"@ | Out-File -FilePath .env -Encoding utf8
 
-REACT_APP_API_URL=http://localhost:5000
+JWT_SECRET_KEY=your-jwt-secret-key-also-32-chars-minimum
 
-"@ | Out-File -FilePath .env -Encoding utf8
-
-```### Step 6: Configure Environment Variables2. Sign in with Google account
+FLASK_ENV=development
 
 
 
-**Mac/Linux (Bash)**:
+# Database (SQLite for local development)# Start frontend```powershell- **Download**: https://www.python.org/downloads/5. [Database Initialization](#database-initialization)
 
-```bash
+DATABASE_URL=sqlite:///instance/smart_quizzer.db
 
-cat > .env << 'EOL'Create a `.env` file in the `backend/` directory:```bash
+npm start
 
-REACT_APP_API_URL=http://localhost:5000
+# Google Gemini AI
 
-EOL
+GOOGLE_API_KEY=AIza...your-actual-api-key-here```# Clone repository
 
-```
 
-**Windows (PowerShell)**:# 5. Frontend setup3. Navigate to "Get API Key" → "Create API Key"   - Download: https://www.python.org/downloads/# 1. Clone the repository
 
-**Note**: If you deploy the backend on a different URL, update this value accordingly.
+# Answer Evaluation
+
+SIMILARITY_THRESHOLD=0.75
+
+### Mac/Linux (Bash/Zsh)git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git- **Verify installation**:
+
+# CORS (Frontend URL)
+
+CORS_ORIGINS=http://localhost:8080
+
+
+
+# Optional: Email Configuration (if implementing password reset)```bashcd Smart-Quizzer-AI
+
+# SMTP_SERVER=smtp.gmail.com
+
+# SMTP_PORT=587# Clone repository
+
+# SMTP_USERNAME=your-email@gmail.com
+
+# SMTP_PASSWORD=your-app-passwordgit clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git  ```bash6. [Running the Application](#running-the-application)
+
+# FROM_EMAIL=your-email@gmail.com
+
+```cd Smart-Quizzer-AI
+
+
+
+**Generate Secure Secret Keys**:# Backend setup
+
+
+
+**Windows PowerShell**:# Backend setup
 
 ```powershell
 
-### Step 4: Start Development Server
+# Generate SECRET_KEYcd backendcd backend  python --version
 
-@"cd frontend
+python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(32))"
+
+python3 -m venv venv
+
+# Generate JWT_SECRET_KEY
+
+python -c "import secrets; print('JWT_SECRET_KEY=' + secrets.token_hex(32))"source venv/bin/activatepython -m venv venv
+
+```
+
+pip install -r requirements.txt
+
+**Mac/Linux**:
+
+```bash.\venv\Scripts\Activate.ps1  # Should output: Python 3.9.x or higher7. [Production Deployment](#production-deployment)1. [Prerequisites](#prerequisites)### Required Software
+
+# Generate SECRET_KEY
+
+python3 -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(32))"# Create .env file
+
+
+
+# Generate JWT_SECRET_KEYcat > .env << 'EOL'pip install -r requirements.txt
+
+python3 -c "import secrets; print('JWT_SECRET_KEY=' + secrets.token_hex(32))"
+
+```SECRET_KEY=your-generated-secret-key-min-32-characters
+
+
+
+Copy the generated keys into your `.env` file.JWT_SECRET_KEY=your-generated-jwt-key-min-32-characters@"  ```
+
+
+
+### Step 6: Verify InstallationGOOGLE_API_KEY=your-google-gemini-api-key-here
+
+
+
+```bashFLASK_APP=app.pySECRET_KEY=your-secret-key-here
+
+python --version  # Should show Python 3.9+
+
+pip list  # Should show all installed packagesFLASK_ENV=development
+
+```
+
+DATABASE_URL=sqlite:///instance/smart_quizzer.dbJWT_SECRET_KEY=your-jwt-secret-key-here8. [Troubleshooting](#troubleshooting)
+
+---
+
+EOL
+
+## Detailed Frontend Setup
+
+GOOGLE_API_KEY=your-google-api-key-here
+
+### Step 1: Navigate to Frontend Directory
+
+# Start backend
 
 ```bash
 
-npm startSECRET_KEY=your-secret-key-here-minimum-32-characters
+cd frontendpython app.py &FLASK_APP=app.py#### 2. Node.js 16 or Higher
 
 ```
 
-JWT_SECRET_KEY=your-jwt-secret-key-here-minimum-32-charactersnpm install4. Copy the generated key (keep it secure)
 
-**What happens**:
+
+(If you're in `backend/`, use `cd ../frontend`)
+
+# Frontend setup (open new terminal)FLASK_ENV=development
+
+### Step 2: Install Node Dependencies
+
+cd ../frontend
+
+```bash
+
+npm installnpm installDATABASE_URL=sqlite:///instance/smart_quizzer.db- **Download**: https://nodejs.org/9. [Advanced Configuration](#advanced-configuration)2. [Installation](#installation)- **Python 3.8 or higher** - [Download here](https://www.python.org/downloads/)
+
+```
+
+
+
+This installs packages including:
+
+- React 18.2.0# Create frontend .env"@ | Out-File -FilePath .env -Encoding utf8
+
+- TypeScript 4.8
+
+- Tailwind CSS 3.3.0cat > .env << 'EOL'
+
+- React Router 6.4.0
+
+- Axios 1.5.0REACT_APP_API_URL=http://localhost:5000python app.py &- **Verify installation**:
+
+- Socket.IO Client 4.8.1
+
+- And more...EOL
+
+
+
+**Troubleshooting**: If `npm install` fails:
+
+```bash
+
+# Clear npm cache# Start frontend
+
+npm cache clean --force
+
+npm start# Frontend setup (new terminal)  ```bash
+
+# Delete node_modules and package-lock.json
+
+rm -rf node_modules package-lock.json  # Mac/Linux```
+
+Remove-Item -Recurse -Force node_modules,package-lock.json  # Windows
+
+cd ..\frontend
+
+# Reinstall
+
+npm install---
+
+```
+
+npm install  node --version  # Should output: v16.x.x or higher
+
+### Step 3: Configure Frontend Environment (Optional)
+
+## Detailed Backend Setup
+
+By default, frontend connects to `http://localhost:5000`. To customize:
+
+@"
+
+Create `frontend/.env`:
+
+```env### Step 1: Clone the Repository
+
+REACT_APP_API_URL=http://localhost:5000
+
+REACT_APP_WS_URL=http://localhost:5000REACT_APP_API_URL=http://localhost:5000  npm --version   # Should output: 8.x.x or higher---3. [Configuration](#configuration)- **Node.js 16 or higher** - [Download here](https://nodejs.org/)
+
+```
+
+Open your terminal (PowerShell on Windows, Terminal on Mac/Linux) and run:
+
+### Step 4: Verify Installation
+
+"@ | Out-File -FilePath .env -Encoding utf8
+
+```bash
+
+node --version  # Should show v16+```bash
+
+npm --version  # Should show v8+
+
+npm list --depth=0  # Shows installed packagesgit clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.gitnpm start  ```
+
+```
+
+cd Smart-Quizzer-AI
+
+---
+
+``````
+
+## Database Initialization
+
+
+
+Smart Quizzer AI uses SQLite for local development. The database auto-initializes on first run.
+
+### Step 2: Navigate to Backend Directory
+
+### Automatic Initialization (Recommended)
+
+
+
+Simply run the backend application:
+
+```bash### Mac/Linux (Bash)
+
+```bash
+
+cd backendcd backend
+
+python app.py
+
+``````#### 3. Git
+
+
+
+The system will:
+
+1. Create `instance/` directory if it doesn't exist
+
+2. Create all 15 database tables### Step 3: Create Python Virtual Environment```bash
+
+3. Insert default topics (10 topics)
+
+4. Create 21 achievement badges
+
+5. Log "Database initialization complete"
+
+**Why virtual environment?** Isolates project dependencies from system Python packages.# Clone repository- **Download**: https://git-scm.com/downloads## Prerequisites4. [Running the Application](#running-the-application)- **Git** - [Download here](https://git-scm.com/downloads)
+
+You can press **Ctrl+C** to stop the server after initialization.
+
+
+
+### Manual Database Reset
+
+**Windows**:git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+
+To completely reset the database:
+
+```powershell
+
+**Windows**:
+
+```powershellpython -m venv venvcd Smart-Quizzer-AI- **Verify installation**:
+
+Remove-Item -Force backend\instance\smart_quizzer.db
+
+python backend\app.py```
+
+# Database recreates automatically
+
+```
+
+
+
+**Mac/Linux**:**Mac/Linux**:
+
+```bash
+
+rm -f backend/instance/smart_quizzer.db```bash# Backend setup  ```bash
+
+python backend/app.py
+
+# Database recreates automaticallypython3 -m venv venv
+
+```
+
+```cd backend
+
+### Database Location
+
+
+
+The SQLite database is stored at:
+
+```### Step 4: Activate Virtual Environmentpython3 -m venv venv  git --version
+
+backend/instance/smart_quizzer.db
+
+```
+
+
+
+This file is automatically excluded from Git (see `.gitignore`).**Windows PowerShell**:source venv/bin/activate
+
+
+
+### Database Tables Created```powershell
+
+
+
+15 tables are created:.\venv\Scripts\Activate.ps1pip install -r requirements.txt  ```### Required Software5. [Database Setup](#database-setup)
+
+1. `user` - User accounts
+
+2. `quiz_session` - Quiz attempts```
+
+3. `question` - Question bank
+
+4. `topic` - Quiz topics/subjectscat > .env << EOL
+
+5. `password_reset_token` - Password recovery
+
+6. `question_feedback` - User ratings on questions**Windows Command Prompt**:
+
+7. `flagged_question` - Reported questions
+
+8. `quiz_leaderboard` - Global rankings```cmdSECRET_KEY=your-secret-key-here
+
+9. `badge` - Achievement definitions
+
+10. `user_badge` - User achievement trackingvenv\Scripts\activate.bat
+
+11. `performance_trend` - Analytics data
+
+12. `learning_path` - Personalized learning routes```JWT_SECRET_KEY=your-jwt-secret-key-here
+
+13. `learning_milestone` - Progress checkpoints
+
+14. `multiplayer_room` - Real-time quiz rooms
+
+15. `multiplayer_participant` - Room participants
+
+**Mac/Linux**:GOOGLE_API_KEY=your-google-api-key-here### Required API Keys
+
+---
+
+```bash
+
+## Running the Application
+
+source venv/bin/activateFLASK_APP=app.py
+
+You need **two terminal windows** - one for backend, one for frontend.
+
+```
+
+### Terminal 1: Backend Server
+
+FLASK_ENV=development
+
+**Windows PowerShell**:
+
+```powershell**Success indicator**: Your prompt should now show `(venv)` prefix.
+
+cd backend
+
+venv\Scripts\activateDATABASE_URL=sqlite:///instance/smart_quizzer.db
+
+python app.py
+
+```### Step 5: Install Python Dependencies
+
+
+
+**Mac/Linux**:EOL#### Google Gemini API Key (Free)**Python 3.13 or higher**6. [Troubleshooting](#troubleshooting)### Required API Keys
+
+```bash
+
+cd backend```bash
+
+source venv/bin/activate
+
+python app.pypip install -r requirements.txtpython app.py &
+
+```
+
+```
+
+**Expected output**:
+
+```
+
+ * Serving Flask app 'app'
+
+ * Debug mode: on**This installs 28 packages** including:
+
+INFO:werkzeug: * Running on http://127.0.0.1:5000
+
+ * Restarting with stat- Flask 3.0.0 (web framework)# Frontend setup (new terminal)
+
+Database initialization complete
+
+```- SQLAlchemy 2.0.43 (database ORM)
+
+
+
+Backend API is now available at `http://localhost:5000`- Google Generative AI SDK (Gemini AI)cd ../frontend1. Visit: https://ai.google.dev/- Download: https://www.python.org/downloads/
+
+
+
+### Terminal 2: Frontend Development Server- Sentence-Transformers 2.7.0+ (NLP)
+
+
+
+**Windows/Mac/Linux**:- Flask-SocketIO 5.3.6 (WebSocket support)npm install
+
+```bash
+
+cd frontend- BCrypt 4.1.2 (password hashing)
+
+npm start
+
+```- PyJWT (authentication tokens)cat > .env << EOL2. Sign in with your Google account
+
+
+
+**Expected output**:- PyPDF2, python-docx, BeautifulSoup4 (content processing)
+
+```
+
+Compiled successfully!REACT_APP_API_URL=http://localhost:5000
+
+
+
+You can now view smart-quizzer-frontend in the browser.**Installation time**: 3-5 minutes (depends on internet speed)
+
+
+
+  Local:            http://localhost:8080EOL3. Navigate to "Get API Key" → "Create API Key"- Verify: `python --version` (should show 3.13+)7. [Environment Variables](#environment-variables)- **Google Gemini API Key** - [Get one free here](https://makersuite.google.com/app/apikey)
+
+  On Your Network:  http://192.168.x.x:8080
+
+```### Step 6: Configure Environment Variables
+
+
+
+Browser automatically opens to `http://localhost:8080`npm start
+
+
+
+### Stopping the ServersCreate a `.env` file in the `backend/` directory.
+
+
+
+Press **Ctrl+C** in each terminal window.```4. Copy the generated key (keep it secure)
+
+
+
+### Default Test Account (If Created)**Windows PowerShell**:
+
+
+
+Some setups include a test account:```powershell
+
+- **Username**: `testuser`
+
+- **Password**: `Test@123`@"
+
+
+
+Or register a new account via the UI.SECRET_KEY=your-secret-key-here-minimum-32-characters-long---
+
+
+
+---JWT_SECRET_KEY=your-jwt-secret-key-minimum-32-characters
+
+
+
+## Environment Variables ReferenceGOOGLE_API_KEY=your-actual-google-gemini-api-key
+
+
+
+### Backend VariablesFLASK_APP=app.py
+
+
+
+| Variable | Required | Default | Description |FLASK_ENV=development## Detailed Backend Setup> **Note**: The free tier includes 60 requests per minute, which is sufficient for development and small deployments.
+
+|----------|----------|---------|-------------|
+
+| `SECRET_KEY` | Yes | - | Flask secret key for session encryption (min 32 chars) |FLASK_DEBUG=True
+
+| `JWT_SECRET_KEY` | Yes | - | JWT token signing key (min 32 chars) |
+
+| `GOOGLE_API_KEY` | Yes | - | Google Gemini AI API key for question generation |DATABASE_URL=sqlite:///instance/smart_quizzer.db
+
+| `DATABASE_URL` | No | `sqlite:///instance/smart_quizzer.db` | Database connection string |
+
+| `SIMILARITY_THRESHOLD` | No | `0.75` | NLP similarity threshold for answer evaluation (0.0-1.0) |CORS_ORIGINS=http://localhost:8080
+
+| `CORS_ORIGINS` | No | `http://localhost:8080` | Allowed frontend origins (comma-separated) |
+
+| `FLASK_ENV` | No | `development` | Flask environment (`development` or `production`) |"@ | Out-File -FilePath .env -Encoding utf8### Step 1: Clone the Repository**Node.js 16.0 or higher**
+
+| `SMTP_SERVER` | No | - | SMTP server for emails (optional) |
+
+| `SMTP_PORT` | No | `587` | SMTP port |```
+
+| `SMTP_USERNAME` | No | - | Email username |
+
+| `SMTP_PASSWORD` | No | - | Email password (use app password) |
+
+| `FROM_EMAIL` | No | - | Sender email address |
+
+**Mac/Linux (Bash)**:
+
+### Frontend Variables
+
+```bash```bash---
+
+| Variable | Required | Default | Description |
+
+|----------|----------|---------|-------------|cat > .env << 'EOL'
+
+| `REACT_APP_API_URL` | No | `http://localhost:5000` | Backend API base URL |
+
+| `REACT_APP_WS_URL` | No | `http://localhost:5000` | WebSocket server URL |SECRET_KEY=your-secret-key-here-minimum-32-characters-longgit clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+
+
+
+---JWT_SECRET_KEY=your-jwt-secret-key-minimum-32-characters
+
+
+
+## TestingGOOGLE_API_KEY=your-actual-google-gemini-api-keycd Smart-Quizzer-AI- Download: https://nodejs.org/
+
+
+
+### Backend TestsFLASK_APP=app.py
+
+
+
+Currently, the project uses manual testing. To test backend functionality:FLASK_ENV=development```
+
+
+
+1. **Start the backend server**FLASK_DEBUG=True
+
+   ```bash
+
+   cd backendDATABASE_URL=sqlite:///instance/smart_quizzer.db## ⚡ Quick Setup
+
+   python app.py
+
+   ```CORS_ORIGINS=http://localhost:8080
+
+
+
+2. **Test endpoints using curl or Postman**EOL### Step 2: Navigate to Backend Directory
+
+
+
+   **Register a user**:```
+
+   ```bash
+
+   curl -X POST http://localhost:5000/api/auth/register \- Verify: `node --version` (should show v16+)------
+
+     -H "Content-Type: application/json" \
+
+     -d '{"username":"testuser","email":"test@example.com","password":"Test@123","full_name":"Test User"}'**Important**: Replace placeholder values with actual keys!
+
+   ```
+
+```bash
+
+   **Login**:
+
+   ```bash#### How to Generate Secure Secret Keys
+
+   curl -X POST http://localhost:5000/api/auth/login \
+
+     -H "Content-Type: application/json" \cd backend### For Windows
+
+     -d '{"username":"testuser","password":"Test@123"}'
+
+   ```**Option 1 - Python** (All platforms):
+
+
+
+### Frontend Tests```bash```
+
+
+
+```bashpython -c "import secrets; print(secrets.token_urlsafe(32))"
+
+cd frontend
+
+npm test```
+
+```
+
+
+
+Note: Test suite is minimal. Contributions welcome!
+
+**Option 2 - PowerShell** (Windows):### Step 3: Create Python Virtual Environment
+
+---
+
+```powershell
+
+## Production Deployment
+
+-join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object {[char]$_})```bash
+
+### Using Gunicorn (Linux/Mac)
+
+```
+
+1. **Install Gunicorn** (already in requirements.txt)
+
+   ```bash**Windows**:
+
+   pip install gunicorn
+
+   ```**Option 3 - Online** (Not recommended for production):
+
+
+
+2. **Run with Gunicorn**Visit: [randomkeygen.com](https://randomkeygen.com/)```powershell# 1. Clone repository**npm 7.0 or higher** (included with Node.js)
+
+   ```bash
+
+   cd backend
+
+   gunicorn -w 4 -b 0.0.0.0:5000 --worker-class eventlet app:app
+
+   ```#### How to Get Google Gemini API Keypython -m venv venv
+
+
+
+### Using PostgreSQL (Recommended for Production)
+
+
+
+1. **Install PostgreSQL**1. Visit: [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)```git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+
+   - [Download PostgreSQL](https://www.postgresql.org/download/)
+
+2. Sign in with your Google account
+
+2. **Create Database**
+
+   ```sql3. Click "Create API Key" button
+
+   CREATE DATABASE smart_quizzer;
+
+   CREATE USER quizzer_user WITH PASSWORD 'secure_password';4. Copy the generated key
+
+   GRANT ALL PRIVILEGES ON DATABASE smart_quizzer TO quizzer_user;
+
+   ```5. Paste it as the value for `GOOGLE_API_KEY` in your `.env` file**Mac/Linux**:cd Smart-Quizzer-AI- Verify: `npm --version`
+
+
+
+3. **Update `.env`**
+
+   ```env
+
+   DATABASE_URL=postgresql://quizzer_user:secure_password@localhost/smart_quizzer**Note**: The free tier allows 60 requests/minute, which is sufficient for development.```bash
+
+   ```
+
+
+
+4. **Install PostgreSQL adapter**
+
+   ```bash### Step 7: Initialize Database and Start Serverpython3 -m venv venv
+
+   pip install psycopg2-binary
+
+   ```
+
+
+
+### Frontend Production Build```bash```
+
+
+
+```bashpython app.py
+
+cd frontend
+
+npm run build```# 2. Backend setup## Prerequisites## 🚀 Quick Setup (Automated)
+
+```
+
+
+
+This creates optimized production files in `frontend/build/`.
+
+**What happens**:### Step 4: Activate Virtual Environment
+
+Serve with Nginx, Apache, or any static file server.
+
+1. Creates `instance/` directory if it doesn't exist
+
+### Environment Variables for Production
+
+2. Generates `smart_quizzer.db` SQLite database filecd backend
+
+Update `.env`:
+
+```env3. Creates all 15 database tables:
+
+FLASK_ENV=production
+
+DATABASE_URL=postgresql://user:pass@host/dbname   - user, quiz_session, question, topic, badge**Windows (PowerShell)**:
+
+CORS_ORIGINS=https://yourdomain.com
+
+SECRET_KEY=<strong-production-key>   - user_badge, performance_trend, learning_path, learning_milestone
+
+JWT_SECRET_KEY=<strong-production-jwt-key>
+
+```   - multiplayer_room, multiplayer_participant, quiz_leaderboard```powershellpython -m venv venv**Git** (for cloning repository)
+
+
+
+---   - flagged_question, question_feedback, password_reset_token
+
+
+
+## Troubleshooting4. Inserts default data:.\venv\Scripts\Activate.ps1
+
+
+
+### Issue 1: "GOOGLE_API_KEY not configured"   - 10 quiz topics (Python, JavaScript, Data Structures, etc.)
+
+
+
+**Error**:   - 21 achievement badges```venv\Scripts\activate
+
+```
+
+Error: GOOGLE_API_KEY not configured in environment variables5. Starts Flask development server on port 5000
+
+```
+
+
+
+**Solution**:
+
+1. Verify `.env` file exists in `backend/` directory**Expected output**:
+
+2. Ensure `GOOGLE_API_KEY=AIza...` line is present
+
+3. Remove any quotes around the key```**Windows (Command Prompt)**:pip install -r requirements.txt- Download: https://git-scm.com/downloads
+
+4. Restart the backend server
+
+5. Get a new API key from [Google AI Studio](https://aistudio.google.com/app/apikey) * Serving Flask app 'app.py'
+
+
+
+### Issue 2: "Module not found" Errors * Debug mode: on```cmd
+
+
+
+**Python modules not found**:WARNING: This is a development server. Do not use it in production.
+
+```bash
+
+# Ensure virtual environment is activatedUse a production WSGI server instead.venv\Scripts\activate.bat
+
+venv\Scripts\activate  # Windows
+
+source venv/bin/activate  # Mac/Linux * Running on http://127.0.0.1:5000
+
+
+
+# Reinstall dependenciesPress CTRL+C to quit```
+
+pip install -r requirements.txt
+
+``````
+
+
+
+**Node modules not found**:# 3. Create .env file- Verify: `git --version`
+
+```bash
+
+cd frontend**Backend is now running on**: `http://localhost:5000`
+
+rm -rf node_modules package-lock.json
+
+npm install**Mac/Linux**:
+
+```
+
+**Keep this terminal window open!**
+
+### Issue 3: Port Already in Use
+
+```bashecho GOOGLE_API_KEY=your_api_key_here > .env
+
+**Backend port 5000 in use**:
+
+---
+
+**Windows**:
+
+```powershellsource venv/bin/activate
+
+# Find process using port 5000
+
+netstat -ano | findstr :5000## Detailed Frontend Setup
+
+
+
+# Kill process (replace PID)```### Required Software### Windows
+
+taskkill /PID <process_id> /F
+
+```Open a **new terminal window** for the frontend setup.
+
+
+
+**Mac/Linux**:
+
+```bash
+
+# Find process### Step 1: Navigate to Frontend Directory
+
+lsof -i :5000
+
+You should see `(venv)` prefix in your terminal prompt.# Generate secret keys
+
+# Kill process
+
+kill -9 <PID>```bash
+
+```
+
+cd frontend
+
+**Frontend port 8080 in use**:
+
+Change port in `frontend/package.json`:```
+
+```json
+
+"scripts": {### Step 5: Install Python Dependenciespython -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))" >> .env### Required API Keys
+
+  "start": "set PORT=3000 && react-scripts start"  // Windows
+
+  "start": "PORT=3000 react-scripts start"  // Mac/Linux(If you're at the project root. If you're in `backend/`, use `cd ../frontend`)
+
+}
+
+```
+
+
+
+### Issue 4: Database Errors### Step 2: Install Node.js Dependencies
+
+
+
+**"Unable to open database file"**:```bashpython -c "import secrets; print('JWT_SECRET_KEY=' + secrets.token_hex(32))" >> .env
+
+```bash
+
+# Ensure instance directory exists```bash
+
+mkdir -p backend/instance  # Mac/Linux
+
+New-Item -ItemType Directory -Force backend\instance  # Windowsnpm installpip install -r requirements.txt
+
+
+
+# Reset database```
+
+python backend/app.py
+
+``````
+
+
+
+**"Table already exists"**:**This installs 1000+ packages** including:
+
+```bash
+
+# Delete and recreate database- React 18.2.0
+
+rm backend/instance/smart_quizzer.db  # Mac/Linux
+
+Remove-Item backend\instance\smart_quizzer.db  # Windows- TypeScript 4.9.5
+
+
+
+python backend/app.py- Tailwind CSS 3.3.0This installs 28 packages including:# 4. Start backend
+
+```
+
+- React Router 6.4.0
+
+### Issue 5: CORS Errors
+
+- Axios 1.5.0- Flask 3.0.0 (web framework)
+
+**"Access-Control-Allow-Origin" error in browser**:
+
+- Socket.IO Client 4.8.1
+
+1. Check `CORS_ORIGINS` in `.env`:
+
+   ```env- Recharts 2.8.0 (for charts)- SQLAlchemy 2.0.43 (database ORM)python app.py**Google Gemini API Key** (Free tier available)
+
+   CORS_ORIGINS=http://localhost:8080
+
+   ```- And many development dependencies
+
+
+
+2. Ensure frontend runs on the specified port- Google Generative AI SDK (Gemini AI)
+
+
+
+3. Restart backend server after changing `.env`**Installation time**: 2-4 minutes
+
+
+
+### Issue 6: Gemini API Rate Limits- Sentence-Transformers (NLP for answer evaluation)```
+
+
+
+**"Resource exhausted" or 429 errors**:**Possible warnings**: You might see peer dependency warnings - these are normal and can be safely ignored.
+
+
+
+Free tier limits:- Flask-SocketIO (real-time WebSocket support)
+
+- 60 requests per minute
+
+- 1,500 requests per day### Step 3: Configure Frontend Environment
+
+
+
+**Solutions**:- And more...1. Visit: https://ai.google.dev/1. **Python 3.13+**```bash
+
+- Wait 1 minute between generating large batches of questions
+
+- Reduce number of questions per quiz (5-10 instead of 20)Create a `.env` file in the `frontend/` directory.
+
+- Consider upgrading to paid tier if needed
+
+
+
+### Issue 7: Frontend Compilation Errors
+
+**Windows PowerShell**:
+
+**Webpack errors or TypeScript issues**:
+
+```powershell**Installation time**: Approximately 3-5 minutes depending on internet speed.Open a **new terminal**:
+
+```bash
+
+cd frontend@"
+
+
+
+# Clear cacheREACT_APP_API_URL=http://localhost:5000
+
+rm -rf node_modules/.cache  # Mac/Linux
+
+Remove-Item -Recurse node_modules\.cache  # Windows"@ | Out-File -FilePath .env -Encoding utf8
+
+
+
+# Rebuild```### Step 6: Configure Environment Variables2. Sign in with Google account
+
+npm start
+
+```
+
+
+
+### Issue 8: Virtual Environment Activation Issues**Mac/Linux (Bash)**:
+
+
+
+**"venv not recognized" on Windows**:```bash
+
+
+
+Use full path:cat > .env << 'EOL'Create a `.env` file in the `backend/` directory:```bash
+
+```powershell
+
+C:\path\to\Smart-Quizzer-AI\backend\venv\Scripts\activateREACT_APP_API_URL=http://localhost:5000
+
+```
+
+EOL
+
+Or use Python directly:
+
+```powershell```
+
+python -m venv venv
+
+venv\Scripts\python.exe app.py**Windows (PowerShell)**:# 5. Frontend setup3. Navigate to "Get API Key" → "Create API Key"   - Download: https://www.python.org/downloads/# 1. Clone the repository
+
+```
+
+**Note**: If you deploy the backend on a different URL, update this value accordingly.
+
+---
+
+```powershell
+
+## Additional Notes
+
+### Step 4: Start Development Server
+
+### Deactivating Virtual Environment
+
+@"cd frontend
+
+When done developing:
+
+```bash```bash
+
+deactivate
+
+```npm startSECRET_KEY=your-secret-key-here-minimum-32-characters
+
+
+
+### Updating Dependencies```
+
+
+
+**Backend**:JWT_SECRET_KEY=your-jwt-secret-key-here-minimum-32-charactersnpm install4. Copy the generated key (keep it secure)
+
+```bash
+
+pip install --upgrade -r requirements.txt**What happens**:
+
+```
 
 1. Compiles TypeScript to JavaScriptGOOGLE_API_KEY=your-google-gemini-api-key-here
 
-2. Processes Tailwind CSS
+**Frontend**:
 
-3. Starts webpack development server on port 8080FLASK_APP=app.pynpm start
+```bash2. Processes Tailwind CSS
 
-4. Opens browser automatically at `http://localhost:8080`
+npm update
 
-5. Enables hot-reload (changes auto-refresh the browser)FLASK_ENV=development
-
-
-
-**Expected output**:DATABASE_URL=sqlite:///instance/smart_quizzer.db```   - Verify installation: `python --version`git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
-
-```
-
-Compiled successfully!"@ | Out-File -FilePath .env -Encoding utf8
+```3. Starts webpack development server on port 8080FLASK_APP=app.pynpm start
 
 
 
-You can now view smart-quizzer-frontend in the browser.```
+### Checking Logs4. Opens browser automatically at `http://localhost:8080`
 
+
+
+Backend logs print to console. For production, configure logging to files.5. Enables hot-reload (changes auto-refresh the browser)FLASK_ENV=development
+
+
+
+### Security Reminders
+
+
+
+- **Never commit `.env` files** to Git**Expected output**:DATABASE_URL=sqlite:///instance/smart_quizzer.db```   - Verify installation: `python --version`git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
+
+- Use strong, unique secret keys in production
+
+- Change default passwords```
+
+- Keep dependencies updated
+
+- Use HTTPS in productionCompiled successfully!"@ | Out-File -FilePath .env -Encoding utf8
+
+
+
+---
+
+
+
+**Need more help?** Check [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md) for technical details or open an issue on GitHub.You can now view smart-quizzer-frontend in the browser.```
+
+
+
+**Ready to deploy?** See the Production Deployment section above or contact the project maintainer.
 
 
   Local:            http://localhost:8080
