@@ -126,18 +126,27 @@ def initialize_database():
             initialize_topics()
         
         # Initialize badges (if not already initialized) - Fixed has_table() deprecation
-        from sqlalchemy import inspect
-        inspector = inspect(db.engine)
-        has_badges_table = 'badges' in inspector.get_table_names()
-        
-        if has_badges_table:
-            badge_count = db.session.query(Badge).count()
-        else:
-            badge_count = 0
+        try:
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            has_badges_table = 'badges' in inspector.get_table_names()
             
-        if badge_count == 0:
-            logger.info("Initializing achievement badges...")
-            badge_service.initialize_badges()
+            if has_badges_table:
+                try:
+                    badge_count = db.session.query(Badge).count()
+                except Exception as badge_query_error:
+                    logger.warning(f"Could not query badges table: {badge_query_error}")
+                    badge_count = 0
+            else:
+                badge_count = 0
+                
+            if badge_count == 0:
+                logger.info("Initializing achievement badges...")
+                badge_service.initialize_badges()
+        except Exception as badge_init_error:
+            logger.warning(f"Could not initialize badges: {badge_init_error}")
+            import traceback
+            traceback.print_exc()
         
         logger.info("Database initialization complete")
         
