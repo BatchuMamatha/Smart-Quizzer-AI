@@ -1,117 +1,126 @@
 ﻿# 🎓 Smart Quizzer AI
 
-### Adaptive AI-Based Learning & Quiz Generation Platform
+An intelligent, adaptive learning platform that uses AI to generate personalized quizzes and provide real-time performance analytics.
 
-![React](https://img.shields.io/badge/Frontend-React-blue?logo=react)
-![Flask](https://img.shields.io/badge/Backend-Flask-green?logo=flask)
-![Python](https://img.shields.io/badge/Language-Python-yellow?logo=python)
-![TypeScript](https://img.shields.io/badge/TypeScript-4.8+-informational?logo=typescript)
-![License](https://img.shields.io/badge/License-MIT-lightgrey)
-
----
-
-## 📘 Overview
-
-**Smart Quizzer AI** is an intelligent, adaptive learning platform that uses artificial intelligence to generate personalized quizzes from educational content such as PDFs, URLs, or text.
-The platform automatically evaluates user responses, adjusts question difficulty in real-time, and provides performance analytics through detailed dashboards and leaderboards.
-
-Ideal for:
-
-* 🎓 Students preparing for exams
-* 👩‍🏫 Educators designing dynamic assessments
-* 💼 Corporate training and certification programs
-* 📚 Self-learners seeking personalized study tools
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)](https://reactjs.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-4.8+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
 
-## ✨ Key Features
+## 📋 Overview
 
-### 🤖 AI-Powered Question Generation
+Smart Quizzer AI is an adaptive learning platform that transforms educational content into interactive quizzes. Using advanced AI and NLP, it generates contextually relevant questions, evaluates answers semantically, and adapts difficulty based on user performance.
 
-* Generates quizzes from **PDFs, DOCX files, URLs, and plain text**
-* Powered by **Google Gemini AI** for contextual, relevant question creation
-* Supports **MCQ, True/False, and Short Answer** formats
-* Classifies questions using **Bloom’s Taxonomy** (Easy, Medium, Hard)
+**Perfect for:**
+- 🎓 Students preparing for exams
+- 👨‍🏫 Educators creating dynamic assessments
+- 💼 Corporate training programs
+- 📚 Self-paced learners
+
+---
+
+## ✨ Core Features
+
+### 🤖 AI-Powered Quiz Generation
+- **Multi-format input**: PDFs, DOCX, URLs, and plain text
+- **Google Gemini AI** integration for intelligent question creation
+- **Question types**: Multiple Choice, True/False, Short Answer
+- **Bloom's Taxonomy** classification (Easy, Medium, Hard)
 
 ### 🎯 Adaptive Learning Engine
-
-* Adjusts question difficulty dynamically based on performance
-* Tracks user accuracy and completion time to personalize quizzes
-* Learns from past attempts to improve future question difficulty
+- Real-time difficulty adjustment based on performance
+- Tracks accuracy and completion time
+- Personalized question selection using historical data
+- Progressive difficulty scaling
 
 ### 🧠 Semantic Answer Evaluation
+- **Sentence-Transformers** NLP model for intelligent grading
+- Recognizes conceptually correct answers beyond exact matches
+- Provides detailed explanations and hints
+- Context-aware scoring
 
-* Uses **Sentence-Transformers NLP** to assess answer similarity
-* Recognizes conceptually correct answers (not just keyword matches)
-* Provides **explanations and hints** for each question
+### 📊 Analytics & Leaderboards
+- **Global leaderboard** ranked by accuracy and speed
+- Individual progress tracking with performance trends
+- Topic-wise analytics and skill assessment
+- Visual charts for quiz history and growth metrics
 
-### 📊 Leaderboards & Analytics
-
-* **Real-time global leaderboard** — ranked by accuracy and speed
-* **User progress tracking** with performance trends by topic
-* Visual charts show accuracy, quiz history, and learning growth
-
-### 🌟 Gamification
-
-* Achievement badges (Perfect Score, Quiz Master, Streak Winner, etc.)
-* Skill-level progression from Beginner → Intermediate → Expert
-* Motivates users with score streaks and achievements
+### 🎮 Gamification System
+- Achievement badges (Perfect Score, Quiz Master, Streak Winner)
+- Skill progression: Beginner → Intermediate → Expert → Master
+- Score streaks and milestone rewards
+- Competitive rankings
 
 ### 👨‍💼 Admin Dashboard
-
-* Manage users and monitor platform analytics
-* Review flagged questions and feedback submitted by learners
-* Access global leaderboards, system stats, and moderation tools
-
----
-
-## 🧱️ Technology Stack
-
-| Layer                | Technology                              | Description                                 |
-| -------------------- | --------------------------------------- | ------------------------------------------- |
-| **Frontend**         | React 18, TypeScript, Tailwind CSS      | Responsive and modern user interface        |
-| **Backend**          | Flask (Python)                          | REST API and business logic                 |
-| **Database**         | SQLite / PostgreSQL                     | Stores users, quizzes, and results          |
-| **AI/NLP**           | Google Gemini AI, Sentence-Transformers | Question generation and semantic evaluation |
-| **Authentication**   | JWT + BCrypt                            | Secure user login and roles                 |
-| **Real-time Engine** | Flask-SocketIO                          | Multiplayer and live updates                |
-| **Deployment**       | Docker + Nginx                          | Production-ready deployment setup           |
+- User management and platform monitoring
+- Flagged content review and moderation
+- System-wide analytics and statistics
+- Quiz and feedback oversight
 
 ---
 
-## ⚙️ Quick Start (Development Setup)
+## 🛠️ Technology Stack
 
-### 1️⃣ Clone Repository
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Frontend** | React 18, TypeScript, Tailwind CSS | Modern, responsive UI |
+| **Backend** | Flask (Python 3.9+) | REST API and business logic |
+| **Database** | SQLite / PostgreSQL | Data persistence |
+| **AI Engine** | Google Gemini AI | Question generation |
+| **NLP** | Sentence-Transformers | Semantic answer evaluation |
+| **Authentication** | JWT + BCrypt | Secure user sessions |
+| **Real-time** | Flask-SocketIO | Live updates and multiplayer |
+| **Deployment** | Docker, Nginx | Production environment |
 
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.9+
+- Node.js 16+
+- npm or yarn
+
+### 1. Clone Repository
 ```bash
 git clone https://github.com/BatchuMamatha/Smart-Quizzer-AI.git
 cd Smart-Quizzer-AI
 ```
 
-### 2️⃣ Setup Backend
-
+### 2. Backend Setup
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate   # or venv\Scripts\activate on Windows
+
+# Activate virtual environment
+# Linux/Mac:
+source venv/bin/activate
+# Windows:
+venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Initialize database
+python init_database.py
+
+# Start Flask server
 python app.py
 ```
+Backend will run at **http://localhost:5000**
 
-Backend runs on: **[http://localhost:5000](http://localhost:5000)**
-
-### 3️⃣ Setup Frontend
-
+### 3. Frontend Setup
 ```bash
-cd ../frontend
+cd frontend
 npm install
 npm start
 ```
+Frontend will run at **http://localhost:3000**
 
-Frontend runs on: **[http://localhost:3000](http://localhost:3000)**
-
-### 4️⃣ Docker (Optional)
-
+### 4. Docker Setup (Alternative)
 ```bash
 docker-compose up --build
 ```
@@ -123,103 +132,171 @@ docker-compose up --build
 ```
 Smart-Quizzer-AI/
 ├── backend/
-│   ├── app.py                # Flask API entry
-│   ├── models.py             # Database models
-│   ├── question_gen.py       # AI-based question generator
-│   ├── answer_evaluator.py   # NLP answer evaluator
-│   ├── init_database.py      # Creates default users/admins
-│   └── requirements.txt      # Dependencies
+│   ├── app.py                    # Flask application entry point
+│   ├── models.py                 # Database models (User, Quiz, Question)
+│   ├── question_gen.py           # AI question generator (Gemini)
+│   ├── answer_evaluator.py      # NLP-based answer evaluation
+│   ├── init_database.py          # Database initialization script
+│   ├── requirements.txt          # Python dependencies
+│   └── utils/                    # Helper functions
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/            # React pages (Dashboard, Quiz, Admin)
-│   │   ├── components/       # Reusable UI components
-│   │   └── lib/              # Utilities & API handlers
-│   ├── package.json          # Frontend dependencies
-│   └── Dockerfile            # Frontend container setup
+│   │   ├── pages/                # React pages
+│   │   │   ├── Dashboard.tsx     # User dashboard
+│   │   │   ├── Quiz.tsx          # Quiz interface
+│   │   │   ├── Admin.tsx         # Admin panel
+│   │   │   └── Leaderboard.tsx   # Global rankings
+│   │   ├── components/           # Reusable UI components
+│   │   ├── lib/                  # API clients and utilities
+│   │   └── App.tsx               # Main application
+│   ├── package.json              # Node dependencies
+│   └── tsconfig.json             # TypeScript configuration
 │
-├── docker-compose.yml        # Docker orchestration
-├── LICENSE                   # MIT License
-└── README.md                 # Documentation
+├── docker-compose.yml            # Docker orchestration
+├── LICENSE                       # MIT License
+└── README.md                     # Project documentation
 ```
 
 ---
 
-## 🎮 How to Use
+## 📖 Usage Guide
 
-1. **Register or log in** as a user.
-2. **Upload study material** (PDF, DOCX, URL, or text).
-3. **Start a quiz** — select topic, difficulty, and number of questions.
-4. **Answer questions** — difficulty adjusts automatically in real-time.
-5. **Submit & Review Results**:
+### For Students/Users
 
-   * Correctness and explanations
-   * Analytics and leaderboard rank
-6. **Admins** can monitor user progress and flagged content.
+1. **Register & Login**
+   - Create an account or log in with existing credentials
 
----
+2. **Upload Study Material**
+   - Upload PDF/DOCX files, paste URLs, or enter text directly
+   - System analyzes content and generates relevant questions
 
-## 🧑‍💻 User Roles
+3. **Take a Quiz**
+   - Select topic, difficulty level, and number of questions
+   - Answer questions with real-time difficulty adaptation
+   - Receive instant feedback with explanations
 
-### 👩‍🎓 Regular User
+4. **Track Progress**
+   - View quiz history and performance analytics
+   - Check your leaderboard ranking
+   - Earn badges and track skill progression
 
-* Take adaptive quizzes
-* Get instant feedback and explanations
-* View quiz history, analytics, and badges
-* Compete on leaderboards
+### For Administrators
 
-### 👨‍💼 Admin
+1. **Access Admin Dashboard**
+   - Monitor user activity and system statistics
 
-* Manage all users and quizzes
-* Review flagged questions and feedback
-* Access global leaderboard
-* Track platform statistics
+2. **Content Moderation**
+   - Review flagged questions and user feedback
+   - Manage quiz content quality
 
----
+3. **User Management**
+   - View user profiles and activity logs
+   - Manage user roles and permissions
 
-## 📈 Leaderboard Logic
-
-| Metric              | Description                             |
-| ------------------- | --------------------------------------- |
-| **Accuracy**        | Higher accuracy = better ranking        |
-| **Time Taken**      | Faster completion increases score       |
-| **Recent Activity** | Recent quiz takers appear at the top    |
-| **Dynamic Update**  | Refreshes automatically after each quiz |
+4. **Analytics**
+   - Access platform-wide performance metrics
+   - Export data for reporting
 
 ---
 
-## 🛧️ Current Status
+## 🎯 Key Modules
 
-🔁 Implemented Modules:
+### Backend Modules
 
-* User authentication and profile management
-* AI-based question generation
-* Adaptive learning engine
-* Semantic answer evaluation
-* Leaderboard and analytics system
-* Admin moderation dashboard
+| Module | Description |
+|--------|-------------|
+| `app.py` | Flask REST API endpoints |
+| `models.py` | SQLAlchemy database models |
+| `question_gen.py` | Gemini AI integration for question generation |
+| `answer_evaluator.py` | Sentence-Transformer semantic evaluation |
+| `init_database.py` | Database setup and default data |
 
-🔜 Future Enhancements:
+### Frontend Components
 
-* Voice-based quizzes and multilingual support
-* Mobile app (React Native)
-* AI-powered personalized study recommendations
-
----
-
-## 🧳 License
-
-This project is licensed under the **MIT License**.
-You are free to use, modify, and distribute with attribution.
+| Component | Description |
+|-----------|-------------|
+| `Dashboard.tsx` | User home with analytics and quiz history |
+| `Quiz.tsx` | Interactive quiz interface with timer |
+| `Leaderboard.tsx` | Global and topic-specific rankings |
+| `Admin.tsx` | Administrative controls and monitoring |
+| `Analytics.tsx` | Performance visualization charts |
 
 ---
 
-## 👩‍💻 Maintainer
+## 🏆 Leaderboard Ranking
+
+Rankings are calculated based on:
+- **Accuracy Score** (weighted 60%)
+- **Completion Time** (weighted 30%)
+- **Consistency** (weighted 10%)
+
+Updated in real-time after each quiz submission.
+
+---
+
+## 🔐 User Roles
+
+| Role | Permissions |
+|------|------------|
+| **Student** | Take quizzes, view personal analytics, compete on leaderboards |
+| **Admin** | Full access to user management, content moderation, system analytics |
+
+---
+
+## 🗺️ Roadmap
+
+**Current Version: v1.0**
+
+**Planned Features:**
+- 🎤 Voice-based quiz mode
+- 🌍 Multilingual support
+- 📱 Mobile app (React Native)
+- 🤝 Collaborative quiz challenges
+- 📚 AI-powered study recommendations
+- 🔌 LMS integrations (Moodle, Canvas)
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👤 Maintainer
 
 **Batchu Mamatha**
-🔗 [GitHub: BatchuMamatha](https://github.com/BatchuMamatha)
-📧 For issues and feature requests: [GitHub Issues](https://github.com/BatchuMamatha/Smart-Quizzer-AI/issues)
+
+- 🔗 GitHub: [@BatchuMamatha](https://github.com/BatchuMamatha)
+- 📧 Issues: [Report bugs or request features](https://github.com/BatchuMamatha/Smart-Quizzer-AI/issues)
 
 ---
 
-> 🌟 **Smart Quizzer AI – Making Learning Adaptive,
+## 🙏 Acknowledgments
+
+- Google Gemini AI for intelligent question generation
+- Sentence-Transformers for semantic evaluation
+- React and Flask communities
+
+---
+
+<div align="center">
+
+**⭐ Star this repository if you find it helpful!**
+
+Made with ❤️ by Batchu Mamatha
+
+</div>
