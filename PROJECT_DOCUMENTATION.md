@@ -1,12 +1,12 @@
-# Smart Quizzer AI - Project Documentation# Smart Quizzer AI - Technical Documentation# Smart Quizzer AI - Technical Documentation# Smart Quizzer AI - Technical Documentation# Smart Quizzer AI - Technical Documentation# Smart Quizzer AI - Adaptive Quiz & Question Generator
+# Smart Quizzer AI - Technical Documentation# Smart Quizzer AI - Project Documentation# Smart Quizzer AI - Technical Documentation# Smart Quizzer AI - Technical Documentation# Smart Quizzer AI - Technical Documentation# Smart Quizzer AI - Technical Documentation# Smart Quizzer AI - Adaptive Quiz & Question Generator
 
 
 
-Comprehensive technical documentation for developers, architects, and contributors.
+Comprehensive technical reference for developers, architects, and contributors.
 
 
 
----**Comprehensive technical reference for developers, architects, and contributors**
+---Comprehensive technical documentation for developers, architects, and contributors.
 
 
 
@@ -14,7 +14,7 @@ Comprehensive technical documentation for developers, architects, and contributo
 
 
 
-1. [System Overview](#1-system-overview)This document provides in-depth technical information about the Smart Quizzer AI platform, including system architecture, implementation details, API reference, and development guidelines.**Comprehensive technical documentation for developers, architects, and contributors**
+1. [System Overview](#1-system-overview)---**Comprehensive technical reference for developers, architects, and contributors**
 
 2. [Architecture Design](#2-architecture-design)
 
@@ -22,7 +22,7 @@ Comprehensive technical documentation for developers, architects, and contributo
 
 4. [Frontend Implementation](#4-frontend-implementation)
 
-5. [Database Schema](#5-database-schema)---
+5. [Database Schema](#5-database-schema)## 📋 Table of Contents
 
 6. [API Reference](#6-api-reference)
 
@@ -30,1017 +30,2060 @@ Comprehensive technical documentation for developers, architects, and contributo
 
 8. [Security & Authentication](#8-security--authentication)
 
-9. [Real-Time Features](#9-real-time-features)## 📋 Table of ContentsThis document provides in-depth technical information about the Smart Quizzer AI platform, including architecture, implementation details, API reference, and development guidelines.**Comprehensive technical documentation for developers, architects, and contributors**
+9. [Real-Time Features](#9-real-time-features)1. [System Overview](#1-system-overview)This document provides in-depth technical information about the Smart Quizzer AI platform, including system architecture, implementation details, API reference, and development guidelines.**Comprehensive technical documentation for developers, architects, and contributors**
 
 10. [Testing](#10-testing)
 
-11. [Deployment](#11-deployment)
+11. [Deployment](#11-deployment)2. [Architecture Design](#2-architecture-design)
 
 12. [Development Guidelines](#12-development-guidelines)
 
-1. [System Architecture](#system-architecture)
+3. [Backend Implementation](#3-backend-implementation)
 
 ---
-
-2. [Backend Implementation](#backend-implementation)
-
-## 1. System Overview
-
-3. [Frontend Implementation](#frontend-implementation)---
-
-### Project Description
-
-4. [Database Schema](#database-schema)
-
-Smart Quizzer AI is an intelligent adaptive learning platform that leverages artificial intelligence to generate personalized quiz questions, evaluate answers semantically, and provide real-time performance analytics. The system combines Google Gemini AI for question generation with Sentence-Transformers for natural language processing.
-
-5. [API Reference](#api-reference)
-
-### Core Capabilities
-
-6. [AI/ML Components](#aiml-components)
-
-- **Content Processing**: Extract text from PDF, DOCX, URLs, and plain text
-
-- **AI Question Generation**: Generate contextually relevant questions using Google Gemini 1.5 Flash7. [Security Implementation](#security-implementation)## 📋 Table of Contents---## Document Information## Complete Project Documentation
-
-- **Semantic Answer Evaluation**: NLP-based answer grading with configurable similarity thresholds
-
-- **Adaptive Learning**: Real-time difficulty adjustment based on user performance8. [Real-Time Features](#real-time-features)
-
-- **Gamification**: 21 achievement badges, points system, and global leaderboards
-
-- **Real-Time Multiplayer**: WebSocket-powered live quiz competitions9. [Testing Strategy](#testing-strategy)
-
-- **Analytics**: Comprehensive performance tracking, trend analysis, and AI recommendations
-
-10. [Deployment Architecture](#deployment-architecture)
-
-### Technology Philosophy
-
-11. [Performance Optimization](#performance-optimization)1. [System Overview](#1-system-overview)
-
-- **Backend-Driven Logic**: Complex business logic (question generation, answer evaluation, adaptive algorithms) handled server-side
-
-- **API-First Design**: RESTful endpoints with clear request/response contracts12. [Development Guidelines](#development-guidelines)
-
-- **Real-Time Communication**: WebSocket (Socket.IO) for live features
-
-- **Type Safety**: TypeScript frontend for compile-time error detection2. [Architecture Design](#2-architecture-design)
-
-- **Security-First**: JWT authentication, input validation, CORS protection
-
----
-
----
-
-3. [Backend Implementation](#3-backend-implementation)## Table of Contents- **Project**: Smart Quizzer AI - Adaptive Learning Platform
-
-## 2. Architecture Design
-
-## System Architecture
-
-### High-Level System Architecture
 
 4. [Frontend Implementation](#4-frontend-implementation)
 
-```
+## 1. System Overview
 
-┌─────────────────────────────────────────────────────────────┐### High-Level Architecture Diagram
+5. [Database Schema](#5-database-schema)---
 
-│                      Client Layer                            │
+### Project Description
 
-│  ┌──────────────────────────────────────────────────────┐   │5. [Database Schema](#5-database-schema)
+6. [API Reference](#6-api-reference)
 
-│  │  React SPA (TypeScript + Tailwind CSS)              │   │
+Smart Quizzer AI is an intelligent adaptive learning platform that leverages artificial intelligence to generate personalized quiz questions, evaluate answers semantically, and provide real-time performance analytics. The system combines Google Gemini AI for question generation with Sentence-Transformers for natural language processing.
 
-│  │  • Pages: 13 routes (Login, Dashboard, Quiz, etc.)  │   │```
+7. [AI/ML Components](#7-aiml-components)
 
-│  │  • Components: 8 reusable UI components             │   │
+### Core Capabilities
 
-│  │  • HTTP Client: Axios with JWT interceptors         │   │┌─────────────────────────────────────────────────────────────┐6. [API Reference](#6-api-reference)
+8. [Security & Authentication](#8-security--authentication)
 
-│  │  • WebSocket: Socket.IO client for real-time        │   │
+- **Content Processing**: Extract text from PDF, DOCX, URLs, and plain text
 
-│  └──────────────────────────────────────────────────────┘   ││                  Client Layer (Browser)                      │
+- **AI Question Generation**: Generate contextually relevant questions using Google Gemini 1.5 Flash9. [Real-Time Features](#9-real-time-features)## 📋 Table of ContentsThis document provides in-depth technical information about the Smart Quizzer AI platform, including architecture, implementation details, API reference, and development guidelines.**Comprehensive technical documentation for developers, architects, and contributors**
 
-└──────────────────┬──────────────────┬────────────────────────┘
+- **Semantic Answer Evaluation**: NLP-based answer grading with configurable similarity thresholds
 
-                   │ REST API         │ WebSocket│                                                              │7. [AI/ML Components](#7-aiml-components)1. [Project Overview](#1-project-overview)- **Version**: 1.0.0> **📅 Last Updated:** November 1, 2025  
+- **Adaptive Learning**: Real-time difficulty adjustment based on user performance10. [Testing](#10-testing)
 
-                   │ (HTTP/HTTPS)     │ (Socket.IO)
+- **Gamification**: 21 achievement badges, points system, and global leaderboards
 
-                   ▼                  ▼│  ┌────────────────────────────────────────────────────────┐ │
+- **Real-Time Multiplayer**: WebSocket-powered live quiz competitions11. [Deployment](#11-deployment)
 
-┌─────────────────────────────────────────────────────────────┐
+- **Analytics**: Comprehensive performance tracking, trend analysis, and AI recommendations
 
-│                    Application Layer                         ││  │         React Frontend (TypeScript)                     │ │8. [Security & Authentication](#8-security--authentication)
+12. [Development Guidelines](#12-development-guidelines)
 
-│  ┌──────────────────────────────────────────────────────┐   │
+### Technology Philosophy
 
-│  │  Flask Application (Python 3.9+)                     │   ││  │  • 13 Page Components  • 8 Reusable Components         │ │
+1. [System Architecture](#system-architecture)
 
-│  │  • Routes: 90+ REST API endpoints                    │   │
+- **Backend-Driven Logic**: Complex business logic (question generation, answer evaluation, adaptive algorithms) handled server-side
 
-│  │  • WebSocket Events: Multiplayer room handlers       │   ││  │  • Tailwind CSS  • React Router  • Axios HTTP          │ │9. [Testing](#9-testing)2. [Architecture](#2-architecture)
+- **API-First Design**: RESTful endpoints with clear request/response contracts---
 
-│  │  • Middleware: JWT auth, CORS, error handling        │   │
+- **Real-Time Communication**: WebSocket (Socket.IO) for live features
 
-│  │  • Services: 10 specialized service modules          │   ││  │  • Socket.IO Client  • Recharts                        │ │
+- **Type Safety**: TypeScript frontend for compile-time error detection2. [Backend Implementation](#backend-implementation)
 
-│  └──────────────────────────────────────────────────────┘   │
+- **Security-First**: JWT authentication, input validation, CORS protection
 
-└────┬──────────┬──────────┬──────────┬──────────┬────────────┘│  └────────────────────────────────────────────────────────┘ │10. [Deployment](#10-deployment)
-
-     │          │          │          │          │
-
-     ▼          ▼          ▼          ▼          ▼└──────────────────────────┬──────────────────────────────────┘
-
-┌─────────┐ ┌───────┐ ┌────────┐ ┌────────┐ ┌──────────┐
-
-│ Content │ │ AI    │ │  NLP   │ │ Badge  │ │ Learning │                           │ HTTP/HTTPS + WebSocket (Socket.IO)11. [Performance Optimization](#11-performance-optimization)3. [Backend Documentation](#3-backend-documentation)- **Last Updated**: November 2025> **📌 Version:** 1.0.0  
-
-│Processor│ │ Gen   │ │ Eval   │ │Service │ │ Paths    │
-
-│         │ │       │ │        │ │        │ │          │                           ▼
-
-│PDF/DOCX │ │Gemini │ │Sentence│ │21 Badge│ │Adaptive  │
-
-│URL/Text │ │1.5    │ │-Trans  │ │ Types  │ │ Routes   │┌─────────────────────────────────────────────────────────────┐12. [Contributing Guidelines](#12-contributing-guidelines)
-
-└─────────┘ └───────┘ └────────┘ └────────┘ └──────────┘
-
-     │          │          │          │          ││                   API Gateway Layer                          │
-
-     └──────────┴──────────┴──────────┴──────────┘
-
-                           ││                                                              │4. [Frontend Documentation](#4-frontend-documentation)
-
-                           ▼
-
-     ┌─────────────────────────────────────────────┐│  ┌────────────────────────────────────────────────────────┐ │
-
-     │         Data Persistence Layer              │
-
-     │  ┌───────────────────────────────────────┐  ││  │           Flask Application (app.py)                    │ │---
-
-     │  │  SQLAlchemy ORM                       │  │
-
-     │  │  • Models: 15 database tables         │  ││  │  • 90+ REST API Endpoints                               │ │
-
-     │  │  • Relationships: Defined via ORM     │  │
-
-     │  │  • Migrations: Auto schema management │  ││  │  • WebSocket Event Handlers                             │ │5. [Database Schema](#5-database-schema)- **Author**: Mamatha Bachu> **✅ Status:** Fully Functional - Local Development Ready  
-
-     │  └───────────────────────────────────────┘  │
-
-     └──────────────────┬──────────────────────────┘│  │  • JWT Authentication Middleware                        │ │
-
-                        ▼
-
-     ┌─────────────────────────────────────────────┐│  │  • CORS Configuration                                   │ │## 1. System Overview
-
-     │          Database Layer                     │
-
-     │  • Development: SQLite (instance/db file)   ││  │  • Error Handling & Logging                             │ │
-
-     │  • Production: PostgreSQL (recommended)     │
-
-     │  • Tables: 15 (Users, Quiz, Analytics...)   ││  └────────────────────────────────────────────────────────┘ │6. [API Reference](#6-api-reference)
-
-     └─────────────────────────────────────────────┘
-
-```└──────────────────────────┬──────────────────────────────────┘
-
-
-
-### Request Flow Examples                           │### 1.1 Project Purpose
-
-
-
-#### Question Generation Flow        ┌──────────────────┼──────────────────┬────────────────┐
-
-```
-
-User uploads PDF        ▼                  ▼                  ▼                ▼7. [AI/ML Components](#7-aiml-components)- **Tech Stack**: Flask 3.0.0, React 18.2.0, SQLite, Google Gemini AI> **🔒 Security:** All default credentials removed for safety  
-
-    ↓
-
-Frontend: POST /api/content/upload (multipart/form-data)┌─────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-
-    ↓
-
-Backend: content_processor.py│  Business   │  │  AI Services │  │ NLP Services │  │   Content    │Smart Quizzer AI is an adaptive learning platform that:
-
-    ├─ PDF → PyPDF2/pdfplumber.extract_text()
-
-    ├─ DOCX → python-docx.extract()│   Logic     │  │              │  │              │  │  Processors  │
-
-    ├─ URL → BeautifulSoup4.scrape()
-
-    └─ Text → Direct processing│             │  │ Google       │  │ Sentence-    │  │              │- Generates quiz questions from custom content using AI8. [Security](#8-security)
-
-    ↓
-
-Extracted text (max 5000 chars)│ • Quiz      │  │ Gemini AI    │  │ Transformers │  │ • PDF Parser │
-
-    ↓
-
-question_gen.py: generate_questions(content, difficulty, count)│   Engine    │  │ (Question    │  │ (Answer      │  │ • DOCX Parse │- Evaluates answers with semantic understanding using NLP
-
-    ↓
-
-Google Gemini AI API (gemini-1.5-flash model)│ • Adaptive  │  │  Generation) │  │  Evaluation) │  │ • URL Fetch  │
-
-    ├─ Prompt: "Generate {count} {difficulty} questions from content..."
-
-    ├─ Temperature: 0.7 (balanced creativity)│   Learning  │  │              │  │              │  │ • Beautiful  │- Adapts difficulty based on real-time user performance9. [Testing](#9-testing)> **📖 Note:** This documentation reflects the current state of the project after recent security improvements and documentation cleanup.
-
-    ├─ Output: JSON array of questions
-
-    └─ Classify by Bloom's Taxonomy + Multi-factor difficulty│ • Badges    │  │ Bloom's Tax  │  │ Cosine       │  │   Soup4      │
-
-    ↓
-
-Question objects stored in database│ • Analytics │  │ Multi-factor │  │ Similarity   │  │              │- Provides comprehensive analytics and personalized learning paths
-
-    ↓
-
-Frontend receives quiz session ID│ • Learning  │  │ Difficulty   │  │ 75% Thresh   │  │              │
-
-    ↓
-
-User starts quiz│   Paths     │  │              │  │              │  │              │- Gamifies learning through badges and leaderboards10. [Deployment](#10-deployment)
-
-```
-
-└─────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
-
-#### Answer Evaluation Flow
-
-```        │
-
-User submits answer
-
-    ↓        ▼
-
-Frontend: POST /api/quiz/{session_id}/answer
-
-    {question_id, answer_text}┌─────────────────────────────────────────────────────────────┐### 1.2 Technology Stack11. [Performance](#11-performance)---
-
-    ↓
-
-Backend retrieves correct_answer from Question table│                   Data Access Layer                          │
-
-    ↓
-
-answer_evaluator_simple.py: evaluate_answer()│                                                              │
-
-    ↓
-
-Question type check:│  ┌────────────────────────────────────────────────────────┐ │
-
-├─ MCQ/True-False → Exact string match
-
-└─ Short Answer → Semantic NLP matching│  │         SQLAlchemy ORM (models.py)                      │ │**Backend (Python)**12. [Contributing](#12-contributing)
-
-    ↓
-
-For short answers:│  │  • 15 Database Models                                   │ │
-
-    Sentence-Transformers (all-MiniLM-L6-v2)
-
-    ├─ Encode user_answer → 384-dim embedding vector│  │  • Relationships & Constraints                          │ │- Framework: Flask 3.0.0
-
-    ├─ Encode correct_answer → 384-dim embedding vector
-
-    └─ Cosine similarity score (0.0 - 1.0)│  │  • Migration Support                                    │ │
-
-    ↓
-
-Compare to threshold (default 0.75):│  └────────────────────────────────────────────────────────┘ │- ORM: SQLAlchemy 2.0.43---
-
-├─ similarity >= 0.75 → Correct ✓
-
-└─ similarity < 0.75 → Incorrect ✗└──────────────────────────┬──────────────────────────────────┘
-
-    ↓
-
-Generate contextual feedback:                           ▼- Database: SQLite (development), PostgreSQL (production)
-
-├─ 0.95-1.0: "Excellent! Perfect understanding"
-
-├─ 0.85-0.94: "Very good! Mostly correct"┌─────────────────────────────────────────────────────────────┐
-
-├─ 0.75-0.84: "Good! Captures main idea"
-
-└─ <0.75: "Incorrect. Review this topic"│                   Database Layer                             │- AI: Google Gemini 1.5 Flash---
-
-    ↓
-
-Update PerformanceTrend, check badge eligibility│                                                              │
-
-    ↓
-
-Response: {is_correct, similarity, feedback, points_earned, badges_unlocked}│  ┌────────────────────────────────────────────────────────┐ │- NLP: Sentence-Transformers (all-MiniLM-L6-v2)
-
-```
-
-│  │    SQLite (Development) / PostgreSQL (Production)       │ │
-
-#### Adaptive Difficulty Flow
-
-```│  │  • Users & Authentication                               │ │- Real-time: Flask-SocketIO 5.3.6## Table of Contents
-
-User completes question
-
-    ↓│  │  • Quizzes & Questions                                  │ │
-
-Calculate recent performance (last 5 questions)
-
-    ↓│  │  • Performance Analytics                                │ │- Authentication: JWT (PyJWT)
-
-Compute accuracy_percentage = (correct_count / 5) * 100
-
-    ↓│  │  • Badges & Achievements                                │ │
-
-Difficulty adjustment logic:
-
-├─ accuracy >= 80% → Increase difficulty│  │  • Leaderboards & Multiplayer                           │ │- Password Hashing: BCrypt## 1. Project Overview
-
-│   (Easy → Medium → Hard)
-
-├─ 50% <= accuracy < 80% → Maintain difficulty│  └────────────────────────────────────────────────────────┘ │
-
-└─ accuracy < 50% → Decrease difficulty
-
-    (Hard → Medium → Easy)└─────────────────────────────────────────────────────────────┘
-
-    ↓
-
-Filter question bank by:```
-
-├─ New difficulty level
-
-├─ Current topic**Frontend (TypeScript)**## Table of Contents
-
-└─ Not previously answered in this session
-
-    ↓### Request Flow Diagrams
-
-Select next question
-
-    ↓- Framework: React 18.2.0
-
-Deliver to user
-
-```#### Quiz Generation Flow
-
-
-
----- Language: TypeScript 4.9.5### 1.1 Purpose
-
-
-
-## 3. Backend Implementation```
-
-
-
-### Module StructureUser Upload (PDF/DOCX/URL/Text)- Styling: Tailwind CSS 3.3.0
-
-
-
-```        ↓
-
-backend/
-
-├── app.py                      # Main Flask application (4041 lines)Frontend: POST /api/content/upload- Routing: React Router 6.4.01. [System Overview](#1-system-overview)1. [Project Overview](#project-overview)
-
-├── models.py                   # Database models (707 lines, 15 tables)
-
-├── auth.py                     # JWT authentication & authorization        ↓
-
-├── question_gen.py             # AI question generation with Gemini
-
-├── content_processor.py        # PDF/DOCX/URL content extractionBackend: content_processor.py- HTTP Client: Axios 1.5.0
-
-├── answer_evaluator_simple.py  # NLP-based answer evaluation
-
-├── badge_service.py            # Achievement/badge management        ├→ PDF: PyPDF2.extract_text()
-
-├── analytics_service.py        # Performance tracking & trends
-
-├── learning_path_service.py    # Adaptive learning recommendations        ├→ DOCX: python-docx.extract()- WebSocket: Socket.IO Client 4.8.1Smart Quizzer AI is an adaptive learning platform that:
-
-├── multiplayer_service.py      # Real-time multiplayer logic
-
-├── leaderboard_service.py      # Global ranking system        └→ URL: BeautifulSoup4.scrape()
-
-├── error_handler.py            # Centralized error handling
-
-└── requirements.txt            # 28 Python dependencies        ↓
-
-```
-
-Text Content (max 5000 chars)
-
-### Module 1: User Authentication & Authorization
-
-        ↓**DevOps**- Generates quizzes from custom content using AI2. [Architecture Design](#2-architecture-design)2. [Project Statement](#project-statement)
-
-**File**: `auth.py`
-
-question_gen.py: generate_questions()
-
-**Responsibilities**:
-
-- User registration with password hashing (BCrypt)        ↓- Containerization: Docker & Docker Compose
-
-- Login with JWT token generation
-
-- Token validation middlewareGoogle Gemini AI API
-
-- Role-based access control (user/admin)
-
-        ├→ Generate 5-20 questions- Version Control: Git- Evaluates answers with semantic understanding
-
-**Key Functions**:
-
-```python        ├→ Apply Bloom's Taxonomy
-
-def init_jwt(app):
-
-    """Initialize Flask-JWT-Extended with app"""        ├→ Classify difficulty- Package Management: pip (Python), npm (Node.js)
-
-    
-
-def generate_tokens(user_id):        └→ Create answer options
-
-    """Generate access token for user"""
-
-    return create_access_token(identity=user_id, expires_delta=timedelta(days=1))        ↓- Adapts difficulty based on user performance3. [Module Documentation](#3-module-documentation)3. [Project Outcomes](#project-outcomes)
-
-
-
-@auth_requiredQuestion objects stored in database
-
-def protected_route():
-
-    """Decorator for routes requiring authentication"""        ↓### 1.3 Project Structure
-
-```
-
-Frontend receives quiz session ID
-
-**Endpoints**:
-
-- `POST /api/auth/register` - Create new user account        ↓- Provides analytics and personalized learning paths
-
-- `POST /api/auth/login` - Authenticate and receive JWT token
-
-- `POST /api/auth/logout` - Invalidate token (client-side)User starts quiz
-
-- `GET /api/auth/profile` - Get current user profile
-
-``````
-
-### Module 2: AI Question Generation
-
-
-
-**File**: `question_gen.py`
-
-#### Answer Evaluation FlowSmart-Quizzer-AI/4. [Database Schema](#4-database-schema)4. [System Architecture](#system-architecture)
-
-**Responsibilities**:
-
-- Interface with Google Gemini AI API
-
-- Generate questions from provided content
-
-- Classify questions by Bloom's Taxonomy```│
-
-- Multi-factor difficulty calculation
-
-User submits answer
-
-**Algorithm: Multi-Factor Difficulty Classification**:
-
-```python        ↓├── backend/                          # Flask Backend Application### 1.2 Technology Stack
-
-def classify_difficulty(question):
-
-    # Factor 1: Bloom's Taxonomy (40% weight)Frontend: POST /api/quiz/{session_id}/answer
-
-    bloom_levels = {
-
-        'Remember': 0.1, 'Understand': 0.2, 'Apply': 0.4,        ↓│   ├── app.py                       # Main Flask app (90+ endpoints)
-
-        'Analyze': 0.6, 'Evaluate': 0.8, 'Create': 1.0
-
-    }Backend retrieves correct answer from database
-
-    bloom_score = bloom_levels[question['bloom_level']]
-
-            ↓│   ├── models.py                    # SQLAlchemy models (15 models)5. [API Reference](#5-api-reference)5. [Technology Stack](#technology-stack)
-
-    # Factor 2: Semantic Complexity (30%)
-
-    semantic_score = calculate_semantic_complexity(question_text)answer_evaluator_simple.py: evaluate_answer()
-
-    
-
-    # Factor 3: Text Metrics (20%)        ↓│   ├── auth.py                      # JWT authentication utilities
-
-    text_score = calculate_text_complexity(question_text)
-
-    Question Type Check:
-
-    # Factor 4: Historical Accuracy (10% - if available)
-
-    historical_score = question.get('correct_rate', 0.5)├─ MCQ/True-False → Exact match comparison│   ├── question_gen.py              # AI question generation**Backend**
-
-    
-
-    # Weighted average└─ Short Answer → NLP semantic similarity
-
-    final_score = (
-
-        bloom_score * 0.40 +        ↓│   ├── answer_evaluator_simple.py   # NLP answer evaluation
-
-        semantic_score * 0.30 +
-
-        text_score * 0.20 +Sentence-Transformers Model (all-MiniLM-L6-v2)
-
-        historical_score * 0.10
-
-    )        ├→ Encode user answer → 384-dim vector│   ├── content_processor.py         # PDF/DOCX/URL processing- **Framework**: Flask 3.0.0 (Python 3.13)6. [Frontend Components](#6-frontend-components)6. [Module Implementation](#module-implementation)
-
-    
-
-    if final_score < 0.33:        ├→ Encode correct answer → 384-dim vector
-
-        return 'Easy'
-
-    elif final_score < 0.67:        └→ Calculate cosine similarity (0-1)│   ├── badge_service.py             # Achievement badge system
-
-        return 'Medium'
-
-    else:        ↓
-
-        return 'Hard'
-
-```Similarity vs Threshold (0.75):│   ├── analytics_service.py         # Performance analytics- **ORM**: SQLAlchemy 2.0.43
-
-
-
-**Gemini AI Configuration**:├─ >= 0.75 → Correct (is_correct=True)
-
-```python
-
-model = genai.GenerativeModel('gemini-1.5-flash')└─ < 0.75 → Incorrect (is_correct=False)│   ├── learning_path_service.py     # Personalized learning paths
-
-generation_config = {
-
-    'temperature': 0.7,      # Balanced creativity/accuracy        ↓
-
-    'top_p': 0.95,          # Nucleus sampling
-
-    'top_k': 40,            # Top-k samplingGenerate contextual feedback│   ├── leaderboard_service.py       # Global leaderboard management- **Database**: SQLite (dev), PostgreSQL (prod)7. [AI & Machine Learning](#7-ai--machine-learning)7. [Database Schema](#database-schema)
-
-    'max_output_tokens': 2048,
-
-}        ↓
-
-```
-
-Update user performance metrics│   ├── multiplayer_service.py       # Real-time multiplayer features
-
-**Endpoints**:
-
-- `POST /api/quiz/generate` - Generate quiz from content        ↓
-
-- `POST /api/content/upload` - Upload and process content
-
-Check badge eligibility (badge_service.py)│   ├── error_handler.py             # Centralized error handling- **AI**: Google Gemini 1.5 Flash
-
-### Module 3: Answer Evaluation
-
-        ↓
-
-**File**: `answer_evaluator_simple.py`
-
-Response sent to frontend with:│   ├── requirements.txt             # Python dependencies
-
-**Responsibilities**:
-
-- Evaluate user answers with NLP- is_correct
-
-- Generate contextual feedback
-
-- Calculate confidence scores- similarity score│   └── instance/- **NLP**: Sentence-Transformers (all-MiniLM-L6-v2)8. [Workflows](#8-workflows)8. [API Documentation](#api-documentation)
-
-
-
-**NLP Model**: Sentence-Transformers `all-MiniLM-L6-v2`- confidence level
-
-- Embedding dimension: 384
-
-- Inference speed: ~10ms per sentence- feedback message│       └── smart_quizzer.db        # SQLite database
-
-- Accuracy: 85-90% on semantic similarity benchmarks
-
-- points earned
-
-**Evaluation Logic**:
-
-```python- badges unlocked│- **Real-time**: Flask-SocketIO 5.4.1
-
-def evaluate_answer(user_answer, correct_answer, question_type):
-
-    if question_type in ['MCQ', 'TrueFalse']:```
-
-        # Exact match for structured questions
-
-        is_correct = user_answer.lower().strip() == correct_answer.lower().strip()├── frontend/                         # React Frontend Application
-
-        return {
-
-            'is_correct': is_correct,#### Adaptive Difficulty Flow
-
-            'similarity': 1.0 if is_correct else 0.0,
-
-            'confidence': 100 if is_correct else 0│   ├── src/- **Authentication**: JWT (PyJWT 2.10.1)9. [Security & Authentication](#9-security--authentication)9. [Features Implementation](#features-implementation)
-
-        }
-
-    ```
-
-    elif question_type == 'ShortAnswer':
-
-        # Semantic similarity for open-ended questionsUser completes question│   │   ├── pages/                   # 13 page components
-
-        user_embedding = model.encode([user_answer])[0]
-
-        correct_embedding = model.encode([correct_answer])[0]        ↓
-
-        
-
-        similarity = cosine_similarity([user_embedding], [correct_embedding])[0][0]Calculate recent performance (last 5 questions)│   │   ├── components/              # 8 reusable components
-
-        threshold = float(os.getenv('SIMILARITY_THRESHOLD', '0.75'))
-
-                ↓
-
-        is_correct = similarity >= threshold
-
-        Compute accuracy percentage│   │   ├── lib/
-
-        return {
-
-            'is_correct': is_correct,        ↓
-
-            'similarity': float(similarity),
-
-            'confidence': float(similarity * 100),Difficulty adjustment logic:│   │   │   ├── api.ts              # API client (Axios)**Frontend**10. [Testing](#10-testing)10. [Local Development Setup](#local-development-setup)
-
-            'feedback': generate_feedback(similarity)
-
-        }├─ Accuracy >= 80% → Increase difficulty (Easy→Medium→Hard)
-
-```
-
-├─ Accuracy 50-79% → Maintain current difficulty│   │   │   └── userManager.ts      # User session management
-
-**Similarity Score Interpretation**:
-
-- **1.00**: Exact match└─ Accuracy < 50% → Decrease difficulty (Hard→Medium→Easy)
-
-- **0.95-0.99**: Excellent understanding
-
-- **0.85-0.94**: Very good comprehension        ↓│   │   ├── App.tsx                 # Main React app- **Framework**: React 18.2.0
-
-- **0.75-0.84**: Good, captures main idea ✅ (Accepted)
-
-- **0.60-0.74**: Partial understandingSelect next question with adjusted difficulty
-
-- **<0.60**: Incorrect ❌
-
-        ↓│   │   └── index.tsx               # React entry point
-
-### Module 4: Content Processing
-
-Deliver question to user
-
-**File**: `content_processor.py`
-
-```│   ├── package.json                # Node dependencies- **Language**: TypeScript 4.9.511. [Deployment](#11-deployment)11. [User Guide](#user-guide)
-
-**Responsibilities**:
-
-- Extract text from multiple file formats
-
-- Web scraping for URL content
-
-- Text cleaning and preprocessing---│   └── tsconfig.json               # TypeScript config
-
-
-
-**Supported Formats**:
-
-1. **PDF**: PyPDF2 + pdfplumber (dual extraction for better accuracy)
-
-2. **DOCX**: python-docx## Backend Implementation│- **Styling**: Tailwind CSS 3.4.17
-
-3. **URL**: BeautifulSoup4 + requests
-
-4. **Plain Text**: Direct processing
-
-
-
-**Content Size Limits**:### Main Application Structure (app.py)├── docker-compose.yml              # Multi-container orchestration
-
-- Maximum file upload: 16 MB
-
-- Maximum text length for processing: 5000 characters
-
-- Automatically truncates longer content
-
-The Flask application serves as the central hub for all backend operations.├── README.md                       # Project overview- **Routing**: React Router 6.28.012. [Troubleshooting](#12-troubleshooting)12. [Admin Guide](#admin-guide)
-
-### Module 5: Badge & Achievement System
-
-
-
-**File**: `badge_service.py`
-
-**Key Components**:├── SETUP.md                        # Installation guide
-
-**21 Achievement Badges**:
-
-
-
-| Badge Name | Criteria | Description |
-
-|------------|----------|-------------|```python├── PROJECT_DOCUMENTATION.md        # This file- **HTTP Client**: Axios 1.7.9
-
-| Quiz Starter | Complete 1 quiz | First quiz completion |
-
-| Perfect Score | 100% on any quiz | Perfect accuracy |from flask import Flask, request, jsonify
-
-| Streak Master | 5 consecutive days | Daily engagement |
-
-| Marathon Runner | 50 quizzes completed | Long-term dedication |from flask_cors import CORS└── LICENSE                         # MIT License
-
-| Speed Demon | Avg < 10s per question | Quick thinking |
-
-| Topic Explorer | Complete 5 different topics | Broad learning |from flask_socketio import SocketIO, emit, join_room
-
-| Accuracy Pro | 90%+ average accuracy | Consistent excellence |
-
-| Comeback Kid | Improve score by 20%+ | Growth mindset |from models import db, User, QuizSession, Question, Badge```- **Build Tool**: Webpack 513. [Development Timeline](#development-timeline)
-
-| Early Bird | Quiz before 8 AM | Morning learner |
-
-| Night Owl | Quiz after 10 PM | Night learner |import google.generativeai as genai
-
-| Weekend Warrior | 10 quizzes on weekends | Weekend dedication |
-
-| Social Butterfly | 5 multiplayer games | Social learning |from sentence_transformers import SentenceTransformer
-
-| Leaderboard King | Top 10 global rank | Competitive excellence |
-
-| Knowledge Seeker | 100 quizzes completed | Dedication |
-
-| Subject Master | 95%+ in one topic | Topic expertise |
-
-| Adaptive Learner | Complete all difficulty levels | Versatility |# Initialize Flask app---
-
-| Feedback Champion | Provide 10 question feedbacks | Community contributor |
-
-| Badge Collector | Earn 10 different badges | Achievement hunter |app = Flask(__name__)
-
-| Consistency Award | 30-day streak | Long-term commitment |
-
-| Quiz Master | 500 quizzes completed | Ultimate dedication |app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
-
-| Legend | All other badges earned | Complete mastery |
-
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
-
-**Badge Checking Logic**:
-
-```pythonapp.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False## 2. Architecture Design**DevOps**---14. [Performance Optimizations](#performance-optimizations)
-
-def check_badge_eligibility(user_id, event_type):
-
-    user = User.query.get(user_id)
-
-    eligible_badges = []
-
-    # Enable CORS for frontend communication
-
-    for badge in Badge.query.all():
-
-        if badge.criteria_type == 'quiz_count':CORS(app, supports_credentials=True, resources={
-
-            if count_user_quizzes(user_id) >= badge.criteria_value:
-
-                award_badge(user_id, badge.id)    r"/api/*": {"origins": [os.getenv('CORS_ORIGINS', 'http://localhost:8080')]}### 2.1 High-Level Architecture- **Version Control**: Git
-
-                eligible_badges.append(badge)
-
-        })
-
-        elif badge.criteria_type == 'accuracy':
-
-            if calculate_average_accuracy(user_id) >= badge.criteria_value:
-
-                award_badge(user_id, badge.id)
-
-                eligible_badges.append(badge)# Initialize SocketIO for real-time features
-
-        
-
-        # ... more criteria checkssocketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')```- **Package Management**: pip (backend), npm (frontend)15. [Security Features](#security-features)
-
-    
-
-    return eligible_badges
-
-```
-
-# Initialize database┌─────────────────────────────────────────────────────────────┐
-
-### Module 6: Analytics & Performance Tracking
-
-db.init_app(app)
-
-**File**: `analytics_service.py`
-
-│                     Client Layer (Browser)                   │- **Environment**: python-dotenv
-
-**Tracked Metrics**:
-
-- Quiz completion rate# Initialize AI models
-
-- Average accuracy per topic
-
-- Performance trends over timegenai.configure(api_key=os.getenv('GOOGLE_API_KEY'))│                                                              │
-
-- Time spent per question
-
-- Difficulty progressionnlp_model = SentenceTransformer('all-MiniLM-L6-v2')
-
-- Streak tracking
-
-```│  ┌────────────────────────────────────────────────────────┐ │## 1. System Overview16. [Future Enhancements](#future-enhancements)
-
-**Visualizations Provided**:
-
-1. **Performance Line Chart**: Daily/weekly/monthly trends
-
-2. **Topic Heatmap**: Color-coded proficiency matrix
-
-3. **Accuracy Distribution**: Histogram of scores**Startup Sequence**:│  │         React Frontend (TypeScript)                     │ │
-
-4. **Time Analysis**: Average time per difficulty level
-
-1. Load environment variables from `.env`
-
-**Endpoints**:
-
-- `GET /api/analytics/trends` - Performance trends2. Configure Flask with secret keys and database URI│  │  • 13 Pages  • 8 Components  • Tailwind CSS            │ │### 1.3 Project Structure
-
-- `GET /api/analytics/topics` - Topic-wise breakdown
-
-- `GET /api/analytics/recommendations` - AI-generated study suggestions3. Enable CORS for cross-origin requests
-
-
-
-### Module 7: Learning Path Service4. Initialize SocketIO for WebSocket support│  └────────────────────────────────────────────────────────┘ │
-
-
-
-**File**: `learning_path_service.py`5. Connect to database (SQLite or PostgreSQL)
-
-
-
-**Responsibilities**:6. Create all database tables if they don't exist└──────────────────────────┬──────────────────────────────────┘17. [Contributing](#contributing)
-
-- Analyze user performance data
-
-- Identify knowledge gaps7. Insert default topics and badges
-
-- Generate personalized learning paths
-
-- Track milestone achievements8. Initialize AI models (Gemini AI, Sentence-Transformers)                           │ HTTP/HTTPS + WebSocket
-
-
-
-**Path Generation Algorithm**:9. Start server on port 5000
-
-```python
-
-def generate_learning_path(user_id):                           ▼```
-
-    # Step 1: Analyze weak areas
-
-    weak_topics = get_topics_below_threshold(user_id, threshold=70)### API Endpoint Categories
-
-    
-
-    # Step 2: Prioritize by importance and difficulty┌─────────────────────────────────────────────────────────────┐
-
-    prioritized = sort_by_score(weak_topics, 
-
-                                 factors=['mastery_gap', 'topic_importance'])**90+ Total Endpoints** organized into:
-
-    
-
-    # Step 3: Create milestones│                     API Gateway Layer                        │Smart-Quizzer-AI/### 1.1 Project Description18. [License](#license)
-
-    milestones = []
-
-    for topic in prioritized[:5]:  # Top 5 weak areas1. **Authentication** (5 endpoints)
-
-        milestones.append({
-
-            'topic': topic,   - User registration, login, logout│                                                              │
-
-            'target_accuracy': topic.current_accuracy + 20,
-
-            'recommended_quizzes': 10,   - Profile management
-
-            'estimated_time': '2 weeks'
-
-        })   - Password reset│  ┌────────────────────────────────────────────────────────┐ ││
-
-    
-
-    return LearningPath.create(user_id, milestones)
-
-```
-
-2. **Quiz Management** (15 endpoints)│  │           Flask Application (app.py)                    │ │
-
-### Module 8: Multiplayer Service
-
-   - Start quiz, get questions
-
-**File**: `multiplayer_service.py`
-
-   - Submit answers, complete quiz│  │  • 90+ REST API Endpoints                               │ │├── backend/                        # Flask backend application
-
-**Features**:
-
-- Create and join quiz rooms   - Quiz history, results
-
-- Real-time synchronization
-
-- Live leaderboard updates│  │  • 10+ WebSocket Event Handlers                         │ │
-
-- Room state management
-
-3. **Content Processing** (8 endpoints)
-
-**WebSocket Events**:
-
-- `create_room` - Create new multiplayer room   - Upload PDF/DOCX│  │  • JWT Authentication Middleware                        │ ││   ├── app.py                     # Main Flask app (90+ endpoints)
-
-- `join_room` - Join existing room
-
-- `start_quiz` - Begin synchronized quiz   - Process URLs
-
-- `submit_answer` - Submit answer with broadcast
-
-- `update_leaderboard` - Real-time ranking updates   - Text input│  │  • Error Handling & Logging                             │ │
-
-- `end_quiz` - Finalize scores and winner
-
-
+## 1. System Overview
 
 ---
 
-4. **Analytics** (10 endpoints)│  └────────────────────────────────────────────────────────┘ ││   ├── models.py                  # SQLAlchemy models (15 models)Smart Quizzer AI is an adaptive learning platform that uses artificial intelligence to generate personalized quizzes, evaluate answers with semantic understanding, and track user progress through comprehensive analytics. The system employs Google Gemini AI for question generation, NLP models for answer evaluation, and adaptive algorithms for difficulty adjustment.---
+3. [Frontend Implementation](#frontend-implementation)---
 
-## 4. Frontend Implementation
+## 2. Architecture Design
 
-   - Performance trends
+### Project Description
 
-### Application Structure
+### High-Level System Architecture
 
-   - Topic mastery└──────────────────────────┬──────────────────────────────────┘
+4. [Database Schema](#database-schema)
 
 ```
 
-frontend/src/   - Recommendations
+┌─────────────────────────────────────────────────────────────┐Smart Quizzer AI is an intelligent adaptive learning platform that leverages artificial intelligence to generate personalized quiz questions, evaluate answers semantically, and provide real-time performance analytics. The system combines Google Gemini AI for question generation with Sentence-Transformers for natural language processing.
+
+│                      Client Layer                            │
+
+│  ┌──────────────────────────────────────────────────────┐   │5. [API Reference](#api-reference)
+
+│  │  React SPA (TypeScript + Tailwind CSS)              │   │
+
+│  │  • Pages: 13 routes (Login, Dashboard, Quiz, etc.)  │   │### Core Capabilities
+
+│  │  • Components: 8 reusable UI components             │   │
+
+│  │  • HTTP Client: Axios with JWT interceptors         │   │6. [AI/ML Components](#aiml-components)
+
+│  │  • WebSocket: Socket.IO client for real-time        │   │
+
+│  └──────────────────────────────────────────────────────┘   │- **Content Processing**: Extract text from PDF, DOCX, URLs, and plain text
+
+└──────────────────┬──────────────────┬────────────────────────┘
+
+                   │ REST API         │ WebSocket- **AI Question Generation**: Generate contextually relevant questions using Google Gemini 1.5 Flash7. [Security Implementation](#security-implementation)## 📋 Table of Contents---## Document Information## Complete Project Documentation
+
+                   │ (HTTP/HTTPS)     │ (Socket.IO)
+
+                   ▼                  ▼- **Semantic Answer Evaluation**: NLP-based answer grading with configurable similarity thresholds
+
+┌─────────────────────────────────────────────────────────────┐
+
+│                    Application Layer                         │- **Adaptive Learning**: Real-time difficulty adjustment based on user performance8. [Real-Time Features](#real-time-features)
+
+│  ┌──────────────────────────────────────────────────────┐   │
+
+│  │  Flask Application (Python 3.9+)                     │   │- **Gamification**: 21 achievement badges, points system, and global leaderboards
+
+│  │  • Routes: 90+ REST API endpoints                    │   │
+
+│  │  • WebSocket Events: Multiplayer room handlers       │   │- **Real-Time Multiplayer**: WebSocket-powered live quiz competitions9. [Testing Strategy](#testing-strategy)
+
+│  │  • Middleware: JWT auth, CORS, error handling        │   │
+
+│  │  • Services: 10 specialized service modules          │   │- **Analytics**: Comprehensive performance tracking, trend analysis, and AI recommendations
+
+│  └──────────────────────────────────────────────────────┘   │
+
+└────┬──────────┬──────────┬──────────┬──────────┬────────────┘10. [Deployment Architecture](#deployment-architecture)
+
+     │          │          │          │          │
+
+     ▼          ▼          ▼          ▼          ▼### Technology Philosophy
+
+┌─────────┐ ┌───────┐ ┌────────┐ ┌────────┐ ┌──────────┐
+
+│ Content │ │ AI    │ │  NLP   │ │ Badge  │ │ Learning │11. [Performance Optimization](#performance-optimization)1. [System Overview](#1-system-overview)
+
+│Processor│ │ Gen   │ │ Eval   │ │Service │ │ Paths    │
+
+│         │ │       │ │        │ │        │ │          │- **Backend-Driven Logic**: Complex business logic (question generation, answer evaluation, adaptive algorithms) handled server-side
+
+│PDF/DOCX │ │Gemini │ │Sentence│ │21 Badge│ │Adaptive  │
+
+│URL/Text │ │1.5    │ │-Trans  │ │ Types  │ │ Routes   │- **API-First Design**: RESTful endpoints with clear request/response contracts12. [Development Guidelines](#development-guidelines)
+
+└─────────┘ └───────┘ └────────┘ └────────┘ └──────────┘
+
+     │          │          │          │          │- **Real-Time Communication**: WebSocket (Socket.IO) for live features
+
+     └──────────┴──────────┴──────────┴──────────┘
+
+                           │- **Type Safety**: TypeScript frontend for compile-time error detection2. [Architecture Design](#2-architecture-design)
+
+                           ▼
+
+     ┌─────────────────────────────────────────────┐- **Security-First**: JWT authentication, input validation, CORS protection
+
+     │         Data Persistence Layer              │
+
+     │  ┌───────────────────────────────────────┐  │---
+
+     │  │  SQLAlchemy ORM                       │  │
+
+     │  │  • Models: 15 database tables         │  │---
+
+     │  │  • Relationships: Defined via ORM     │  │
+
+     │  │  • Migrations: Auto schema management │  │3. [Backend Implementation](#3-backend-implementation)## Table of Contents- **Project**: Smart Quizzer AI - Adaptive Learning Platform
+
+     │  └───────────────────────────────────────┘  │
+
+     └──────────────────┬──────────────────────────┘## 2. Architecture Design
+
+                        ▼
+
+     ┌─────────────────────────────────────────────┐## System Architecture
+
+     │          Database Layer                     │
+
+     │  • Development: SQLite (instance/db file)   │### High-Level System Architecture
+
+     │  • Production: PostgreSQL (recommended)     │
+
+     │  • Tables: 15 (Users, Quiz, Analytics...)   │4. [Frontend Implementation](#4-frontend-implementation)
+
+     └─────────────────────────────────────────────┘
+
+``````
+
+
+
+### Data Flow Diagrams┌─────────────────────────────────────────────────────────────┐### High-Level Architecture Diagram
+
+
+
+#### Question Generation Flow│                      Client Layer                            │
+
+
+
+```│  ┌──────────────────────────────────────────────────────┐   │5. [Database Schema](#5-database-schema)
+
+User uploads PDF
+
+    ↓│  │  React SPA (TypeScript + Tailwind CSS)              │   │
+
+Frontend: POST /api/content/upload (multipart/form-data)
+
+    ↓│  │  • Pages: 13 routes (Login, Dashboard, Quiz, etc.)  │   │```
+
+Backend: content_processor.py
+
+    ├─ PDF → PyPDF2/pdfplumber.extract_text()│  │  • Components: 8 reusable UI components             │   │
+
+    ├─ DOCX → python-docx.extract()
+
+    ├─ URL → BeautifulSoup4.scrape()│  │  • HTTP Client: Axios with JWT interceptors         │   │┌─────────────────────────────────────────────────────────────┐6. [API Reference](#6-api-reference)
+
+    └─ Text → Direct processing
+
+    ↓│  │  • WebSocket: Socket.IO client for real-time        │   │
+
+Extracted text (max 5000 chars)
+
+    ↓│  └──────────────────────────────────────────────────────┘   ││                  Client Layer (Browser)                      │
+
+question_gen.py: generate_questions(content, difficulty, count)
+
+    ↓└──────────────────┬──────────────────┬────────────────────────┘
+
+Google Gemini AI API (gemini-1.5-flash model)
+
+    ├─ Prompt: "Generate {count} {difficulty} questions..."                   │ REST API         │ WebSocket│                                                              │7. [AI/ML Components](#7-aiml-components)1. [Project Overview](#1-project-overview)- **Version**: 1.0.0> **📅 Last Updated:** November 1, 2025  
+
+    ├─ Temperature: 0.7 (balanced creativity)
+
+    ├─ Output: JSON array of questions                   │ (HTTP/HTTPS)     │ (Socket.IO)
+
+    └─ Classify by Bloom's Taxonomy
+
+    ↓                   ▼                  ▼│  ┌────────────────────────────────────────────────────────┐ │
+
+Question objects stored in database
+
+    ↓┌─────────────────────────────────────────────────────────────┐
+
+Frontend receives quiz session ID
+
+    ↓│                    Application Layer                         ││  │         React Frontend (TypeScript)                     │ │8. [Security & Authentication](#8-security--authentication)
+
+User starts quiz
+
+```│  ┌──────────────────────────────────────────────────────┐   │
+
+
+
+#### Answer Evaluation Flow│  │  Flask Application (Python 3.9+)                     │   ││  │  • 13 Page Components  • 8 Reusable Components         │ │
+
+
+
+```│  │  • Routes: 90+ REST API endpoints                    │   │
+
+User submits answer
+
+    ↓│  │  • WebSocket Events: Multiplayer room handlers       │   ││  │  • Tailwind CSS  • React Router  • Axios HTTP          │ │9. [Testing](#9-testing)2. [Architecture](#2-architecture)
+
+Frontend: POST /api/quiz/{session_id}/answer
+
+    {question_id, answer_text}│  │  • Middleware: JWT auth, CORS, error handling        │   │
+
+    ↓
+
+Backend retrieves correct_answer from Question table│  │  • Services: 10 specialized service modules          │   ││  │  • Socket.IO Client  • Recharts                        │ │
+
+    ↓
+
+answer_evaluator_simple.py: evaluate_answer()│  └──────────────────────────────────────────────────────┘   │
+
+    ↓
+
+Question type check:└────┬──────────┬──────────┬──────────┬──────────┬────────────┘│  └────────────────────────────────────────────────────────┘ │10. [Deployment](#10-deployment)
+
+├─ MCQ/True-False → Exact string match
+
+└─ Short Answer → Semantic NLP matching     │          │          │          │          │
+
+    ↓
+
+For short answers:     ▼          ▼          ▼          ▼          ▼└──────────────────────────┬──────────────────────────────────┘
+
+    Sentence-Transformers (all-MiniLM-L6-v2)
+
+    ├─ Encode user_answer → 384-dim vector┌─────────┐ ┌───────┐ ┌────────┐ ┌────────┐ ┌──────────┐
+
+    ├─ Encode correct_answer → 384-dim vector
+
+    └─ Cosine similarity score (0.0 - 1.0)│ Content │ │ AI    │ │  NLP   │ │ Badge  │ │ Learning │                           │ HTTP/HTTPS + WebSocket (Socket.IO)11. [Performance Optimization](#11-performance-optimization)3. [Backend Documentation](#3-backend-documentation)- **Last Updated**: November 2025> **📌 Version:** 1.0.0  
+
+    ↓
+
+Compare to threshold (default 0.75):│Processor│ │ Gen   │ │ Eval   │ │Service │ │ Paths    │
+
+├─ similarity >= 0.75 → Correct ✓
+
+└─ similarity < 0.75 → Incorrect ✗│         │ │       │ │        │ │        │ │          │                           ▼
+
+    ↓
+
+Generate contextual feedback│PDF/DOCX │ │Gemini │ │Sentence│ │21 Badge│ │Adaptive  │
+
+    ↓
+
+Update PerformanceTrend, check badge eligibility│URL/Text │ │1.5    │ │-Trans  │ │ Types  │ │ Routes   │┌─────────────────────────────────────────────────────────────┐12. [Contributing Guidelines](#12-contributing-guidelines)
+
+    ↓
+
+Response: {is_correct, similarity, feedback, points, badges}└─────────┘ └───────┘ └────────┘ └────────┘ └──────────┘
+
+```
+
+     │          │          │          │          ││                   API Gateway Layer                          │
+
+#### Adaptive Difficulty Flow
+
+     └──────────┴──────────┴──────────┴──────────┘
+
+```
+
+User completes question                           ││                                                              │4. [Frontend Documentation](#4-frontend-documentation)
+
+    ↓
+
+Calculate recent performance (last 5 questions)                           ▼
+
+    ↓
+
+Compute accuracy_percentage = (correct / 5) * 100     ┌─────────────────────────────────────────────┐│  ┌────────────────────────────────────────────────────────┐ │
+
+    ↓
+
+Difficulty adjustment logic:     │         Data Persistence Layer              │
+
+├─ accuracy >= 80% → Increase difficulty
+
+├─ 50% <= accuracy < 80% → Maintain difficulty     │  ┌───────────────────────────────────────┐  ││  │           Flask Application (app.py)                    │ │---
+
+└─ accuracy < 50% → Decrease difficulty
+
+    ↓     │  │  SQLAlchemy ORM                       │  │
+
+Select next question with adjusted difficulty
+
+    ↓     │  │  • Models: 15 database tables         │  ││  │  • 90+ REST API Endpoints                               │ │
+
+Deliver to user
+
+```     │  │  • Relationships: Defined via ORM     │  │
+
+
+
+---     │  │  • Migrations: Auto schema management │  ││  │  • WebSocket Event Handlers                             │ │5. [Database Schema](#5-database-schema)- **Author**: Mamatha Bachu> **✅ Status:** Fully Functional - Local Development Ready  
+
+
+
+## 3. Backend Implementation     │  └───────────────────────────────────────┘  │
+
+
+
+### Module Structure     └──────────────────┬──────────────────────────┘│  │  • JWT Authentication Middleware                        │ │
+
+
+
+```                        ▼
+
+backend/
+
+├── app.py                      # Main Flask application (4041 lines)     ┌─────────────────────────────────────────────┐│  │  • CORS Configuration                                   │ │## 1. System Overview
+
+├── models.py                   # Database models (15 tables)
+
+├── auth.py                     # JWT authentication     │          Database Layer                     │
+
+├── question_gen.py             # AI question generation
+
+├── content_processor.py        # Content extraction     │  • Development: SQLite (instance/db file)   ││  │  • Error Handling & Logging                             │ │
+
+├── answer_evaluator_simple.py  # NLP answer evaluation
+
+├── badge_service.py            # Achievement system     │  • Production: PostgreSQL (recommended)     │
+
+├── analytics_service.py        # Performance tracking
+
+├── learning_path_service.py    # Adaptive learning     │  • Tables: 15 (Users, Quiz, Analytics...)   ││  └────────────────────────────────────────────────────────┘ │6. [API Reference](#6-api-reference)
+
+├── multiplayer_service.py      # Real-time multiplayer
+
+├── leaderboard_service.py      # Global rankings     └─────────────────────────────────────────────┘
+
+├── error_handler.py            # Error handling
+
+└── requirements.txt            # Dependencies```└──────────────────────────┬──────────────────────────────────┘
+
+```
+
+
+
+### Module 1: User Authentication
+
+### Request Flow Examples                           │### 1.1 Project Purpose
+
+**File**: `auth.py`
+
+
+
+**Responsibilities**:
+
+- User registration with BCrypt password hashing#### Question Generation Flow        ┌──────────────────┼──────────────────┬────────────────┐
+
+- Login with JWT token generation
+
+- Token validation middleware```
+
+- Role-based access control (user/admin)
+
+User uploads PDF        ▼                  ▼                  ▼                ▼7. [AI/ML Components](#7-aiml-components)- **Tech Stack**: Flask 3.0.0, React 18.2.0, SQLite, Google Gemini AI> **🔒 Security:** All default credentials removed for safety  
+
+**Key Functions**:
+
+```python    ↓
+
+def init_jwt(app):
+
+    """Initialize Flask-JWT-Extended"""Frontend: POST /api/content/upload (multipart/form-data)┌─────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+
+    
+
+def generate_tokens(user_id):    ↓
+
+    """Generate access token"""
+
+    return create_access_token(Backend: content_processor.py│  Business   │  │  AI Services │  │ NLP Services │  │   Content    │Smart Quizzer AI is an adaptive learning platform that:
+
+        identity=user_id,
+
+        expires_delta=timedelta(days=1)    ├─ PDF → PyPDF2/pdfplumber.extract_text()
+
+    )
+
+    ├─ DOCX → python-docx.extract()│   Logic     │  │              │  │              │  │  Processors  │
+
+@auth_required
+
+def protected_route():    ├─ URL → BeautifulSoup4.scrape()
+
+    """Decorator for authentication"""
+
+```    └─ Text → Direct processing│             │  │ Google       │  │ Sentence-    │  │              │- Generates quiz questions from custom content using AI8. [Security](#8-security)
+
+
+
+**Endpoints**:    ↓
+
+- `POST /api/auth/register` - Create account
+
+- `POST /api/auth/login` - Authenticate userExtracted text (max 5000 chars)│ • Quiz      │  │ Gemini AI    │  │ Transformers │  │ • PDF Parser │
+
+- `GET /api/auth/profile` - Get user profile
+
+    ↓
+
+### Module 2: AI Question Generation
+
+question_gen.py: generate_questions(content, difficulty, count)│   Engine    │  │ (Question    │  │ (Answer      │  │ • DOCX Parse │- Evaluates answers with semantic understanding using NLP
+
+**File**: `question_gen.py`
+
+    ↓
+
+**Responsibilities**:
+
+- Interface with Google Gemini AIGoogle Gemini AI API (gemini-1.5-flash model)│ • Adaptive  │  │  Generation) │  │  Evaluation) │  │ • URL Fetch  │
+
+- Generate questions from content
+
+- Classify by Bloom's Taxonomy    ├─ Prompt: "Generate {count} {difficulty} questions from content..."
+
+- Multi-factor difficulty calculation
+
+    ├─ Temperature: 0.7 (balanced creativity)│   Learning  │  │              │  │              │  │ • Beautiful  │- Adapts difficulty based on real-time user performance9. [Testing](#9-testing)> **📖 Note:** This documentation reflects the current state of the project after recent security improvements and documentation cleanup.
+
+**Gemini AI Configuration**:
+
+```python    ├─ Output: JSON array of questions
+
+model = genai.GenerativeModel('gemini-1.5-flash')
+
+generation_config = {    └─ Classify by Bloom's Taxonomy + Multi-factor difficulty│ • Badges    │  │ Bloom's Tax  │  │ Cosine       │  │   Soup4      │
+
+    'temperature': 0.7,
+
+    'top_p': 0.95,    ↓
+
+    'top_k': 40,
+
+    'max_output_tokens': 2048,Question objects stored in database│ • Analytics │  │ Multi-factor │  │ Similarity   │  │              │- Provides comprehensive analytics and personalized learning paths
+
+}
+
+```    ↓
+
+
+
+**Difficulty Classification Algorithm**:Frontend receives quiz session ID│ • Learning  │  │ Difficulty   │  │ 75% Thresh   │  │              │
+
+- Bloom's Taxonomy (40% weight)
+
+- Semantic Complexity (30%)    ↓
+
+- Text Metrics (20%)
+
+- Historical Accuracy (10%)User starts quiz│   Paths     │  │              │  │              │  │              │- Gamifies learning through badges and leaderboards10. [Deployment](#10-deployment)
+
+
+
+**Bloom's Taxonomy Levels**:```
+
+- Remember (0.1)
+
+- Understand (0.2)└─────────────┘  └──────────────┘  └──────────────┘  └──────────────┘
+
+- Apply (0.4)
+
+- Analyze (0.6)#### Answer Evaluation Flow
+
+- Evaluate (0.8)
+
+- Create (1.0)```        │
+
+
+
+### Module 3: Answer EvaluationUser submits answer
+
+
+
+**File**: `answer_evaluator_simple.py`    ↓        ▼
+
+
+
+**NLP Model**: Sentence-Transformers `all-MiniLM-L6-v2`Frontend: POST /api/quiz/{session_id}/answer
+
+- Embedding dimension: 384
+
+- Inference time: ~10ms    {question_id, answer_text}┌─────────────────────────────────────────────────────────────┐### 1.2 Technology Stack11. [Performance](#11-performance)---
+
+- Accuracy: 85-90%
+
+    ↓
+
+**Evaluation Logic**:
+
+```pythonBackend retrieves correct_answer from Question table│                   Data Access Layer                          │
+
+def evaluate_answer(user_answer, correct_answer, question_type):
+
+    if question_type in ['MCQ', 'TrueFalse']:    ↓
+
+        # Exact match
+
+        is_correct = user_answer.lower().strip() == correct_answer.lower().strip()answer_evaluator_simple.py: evaluate_answer()│                                                              │
+
+        return {'is_correct': is_correct, 'similarity': 1.0 if is_correct else 0.0}
+
+        ↓
+
+    elif question_type == 'ShortAnswer':
+
+        # Semantic similarityQuestion type check:│  ┌────────────────────────────────────────────────────────┐ │
+
+        user_emb = model.encode([user_answer])[0]
+
+        correct_emb = model.encode([correct_answer])[0]├─ MCQ/True-False → Exact string match
+
+        similarity = cosine_similarity([user_emb], [correct_emb])[0][0]
+
+        threshold = float(os.getenv('SIMILARITY_THRESHOLD', '0.75'))└─ Short Answer → Semantic NLP matching│  │         SQLAlchemy ORM (models.py)                      │ │**Backend (Python)**12. [Contributing](#12-contributing)
+
+        is_correct = similarity >= threshold
+
+        return {    ↓
+
+            'is_correct': is_correct,
+
+            'similarity': float(similarity),For short answers:│  │  • 15 Database Models                                   │ │
+
+            'confidence': float(similarity * 100),
+
+            'feedback': generate_feedback(similarity)    Sentence-Transformers (all-MiniLM-L6-v2)
+
+        }
+
+```    ├─ Encode user_answer → 384-dim embedding vector│  │  • Relationships & Constraints                          │ │- Framework: Flask 3.0.0
+
+
+
+**Similarity Thresholds**:    ├─ Encode correct_answer → 384-dim embedding vector
+
+- 0.95-1.0: Excellent
+
+- 0.85-0.94: Very good    └─ Cosine similarity score (0.0 - 1.0)│  │  • Migration Support                                    │ │
+
+- 0.75-0.84: Good ✅ (Accepted)
+
+- 0.60-0.74: Partial    ↓
+
+- <0.60: Incorrect ❌
+
+Compare to threshold (default 0.75):│  └────────────────────────────────────────────────────────┘ │- ORM: SQLAlchemy 2.0.43---
+
+### Module 4: Content Processing
+
+├─ similarity >= 0.75 → Correct ✓
+
+**File**: `content_processor.py`
+
+└─ similarity < 0.75 → Incorrect ✗└──────────────────────────┬──────────────────────────────────┘
+
+**Supported Formats**:
+
+1. **PDF**: PyPDF2 + pdfplumber    ↓
+
+2. **DOCX**: python-docx
+
+3. **URL**: BeautifulSoup4Generate contextual feedback:                           ▼- Database: SQLite (development), PostgreSQL (production)
+
+4. **Plain Text**: Direct processing
+
+├─ 0.95-1.0: "Excellent! Perfect understanding"
+
+**Limits**:
+
+- Max file size: 16 MB├─ 0.85-0.94: "Very good! Mostly correct"┌─────────────────────────────────────────────────────────────┐
+
+- Max text length: 5000 characters
+
+├─ 0.75-0.84: "Good! Captures main idea"
+
+### Module 5: Badge System
+
+└─ <0.75: "Incorrect. Review this topic"│                   Database Layer                             │- AI: Google Gemini 1.5 Flash---
+
+**File**: `badge_service.py`
+
+    ↓
+
+**21 Achievement Badges**:
+
+Update PerformanceTrend, check badge eligibility│                                                              │
+
+| Badge | Criteria | Description |
+
+|-------|----------|-------------|    ↓
+
+| Quiz Starter | 1 quiz | First completion |
+
+| Perfect Score | 100% accuracy | Perfect quiz |Response: {is_correct, similarity, feedback, points_earned, badges_unlocked}│  ┌────────────────────────────────────────────────────────┐ │- NLP: Sentence-Transformers (all-MiniLM-L6-v2)
+
+| Streak Master | 5 consecutive days | Daily engagement |
+
+| Marathon Runner | 50 quizzes | Long-term dedication |```
+
+| Speed Demon | Avg <10s/question | Quick thinking |
+
+| Topic Explorer | 5 different topics | Broad learning |│  │    SQLite (Development) / PostgreSQL (Production)       │ │
+
+| Accuracy Pro | 90%+ average | Consistent excellence |
+
+| Knowledge Seeker | 100 quizzes | High dedication |#### Adaptive Difficulty Flow
+
+| Subject Master | 95%+ in topic | Topic expertise |
+
+| Quiz Master | 500 quizzes | Ultimate dedication |```│  │  • Users & Authentication                               │ │- Real-time: Flask-SocketIO 5.3.6## Table of Contents
+
+| Legend | All badges earned | Complete mastery |
+
+User completes question
+
+### Module 6: Analytics Service
+
+    ↓│  │  • Quizzes & Questions                                  │ │
+
+**File**: `analytics_service.py`
+
+Calculate recent performance (last 5 questions)
+
+**Tracked Metrics**:
+
+- Quiz completion rate    ↓│  │  • Performance Analytics                                │ │- Authentication: JWT (PyJWT)
+
+- Average accuracy per topic
+
+- Performance trends over timeCompute accuracy_percentage = (correct_count / 5) * 100
+
+- Time spent per question
+
+- Difficulty progression    ↓│  │  • Badges & Achievements                                │ │
+
+- Streak tracking
+
+Difficulty adjustment logic:
+
+**Visualizations**:
+
+1. Performance line charts├─ accuracy >= 80% → Increase difficulty│  │  • Leaderboards & Multiplayer                           │ │- Password Hashing: BCrypt## 1. Project Overview
+
+2. Topic heatmaps
+
+3. Accuracy distributions│   (Easy → Medium → Hard)
+
+4. Time analysis
+
+├─ 50% <= accuracy < 80% → Maintain difficulty│  └────────────────────────────────────────────────────────┘ │
+
+**Endpoints**:
+
+- `GET /api/analytics/trends` - Performance trends└─ accuracy < 50% → Decrease difficulty
+
+- `GET /api/analytics/topics` - Topic breakdown
+
+- `GET /api/analytics/recommendations` - AI suggestions    (Hard → Medium → Easy)└─────────────────────────────────────────────────────────────┘
+
+
+
+### Module 7: Learning Paths    ↓
+
+
+
+**File**: `learning_path_service.py`Filter question bank by:```
+
+
+
+**Path Generation Algorithm**:├─ New difficulty level
+
+```python
+
+def generate_learning_path(user_id):├─ Current topic**Frontend (TypeScript)**## Table of Contents
+
+    # Analyze weak areas (< 70% mastery)
+
+    weak_topics = get_topics_below_threshold(user_id, 70)└─ Not previously answered in this session
+
+    
+
+    # Prioritize by importance and gap    ↓### Request Flow Diagrams
+
+    prioritized = sort_by_score(weak_topics)
+
+    Select next question
+
+    # Create milestones
+
+    milestones = []    ↓- Framework: React 18.2.0
+
+    for topic in prioritized[:5]:
+
+        milestones.append({Deliver to user
+
+            'topic': topic,
+
+            'target_accuracy': topic.current + 20,```#### Quiz Generation Flow
+
+            'recommended_quizzes': 10
+
+        })
+
+    
+
+    return LearningPath.create(user_id, milestones)---- Language: TypeScript 4.9.5### 1.1 Purpose
+
+```
+
+
+
+### Module 8: Multiplayer Service
+
+## 3. Backend Implementation```
+
+**File**: `multiplayer_service.py`
+
+
+
+**WebSocket Events**:
+
+- `create_room` - Create quiz room### Module StructureUser Upload (PDF/DOCX/URL/Text)- Styling: Tailwind CSS 3.3.0
+
+- `join_room` - Join room
+
+- `start_quiz` - Begin synchronized quiz
+
+- `submit_answer` - Real-time answer submission
+
+- `update_leaderboard` - Live rankings```        ↓
+
+- `end_quiz` - Finalize scores
+
+backend/
+
+---
+
+├── app.py                      # Main Flask application (4041 lines)Frontend: POST /api/content/upload- Routing: React Router 6.4.01. [System Overview](#1-system-overview)1. [Project Overview](#project-overview)
+
+## 4. Frontend Implementation
+
+├── models.py                   # Database models (707 lines, 15 tables)
+
+### Application Structure
+
+├── auth.py                     # JWT authentication & authorization        ↓
+
+```
+
+frontend/src/├── question_gen.py             # AI question generation with Gemini
 
 ├── pages/                  # 13 page components
 
-│   ├── Login.tsx          # User authentication                           ││   ├── auth.py                    # Authentication utilities
+│   ├── Login.tsx├── content_processor.py        # PDF/DOCX/URL content extractionBackend: content_processor.py- HTTP Client: Axios 1.5.0
 
-│   ├── Register.tsx       # New user signup
+│   ├── Register.tsx
+
+│   ├── Dashboard.tsx├── answer_evaluator_simple.py  # NLP-based answer evaluation
+
+│   ├── ContentUploadPage.tsx
+
+│   ├── Quiz.tsx├── badge_service.py            # Achievement/badge management        ├→ PDF: PyPDF2.extract_text()
+
+│   ├── Results.tsx
+
+│   ├── History.tsx├── analytics_service.py        # Performance tracking & trends
+
+│   ├── Analytics.tsx
+
+│   ├── AnalyticsDashboard.tsx├── learning_path_service.py    # Adaptive learning recommendations        ├→ DOCX: python-docx.extract()- WebSocket: Socket.IO Client 4.8.1Smart Quizzer AI is an adaptive learning platform that:
+
+│   ├── Leaderboard.tsx
+
+│   ├── ProfilePage.tsx├── multiplayer_service.py      # Real-time multiplayer logic
+
+│   ├── AdminDashboard.tsx
+
+│   └── ResetPassword.tsx├── leaderboard_service.py      # Global ranking system        └→ URL: BeautifulSoup4.scrape()
+
+│
+
+├── components/             # 8 reusable components├── error_handler.py            # Centralized error handling
+
+│   ├── Header.tsx
+
+│   ├── ContentUpload.tsx└── requirements.txt            # 28 Python dependencies        ↓
+
+│   ├── BadgeShowcase.tsx
+
+│   ├── BadgeProgress.tsx```
+
+│   ├── PerformanceChart.tsx
+
+│   ├── TopicHeatmap.tsxText Content (max 5000 chars)
+
+│   ├── WeeklyReport.tsx
+
+│   └── RecommendationCard.tsx### Module 1: User Authentication & Authorization
+
+│
+
+├── lib/        ↓**DevOps**- Generates quizzes from custom content using AI2. [Architecture Design](#2-architecture-design)2. [Project Statement](#project-statement)
+
+│   ├── api.ts            # Axios HTTP client
+
+│   └── userManager.ts    # Session management**File**: `auth.py`
+
+│
+
+├── App.tsx               # Main app with routingquestion_gen.py: generate_questions()
+
+├── index.tsx             # Entry point
+
+└── index.css             # Tailwind CSS**Responsibilities**:
+
+```
+
+- User registration with password hashing (BCrypt)        ↓- Containerization: Docker & Docker Compose
+
+### State Management
+
+- Login with JWT token generation
+
+**Approach**: React Hooks
+
+- `useState` - Component state- Token validation middlewareGoogle Gemini AI API
+
+- `useEffect` - Side effects
+
+- `useCallback` - Memoized functions- Role-based access control (user/admin)
+
+- `useContext` - Global state
+
+        ├→ Generate 5-20 questions- Version Control: Git- Evaluates answers with semantic understanding
+
+### API Client
+
+**Key Functions**:
+
+**File**: `lib/api.ts`
+
+```python        ├→ Apply Bloom's Taxonomy
+
+```typescript
+
+import axios from 'axios';def init_jwt(app):
+
+
+
+const api = axios.create({    """Initialize Flask-JWT-Extended with app"""        ├→ Classify difficulty- Package Management: pip (Python), npm (Node.js)
+
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
+
+  headers: {'Content-Type': 'application/json'},    
+
+  timeout: 15000,
+
+});def generate_tokens(user_id):        └→ Create answer options
+
+
+
+// Request interceptor: Add JWT    """Generate access token for user"""
+
+api.interceptors.request.use((config) => {
+
+  const token = localStorage.getItem('access_token');    return create_access_token(identity=user_id, expires_delta=timedelta(days=1))        ↓- Adapts difficulty based on user performance3. [Module Documentation](#3-module-documentation)3. [Project Outcomes](#project-outcomes)
+
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  return config;
+
+});
+
+@auth_requiredQuestion objects stored in database
+
+// Response interceptor: Handle 401
+
+api.interceptors.response.use(def protected_route():
+
+  (response) => response,
+
+  (error) => {    """Decorator for routes requiring authentication"""        ↓### 1.3 Project Structure
+
+    if (error.response?.status === 401) {
+
+      localStorage.clear();```
+
+      window.location.href = '/login';
+
+    }Frontend receives quiz session ID
+
+    return Promise.reject(error);
+
+  }**Endpoints**:
+
+);
+
+```- `POST /api/auth/register` - Create new user account        ↓- Provides analytics and personalized learning paths
+
+
+
+### Routing- `POST /api/auth/login` - Authenticate and receive JWT token
+
+
+
+**File**: `App.tsx`- `POST /api/auth/logout` - Invalidate token (client-side)User starts quiz
+
+
+
+```typescript- `GET /api/auth/profile` - Get current user profile
+
+<Router>
+
+  <Routes>``````
+
+    <Route path="/" element={<Login />} />
+
+    <Route path="/register" element={<Register />} />### Module 2: AI Question Generation
+
+    <Route path="/dashboard" element={<Dashboard />} />
+
+    <Route path="/upload" element={<ContentUploadPage />} />
+
+    <Route path="/quiz/:sessionId" element={<Quiz />} />
+
+    <Route path="/results/:sessionId" element={<Results />} />**File**: `question_gen.py`
+
+    <Route path="/history" element={<History />} />
+
+    <Route path="/analytics" element={<AnalyticsDashboard />} />#### Answer Evaluation FlowSmart-Quizzer-AI/4. [Database Schema](#4-database-schema)4. [System Architecture](#system-architecture)
+
+    <Route path="/leaderboard" element={<Leaderboard />} />
+
+    <Route path="/profile" element={<ProfilePage />} />**Responsibilities**:
+
+    <Route path="/admin" element={<AdminDashboard />} />
+
+  </Routes>- Interface with Google Gemini AI API
+
+</Router>
+
+```- Generate questions from provided content
+
+
+
+---- Classify questions by Bloom's Taxonomy```│
+
+
+
+## 5. Database Schema- Multi-factor difficulty calculation
+
+
+
+### Entity RelationshipsUser submits answer
+
+
+
+```**Algorithm: Multi-Factor Difficulty Classification**:
+
+User (1) ──────< (M) QuizSession
+
+  │                      │```python        ↓├── backend/                          # Flask Backend Application### 1.2 Technology Stack
+
+  │                      ├──< (M) PerformanceTrend
+
+  │                      └──< (1) QuizLeaderboarddef classify_difficulty(question):
+
+  │
+
+  ├──────< (M) UserBadge >────── (1) Badge    # Factor 1: Bloom's Taxonomy (40% weight)Frontend: POST /api/quiz/{session_id}/answer
+
+  │
+
+  ├──────< (M) LearningPath >────< (M) LearningMilestone    bloom_levels = {
+
+  │
+
+  └──────< (M) MultiplayerParticipant >────── (1) MultiplayerRoom        'Remember': 0.1, 'Understand': 0.2, 'Apply': 0.4,        ↓│   ├── app.py                       # Main Flask app (90+ endpoints)
+
+
+
+Topic (1) ──────< (M) Question        'Analyze': 0.6, 'Evaluate': 0.8, 'Create': 1.0
+
+  │                      │
+
+  │                      ├──< (M) QuizSession    }Backend retrieves correct answer from database
+
+  │                      ├──< (M) FlaggedQuestion
+
+  │                      └──< (M) QuestionFeedback    bloom_score = bloom_levels[question['bloom_level']]
+
+```
+
+            ↓│   ├── models.py                    # SQLAlchemy models (15 models)5. [API Reference](#5-api-reference)5. [Technology Stack](#technology-stack)
+
+### Table Definitions
+
+    # Factor 2: Semantic Complexity (30%)
+
+#### 1. user
+
+```sql    semantic_score = calculate_semantic_complexity(question_text)answer_evaluator_simple.py: evaluate_answer()
+
+CREATE TABLE user (
+
+    id INTEGER PRIMARY KEY AUTOINCREMENT,    
+
+    username VARCHAR(80) UNIQUE NOT NULL,
+
+    email VARCHAR(120) UNIQUE NOT NULL,    # Factor 3: Text Metrics (20%)        ↓│   ├── auth.py                      # JWT authentication utilities
+
+    password_hash VARCHAR(256) NOT NULL,
+
+    full_name VARCHAR(200),    text_score = calculate_text_complexity(question_text)
+
+    skill_level VARCHAR(20) DEFAULT 'Beginner',
+
+    role VARCHAR(20) DEFAULT 'user',    Question Type Check:
+
+    total_points INTEGER DEFAULT 0,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP    # Factor 4: Historical Accuracy (10% - if available)
+
+);
+
+```    historical_score = question.get('correct_rate', 0.5)├─ MCQ/True-False → Exact match comparison│   ├── question_gen.py              # AI question generation**Backend**
+
+
+
+#### 2. quiz_session    
+
+```sql
+
+CREATE TABLE quiz_session (    # Weighted average└─ Short Answer → NLP semantic similarity
+
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    user_id INTEGER NOT NULL,    final_score = (
+
+    topic_id INTEGER,
+
+    difficulty VARCHAR(20) DEFAULT 'Medium',        bloom_score * 0.40 +        ↓│   ├── answer_evaluator_simple.py   # NLP answer evaluation
+
+    total_questions INTEGER DEFAULT 10,
+
+    score INTEGER DEFAULT 0,        semantic_score * 0.30 +
+
+    accuracy FLOAT DEFAULT 0.0,
+
+    time_spent INTEGER DEFAULT 0,        text_score * 0.20 +Sentence-Transformers Model (all-MiniLM-L6-v2)
+
+    completed BOOLEAN DEFAULT 0,
+
+    completed_at DATETIME,        historical_score * 0.10
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE    )        ├→ Encode user answer → 384-dim vector│   ├── content_processor.py         # PDF/DOCX/URL processing- **Framework**: Flask 3.0.0 (Python 3.13)6. [Frontend Components](#6-frontend-components)6. [Module Implementation](#module-implementation)
+
+);
+
+```    
+
+
+
+#### 3. question    if final_score < 0.33:        ├→ Encode correct answer → 384-dim vector
+
+```sql
+
+CREATE TABLE question (        return 'Easy'
+
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    topic_id INTEGER,    elif final_score < 0.67:        └→ Calculate cosine similarity (0-1)│   ├── badge_service.py             # Achievement badge system
+
+    text TEXT NOT NULL,
+
+    options JSON,        return 'Medium'
+
+    correct_answer TEXT NOT NULL,
+
+    explanation TEXT,    else:        ↓
+
+    difficulty VARCHAR(20),
+
+    bloom_level VARCHAR(50),        return 'Hard'
+
+    question_type VARCHAR(50),
+
+    times_used INTEGER DEFAULT 0,```Similarity vs Threshold (0.75):│   ├── analytics_service.py         # Performance analytics- **ORM**: SQLAlchemy 2.0.43
+
+    correct_rate FLOAT DEFAULT 0.0,
+
+    FOREIGN KEY (topic_id) REFERENCES topic(id)
+
+);
+
+```**Gemini AI Configuration**:├─ >= 0.75 → Correct (is_correct=True)
+
+
+
+#### 4-15. Additional Tables```python
+
+- `topic` - Quiz subjects
+
+- `badge` - Achievement definitionsmodel = genai.GenerativeModel('gemini-1.5-flash')└─ < 0.75 → Incorrect (is_correct=False)│   ├── learning_path_service.py     # Personalized learning paths
+
+- `user_badge` - User achievements
+
+- `performance_trend` - Analytics datageneration_config = {
+
+- `learning_path` - Personalized routes
+
+- `learning_milestone` - Progress checkpoints    'temperature': 0.7,      # Balanced creativity/accuracy        ↓
+
+- `multiplayer_room` - Real-time rooms
+
+- `multiplayer_participant` - Room participants    'top_p': 0.95,          # Nucleus sampling
+
+- `password_reset_token` - Password recovery
+
+- `question_feedback` - User ratings    'top_k': 40,            # Top-k samplingGenerate contextual feedback│   ├── leaderboard_service.py       # Global leaderboard management- **Database**: SQLite (dev), PostgreSQL (prod)7. [AI & Machine Learning](#7-ai--machine-learning)7. [Database Schema](#database-schema)
+
+- `flagged_question` - Reported questions
+
+- `quiz_leaderboard` - Global rankings    'max_output_tokens': 2048,
+
+
+
+---}        ↓
+
+
+
+## 6. API Reference```
+
+
+
+### Base URLUpdate user performance metrics│   ├── multiplayer_service.py       # Real-time multiplayer features
+
+```
+
+Development: http://localhost:5000**Endpoints**:
+
+Production: https://your-domain.com
+
+```- `POST /api/quiz/generate` - Generate quiz from content        ↓
+
+
+
+### Authentication- `POST /api/content/upload` - Upload and process content
+
+
+
+Protected endpoints require JWT:Check badge eligibility (badge_service.py)│   ├── error_handler.py             # Centralized error handling- **AI**: Google Gemini 1.5 Flash
+
+```
+
+Authorization: Bearer <access_token>### Module 3: Answer Evaluation
+
+```
+
+        ↓
+
+### Key Endpoints
+
+**File**: `answer_evaluator_simple.py`
+
+#### POST /api/auth/register
+
+Response sent to frontend with:│   ├── requirements.txt             # Python dependencies
+
+Register new user.
+
+**Responsibilities**:
+
+**Request**:
+
+```json- Evaluate user answers with NLP- is_correct
+
+{
+
+  "username": "johndoe",- Generate contextual feedback
+
+  "email": "john@example.com",
+
+  "password": "SecurePass123!",- Calculate confidence scores- similarity score│   └── instance/- **NLP**: Sentence-Transformers (all-MiniLM-L6-v2)8. [Workflows](#8-workflows)8. [API Documentation](#api-documentation)
+
+  "full_name": "John Doe"
+
+}
+
+```
+
+**NLP Model**: Sentence-Transformers `all-MiniLM-L6-v2`- confidence level
+
+**Response (201)**:
+
+```json- Embedding dimension: 384
+
+{
+
+  "message": "User registered successfully",- Inference speed: ~10ms per sentence- feedback message│       └── smart_quizzer.db        # SQLite database
+
+  "user": {
+
+    "id": 1,- Accuracy: 85-90% on semantic similarity benchmarks
+
+    "username": "johndoe",
+
+    "email": "john@example.com",- points earned
+
+    "role": "user"
+
+  }**Evaluation Logic**:
+
+}
+
+``````python- badges unlocked│- **Real-time**: Flask-SocketIO 5.4.1
+
+
+
+#### POST /api/auth/logindef evaluate_answer(user_answer, correct_answer, question_type):
+
+
+
+Authenticate user.    if question_type in ['MCQ', 'TrueFalse']:```
+
+
+
+**Request**:        # Exact match for structured questions
+
+```json
+
+{        is_correct = user_answer.lower().strip() == correct_answer.lower().strip()├── frontend/                         # React Frontend Application
+
+  "username": "johndoe",
+
+  "password": "SecurePass123!"        return {
+
+}
+
+```            'is_correct': is_correct,#### Adaptive Difficulty Flow
+
+
+
+**Response (200)**:            'similarity': 1.0 if is_correct else 0.0,
+
+```json
+
+{            'confidence': 100 if is_correct else 0│   ├── src/- **Authentication**: JWT (PyJWT 2.10.1)9. [Security & Authentication](#9-security--authentication)9. [Features Implementation](#features-implementation)
+
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+
+  "user": {        }
+
+    "id": 1,
+
+    "username": "johndoe",    ```
+
+    "total_points": 850
+
+  }    elif question_type == 'ShortAnswer':
+
+}
+
+```        # Semantic similarity for open-ended questionsUser completes question│   │   ├── pages/                   # 13 page components
+
+
+
+#### POST /api/quiz/start        user_embedding = model.encode([user_answer])[0]
+
+
+
+Start quiz session.        correct_embedding = model.encode([correct_answer])[0]        ↓
+
+
+
+**Request**:        
+
+```json
+
+{        similarity = cosine_similarity([user_embedding], [correct_embedding])[0][0]Calculate recent performance (last 5 questions)│   │   ├── components/              # 8 reusable components
+
+  "topic_id": 1,
+
+  "difficulty": "Medium",        threshold = float(os.getenv('SIMILARITY_THRESHOLD', '0.75'))
+
+  "num_questions": 10
+
+}                ↓
+
+```
+
+        is_correct = similarity >= threshold
+
+**Response (201)**:
+
+```json        Compute accuracy percentage│   │   ├── lib/
+
+{
+
+  "session_id": 42,        return {
+
+  "topic": "Python Programming",
+
+  "difficulty": "Medium",            'is_correct': is_correct,        ↓
+
+  "first_question": {
+
+    "id": 105,            'similarity': float(similarity),
+
+    "text": "What is a list comprehension?",
+
+    "options": ["A", "B", "C", "D"],            'confidence': float(similarity * 100),Difficulty adjustment logic:│   │   │   ├── api.ts              # API client (Axios)**Frontend**10. [Testing](#10-testing)10. [Local Development Setup](#local-development-setup)
+
+    "question_type": "MCQ"
+
+  }            'feedback': generate_feedback(similarity)
+
+}
+
+```        }├─ Accuracy >= 80% → Increase difficulty (Easy→Medium→Hard)
+
+
+
+#### POST /api/quiz/{session_id}/answer```
+
+
+
+Submit answer.├─ Accuracy 50-79% → Maintain current difficulty│   │   │   └── userManager.ts      # User session management
+
+
+
+**Request**:**Similarity Score Interpretation**:
+
+```json
+
+{- **1.00**: Exact match└─ Accuracy < 50% → Decrease difficulty (Hard→Medium→Easy)
+
+  "question_id": 105,
+
+  "answer": "A way to create lists concisely"- **0.95-0.99**: Excellent understanding
+
+}
+
+```- **0.85-0.94**: Very good comprehension        ↓│   │   ├── App.tsx                 # Main React app- **Framework**: React 18.2.0
+
+
+
+**Response (200)**:- **0.75-0.84**: Good, captures main idea ✅ (Accepted)
+
+```json
+
+{- **0.60-0.74**: Partial understandingSelect next question with adjusted difficulty
+
+  "is_correct": true,
+
+  "similarity": 0.89,- **<0.60**: Incorrect ❌
+
+  "confidence": 89.3,
+
+  "feedback": "Very good! Answer demonstrates understanding.",        ↓│   │   └── index.tsx               # React entry point
+
+  "points_earned": 10,
+
+  "badges_unlocked": ["Quiz Starter"],### Module 4: Content Processing
+
+  "next_question": {...}
+
+}Deliver question to user
+
+```
+
+**File**: `content_processor.py`
+
+#### GET /api/analytics/trends
+
+```│   ├── package.json                # Node dependencies- **Language**: TypeScript 4.9.511. [Deployment](#11-deployment)11. [User Guide](#user-guide)
+
+Get performance trends.
+
+**Responsibilities**:
+
+**Query Parameters**:
+
+- `days`: Number of days (default: 30)- Extract text from multiple file formats
+
+- `topic_id`: Filter by topic (optional)
+
+- Web scraping for URL content
+
+**Response (200)**:
+
+```json- Text cleaning and preprocessing---│   └── tsconfig.json               # TypeScript config
+
+{
+
+  "trends": [
+
+    {
+
+      "date": "2025-10-15",**Supported Formats**:
+
+      "quizzes_taken": 3,
+
+      "average_accuracy": 85.5,1. **PDF**: PyPDF2 + pdfplumber (dual extraction for better accuracy)
+
+      "total_points": 120
+
+    }2. **DOCX**: python-docx## Backend Implementation│- **Styling**: Tailwind CSS 3.4.17
+
+  ],
+
+  "summary": {3. **URL**: BeautifulSoup4 + requests
+
+    "total_quizzes": 45,
+
+    "overall_accuracy": 82.34. **Plain Text**: Direct processing
+
+  }
+
+}
+
+```
+
+**Content Size Limits**:### Main Application Structure (app.py)├── docker-compose.yml              # Multi-container orchestration
+
+#### GET /api/leaderboard
+
+- Maximum file upload: 16 MB
+
+Get global rankings.
+
+- Maximum text length for processing: 5000 characters
+
+**Query Parameters**:
+
+- `period`: weekly | monthly | all-time- Automatically truncates longer content
+
+- `limit`: Number of entries (default: 50)
+
+The Flask application serves as the central hub for all backend operations.├── README.md                       # Project overview- **Routing**: React Router 6.28.012. [Troubleshooting](#12-troubleshooting)12. [Admin Guide](#admin-guide)
+
+**Response (200)**:
+
+```json### Module 5: Badge & Achievement System
+
+{
+
+  "leaderboard": [
+
+    {
+
+      "rank": 1,**File**: `badge_service.py`
+
+      "username": "toplearner",
+
+      "total_points": 5420,**Key Components**:├── SETUP.md                        # Installation guide
+
+      "average_accuracy": 94.2
+
+    }**21 Achievement Badges**:
+
+  ],
+
+  "user_rank": 15
+
+}
+
+```| Badge Name | Criteria | Description |
+
+
+
+---|------------|----------|-------------|```python├── PROJECT_DOCUMENTATION.md        # This file- **HTTP Client**: Axios 1.7.9
+
+
+
+## 7. AI/ML Components| Quiz Starter | Complete 1 quiz | First quiz completion |
+
+
+
+### Google Gemini AI| Perfect Score | 100% on any quiz | Perfect accuracy |from flask import Flask, request, jsonify
+
+
+
+**Model**: `gemini-1.5-flash`| Streak Master | 5 consecutive days | Daily engagement |
+
+
+
+**Purpose**: Question generation| Marathon Runner | 50 quizzes completed | Long-term dedication |from flask_cors import CORS└── LICENSE                         # MIT License
+
+
+
+**Configuration**:| Speed Demon | Avg < 10s per question | Quick thinking |
+
+- Temperature: 0.7
+
+- Top-p: 0.95| Topic Explorer | Complete 5 different topics | Broad learning |from flask_socketio import SocketIO, emit, join_room
+
+- Top-k: 40
+
+- Max tokens: 2048| Accuracy Pro | 90%+ average accuracy | Consistent excellence |
+
+
+
+**Rate Limits (Free Tier)**:| Comeback Kid | Improve score by 20%+ | Growth mindset |from models import db, User, QuizSession, Question, Badge```- **Build Tool**: Webpack 513. [Development Timeline](#development-timeline)
+
+- 60 requests/minute
+
+- 1,500 requests/day| Early Bird | Quiz before 8 AM | Morning learner |
+
+
+
+### Sentence-Transformers| Night Owl | Quiz after 10 PM | Night learner |import google.generativeai as genai
+
+
+
+**Model**: `all-MiniLM-L6-v2`| Weekend Warrior | 10 quizzes on weekends | Weekend dedication |
+
+
+
+**Purpose**: Semantic similarity| Social Butterfly | 5 multiplayer games | Social learning |from sentence_transformers import SentenceTransformer
+
+
+
+**Specs**:| Leaderboard King | Top 10 global rank | Competitive excellence |
+
+- Embedding dimension: 384
+
+- Max sequence: 256 tokens| Knowledge Seeker | 100 quizzes completed | Dedication |
+
+- Inference: ~10ms
+
+- Model size: ~90 MB| Subject Master | 95%+ in one topic | Topic expertise |
+
+- Accuracy: 82.4% (STS benchmark)
+
+| Adaptive Learner | Complete all difficulty levels | Versatility |# Initialize Flask app---
+
+**Usage**:
+
+```python| Feedback Champion | Provide 10 question feedbacks | Community contributor |
+
+from sentence_transformers import SentenceTransformer
+
+| Badge Collector | Earn 10 different badges | Achievement hunter |app = Flask(__name__)
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+embeddings = model.encode(["Text 1", "Text 2"])| Consistency Award | 30-day streak | Long-term commitment |
+
+similarity = cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]
+
+```| Quiz Master | 500 quizzes completed | Ultimate dedication |app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+
+
+
+---| Legend | All other badges earned | Complete mastery |
+
+
+
+## 8. Security & Authenticationapp.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+
+
+
+### JWT Authentication**Badge Checking Logic**:
+
+
+
+**Token Structure**:```pythonapp.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False## 2. Architecture Design**DevOps**---14. [Performance Optimizations](#performance-optimizations)
+
+```json
+
+{def check_badge_eligibility(user_id, event_type):
+
+  "header": {"alg": "HS256", "typ": "JWT"},
+
+  "payload": {    user = User.query.get(user_id)
+
+    "identity": 1,
+
+    "exp": 1730803200,    eligible_badges = []
+
+    "iat": 1730716800
+
+  }    # Enable CORS for frontend communication
+
+}
+
+```    for badge in Badge.query.all():
+
+
+
+**Token Lifetime**: 24 hours        if badge.criteria_type == 'quiz_count':CORS(app, supports_credentials=True, resources={
+
+
+
+### Password Security            if count_user_quizzes(user_id) >= badge.criteria_value:
+
+
+
+**Algorithm**: BCrypt                award_badge(user_id, badge.id)    r"/api/*": {"origins": [os.getenv('CORS_ORIGINS', 'http://localhost:8080')]}### 2.1 High-Level Architecture- **Version Control**: Git
+
+- Salt rounds: 12
+
+- Auto-generated salt                eligible_badges.append(badge)
+
+
+
+**Requirements**:        })
+
+- Minimum 8 characters
+
+- Uppercase + lowercase        elif badge.criteria_type == 'accuracy':
+
+- At least one digit
+
+- At least one special character            if calculate_average_accuracy(user_id) >= badge.criteria_value:
+
+
+
+### CORS Configuration                award_badge(user_id, badge.id)
+
+
+
+```python                eligible_badges.append(badge)# Initialize SocketIO for real-time features
+
+CORS(app, resources={
+
+    r"/api/*": {        
+
+        "origins": ["http://localhost:8080"],
+
+        "methods": ["GET", "POST", "PUT", "DELETE"],        # ... more criteria checkssocketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')```- **Package Management**: pip (backend), npm (frontend)15. [Security Features](#security-features)
+
+        "allow_headers": ["Content-Type", "Authorization"],
+
+        "supports_credentials": True    
+
+    }
+
+})    return eligible_badges
+
+```
+
+```
+
+### Input Validation
+
+# Initialize database┌─────────────────────────────────────────────────────────────┐
+
+- File upload limit: 16 MB
+
+- SQL injection prevention (SQLAlchemy ORM)### Module 6: Analytics & Performance Tracking
+
+- XSS protection (input sanitization)
+
+- CSRF protection (JWT tokens)db.init_app(app)
+
+
+
+---**File**: `analytics_service.py`
+
+
+
+## 9. Real-Time Features│                     Client Layer (Browser)                   │- **Environment**: python-dotenv
+
+
+
+### WebSocket Implementation**Tracked Metrics**:
+
+
+
+**Technology**: Flask-SocketIO + Socket.IO Client- Quiz completion rate# Initialize AI models
+
+
+
+**Events**:- Average accuracy per topic
+
+
+
+**Client → Server**:- Performance trends over timegenai.configure(api_key=os.getenv('GOOGLE_API_KEY'))│                                                              │
+
+- `create_room`
+
+- `join_room`- Time spent per question
+
+- `submit_answer`
+
+- `leave_room`- Difficulty progressionnlp_model = SentenceTransformer('all-MiniLM-L6-v2')
+
+
+
+**Server → Client**:- Streak tracking
+
+- `user_joined`
+
+- `quiz_started````│  ┌────────────────────────────────────────────────────────┐ │## 1. System Overview16. [Future Enhancements](#future-enhancements)
+
+- `answer_submitted`
+
+- `leaderboard_update`**Visualizations Provided**:
+
+- `quiz_ended`
+
+1. **Performance Line Chart**: Daily/weekly/monthly trends
+
+**Connection**:
+
+```typescript2. **Topic Heatmap**: Color-coded proficiency matrix
+
+import io from 'socket.io-client';
+
+3. **Accuracy Distribution**: Histogram of scores**Startup Sequence**:│  │         React Frontend (TypeScript)                     │ │
+
+const socket = io('http://localhost:5000', {
+
+  auth: {token: localStorage.getItem('access_token')}4. **Time Analysis**: Average time per difficulty level
+
+});
+
+1. Load environment variables from `.env`
+
+socket.on('connect', () => {
+
+  console.log('Connected');**Endpoints**:
+
+});
+
+```- `GET /api/analytics/trends` - Performance trends2. Configure Flask with secret keys and database URI│  │  • 13 Pages  • 8 Components  • Tailwind CSS            │ │### 1.3 Project Structure
+
+
+
+---- `GET /api/analytics/topics` - Topic-wise breakdown
+
+
+
+## 10. Testing- `GET /api/analytics/recommendations` - AI-generated study suggestions3. Enable CORS for cross-origin requests
+
+
+
+### Manual Testing
+
+
+
+**Backend Tests**:### Module 7: Learning Path Service4. Initialize SocketIO for WebSocket support│  └────────────────────────────────────────────────────────┘ │
+
+- API endpoint responses
+
+- JWT authentication
+
+- Database operations
+
+- File uploads**File**: `learning_path_service.py`5. Connect to database (SQLite or PostgreSQL)
+
+- AI question generation
+
+- Answer evaluation
+
+
+
+**Frontend Tests**:**Responsibilities**:6. Create all database tables if they don't exist└──────────────────────────┬──────────────────────────────────┘17. [Contributing](#contributing)
+
+- Page rendering
+
+- Routing navigation- Analyze user performance data
+
+- Form submissions
+
+- API calls- Identify knowledge gaps7. Insert default topics and badges
+
+- WebSocket connections
+
+- Chart visualizations- Generate personalized learning paths
+
+
+
+---- Track milestone achievements8. Initialize AI models (Gemini AI, Sentence-Transformers)                           │ HTTP/HTTPS + WebSocket
+
+
+
+## 11. Deployment
+
+
+
+### Production Checklist**Path Generation Algorithm**:9. Start server on port 5000
+
+
+
+- [ ] Set `FLASK_ENV=production````python
+
+- [ ] Use PostgreSQL
+
+- [ ] Strong SECRET_KEY and JWT_SECRET_KEYdef generate_learning_path(user_id):                           ▼```
+
+- [ ] Configure CORS_ORIGINS
+
+- [ ] Use Gunicorn    # Step 1: Analyze weak areas
+
+- [ ] Set up HTTPS/SSL
+
+- [ ] Configure firewall    weak_topics = get_topics_below_threshold(user_id, threshold=70)### API Endpoint Categories
+
+- [ ] Set up monitoring
+
+- [ ] Database backups    
+
+- [ ] Test disaster recovery
+
+    # Step 2: Prioritize by importance and difficulty┌─────────────────────────────────────────────────────────────┐
+
+### Gunicorn
+
+    prioritized = sort_by_score(weak_topics, 
+
+```bash
+
+gunicorn -w 4 \                                 factors=['mastery_gap', 'topic_importance'])**90+ Total Endpoints** organized into:
+
+         -b 0.0.0.0:5000 \
+
+         --worker-class eventlet \    
+
+         --access-logfile logs/access.log \
+
+         --error-logfile logs/error.log \    # Step 3: Create milestones│                     API Gateway Layer                        │Smart-Quizzer-AI/### 1.1 Project Description18. [License](#license)
+
+         app:app
+
+```    milestones = []
+
+
+
+### Nginx    for topic in prioritized[:5]:  # Top 5 weak areas1. **Authentication** (5 endpoints)
+
+
+
+```nginx        milestones.append({
+
+server {
+
+    listen 80;            'topic': topic,   - User registration, login, logout│                                                              │
+
+    server_name yourdomain.com;
+
+                'target_accuracy': topic.current_accuracy + 20,
+
+    location /api/ {
+
+        proxy_pass http://127.0.0.1:5000;            'recommended_quizzes': 10,   - Profile management
+
+        proxy_set_header Host $host;
+
+    }            'estimated_time': '2 weeks'
+
+    
+
+    location /socket.io/ {        })   - Password reset│  ┌────────────────────────────────────────────────────────┐ ││
+
+        proxy_pass http://127.0.0.1:5000;
+
+        proxy_http_version 1.1;    
+
+        proxy_set_header Upgrade $http_upgrade;
+
+        proxy_set_header Connection "upgrade";    return LearningPath.create(user_id, milestones)
+
+    }
+
+    ```
+
+    location / {
+
+        root /var/www/frontend/build;2. **Quiz Management** (15 endpoints)│  │           Flask Application (app.py)                    │ │
+
+        try_files $uri /index.html;
+
+    }### Module 8: Multiplayer Service
+
+}
+
+```   - Start quiz, get questions
+
+
+
+---**File**: `multiplayer_service.py`
+
+
+
+## 12. Development Guidelines   - Submit answers, complete quiz│  │  • 90+ REST API Endpoints                               │ │├── backend/                        # Flask backend application
+
+
+
+### Code Style**Features**:
+
+
+
+**Python (PEP 8)**:- Create and join quiz rooms   - Quiz history, results
+
+- Line length: 100 chars
+
+- Indentation: 4 spaces- Real-time synchronization
+
+- Functions: `snake_case`
+
+- Classes: `PascalCase`- Live leaderboard updates│  │  • 10+ WebSocket Event Handlers                         │ │
+
+
+
+**TypeScript/React**:- Room state management
+
+- ESLint enabled
+
+- Prettier formatting3. **Content Processing** (8 endpoints)
+
+- Functional components
+
+- React Hooks**WebSocket Events**:
+
+
+
+### Commit Messages- `create_room` - Create new multiplayer room   - Upload PDF/DOCX│  │  • JWT Authentication Middleware                        │ ││   ├── app.py                     # Main Flask app (90+ endpoints)
+
+
+
+```- `join_room` - Join existing room
+
+<type>(<scope>): <subject>
+
+- `start_quiz` - Begin synchronized quiz   - Process URLs
+
+<body>
+
+- `submit_answer` - Submit answer with broadcast
+
+<footer>
+
+```- `update_leaderboard` - Real-time ranking updates   - Text input│  │  • Error Handling & Logging                             │ │
+
+
+
+**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`- `end_quiz` - Finalize scores and winner
+
+
+
+**Example**:
+
+```
+
+feat(quiz): Add adaptive difficulty---
+
+
+
+Implemented real-time difficulty scaling.4. **Analytics** (10 endpoints)│  └────────────────────────────────────────────────────────┘ ││   ├── models.py                  # SQLAlchemy models (15 models)Smart Quizzer AI is an adaptive learning platform that uses artificial intelligence to generate personalized quizzes, evaluate answers with semantic understanding, and track user progress through comprehensive analytics. The system employs Google Gemini AI for question generation, NLP models for answer evaluation, and adaptive algorithms for difficulty adjustment.---
+
+
+
+Closes #42## 4. Frontend Implementation
+
+```
+
+   - Performance trends
+
+### Branching
+
+### Application Structure
+
+- `main` - Production
+
+- `develop` - Development   - Topic mastery└──────────────────────────┬──────────────────────────────────┘
+
+- `feature/*` - New features
+
+- `fix/*` - Bug fixes```
+
+- `hotfix/*` - Critical fixes
+
+frontend/src/   - Recommendations
+
+---
+
+├── pages/                  # 13 page components
+
+**Document Version**: 1.0  
+
+**Last Updated**: November 4, 2025  │   ├── Login.tsx          # User authentication                           ││   ├── auth.py                    # Authentication utilities
+
+**Maintainer**: Mamatha Bachu  
+
+**Repository**: [github.com/BatchuMamatha/Smart-Quizzer-AI](https://github.com/BatchuMamatha/Smart-Quizzer-AI)│   ├── Register.tsx       # New user signup
+
 
 │   ├── Dashboard.tsx      # Main user dashboard5. **Badges & Achievements** (6 endpoints)
 
