@@ -91,6 +91,10 @@ export interface QuizSession {
   completed_questions: number;
   correct_answers: number;
   score_percentage: number;
+  total_time_seconds: number;
+  time_limit_seconds?: number;
+  time_remaining_seconds?: number;
+  is_paused?: boolean;
   status: 'active' | 'completed' | 'abandoned';
   started_at: string;
   completed_at?: string;
@@ -454,6 +458,69 @@ export const quizAPI = {
     };
   }> => {
     const response = await api.get('/leaderboard', { params });
+    return response.data;
+  },
+
+  // Timer endpoints
+  startTimer: async (
+    quizId: number,
+    data: { time_limit_seconds: number }
+  ): Promise<{
+    success: boolean;
+    message: string;
+    time_limit_seconds: number;
+    time_remaining_seconds: number;
+    time_started: string;
+  }> => {
+    const response = await api.post(`/quiz/${quizId}/timer/start`, data);
+    return response.data;
+  },
+
+  pauseTimer: async (quizId: number): Promise<{
+    success: boolean;
+    message: string;
+    time_remaining_seconds: number;
+    is_paused: boolean;
+  }> => {
+    const response = await api.post(`/quiz/${quizId}/timer/pause`);
+    return response.data;
+  },
+
+  resumeTimer: async (quizId: number): Promise<{
+    success: boolean;
+    message: string;
+    time_remaining_seconds: number;
+    is_paused: boolean;
+  }> => {
+    const response = await api.post(`/quiz/${quizId}/timer/resume`);
+    return response.data;
+  },
+
+  getTimerStatus: async (quizId: number): Promise<{
+    time_limit_seconds?: number;
+    time_remaining_seconds?: number;
+    is_started: boolean;
+    is_paused: boolean;
+    is_expired: boolean;
+    server_time: string;
+  }> => {
+    const response = await api.get(`/quiz/${quizId}/timer/status`);
+    return response.data;
+  },
+
+  autoSubmitQuiz: async (quizId: number): Promise<{
+    success: boolean;
+    message: string;
+    quiz_session: QuizSession;
+    summary: {
+      total_questions: number;
+      correct_answers: number;
+      score_percentage: number;
+      time_taken: number;
+      unanswered_marked_incorrect: number;
+    };
+  }> => {
+    const response = await api.post(`/quiz/${quizId}/auto-submit`);
     return response.data;
   },
 };

@@ -150,7 +150,7 @@ class ErrorHandler:
             'error_id': f"ERR_{int(time.time())}_{self.error_count}",
             'timestamp': datetime.now().isoformat(),
             'error_type': type(error).__name__,
-            'message': str(error),
+            'error_message': str(error),  # Renamed from 'message' to avoid LogRecord conflict
             'context': context or {},
             'traceback': traceback.format_exc() if not isinstance(error, SmartQuizzerError) else None
         }

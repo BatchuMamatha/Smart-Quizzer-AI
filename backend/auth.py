@@ -1,7 +1,7 @@
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import timedelta
 from functools import wraps
-from flask import jsonify
+from flask import jsonify, request
 import os
 
 def init_jwt(app):
@@ -51,8 +51,15 @@ def generate_tokens(user_id):
 def auth_required(f):
     """Decorator for routes that require authentication"""
     @wraps(f)
-    @jwt_required()
     def decorated_function(*args, **kwargs):
-        current_user_id = int(get_jwt_identity())  # Convert back to int
-        return f(current_user_id, *args, **kwargs)
+        # Allow OPTIONS requests for CORS preflight
+        if request.method == 'OPTIONS':
+            return '', 204
+        
+        @jwt_required()
+        def check_auth():
+            current_user_id = int(get_jwt_identity())  # Convert back to int
+            return f(current_user_id, *args, **kwargs)
+        
+        return check_auth()
     return decorated_function

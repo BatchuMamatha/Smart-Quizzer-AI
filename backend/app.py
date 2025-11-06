@@ -57,6 +57,29 @@ import multiplayer_service
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Configure logging to use UTF-8 encoding to handle emojis and special characters
+try:
+    import io
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            handler.stream = io.TextIOWrapper(
+                handler.stream.buffer if hasattr(handler.stream, 'buffer') else sys.stdout.buffer,
+                encoding='utf-8',
+                errors='replace'
+            )
+except Exception as e:
+    # Fallback if handler reconfiguration fails
+    pass
+
+# Also configure root logger
+root_logger = logging.getLogger()
+for handler in root_logger.handlers:
+    if isinstance(handler, logging.StreamHandler):
+        try:
+            handler.setStream(sys.stdout)
+        except:
+            pass
+
 # ==================== EMAIL HELPER FUNCTIONS ====================
 
 def send_welcome_email(user_email, user_name):
@@ -151,8 +174,11 @@ def create_app():
     socketio = SocketIO(app, 
                        cors_allowed_origins=cors_origins,
                        async_mode='threading',
-                       logger=True,
-                       engineio_logger=False)
+                       logger=False,
+                       engineio_logger=False,
+                       ping_interval=60,
+                       ping_timeout=10,
+                       max_http_buffer_size=int(1e6))
     
     init_jwt(app)
     
@@ -334,16 +360,22 @@ app, socketio = create_app()
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection"""
-    logger.info(f"WebSocket client connected")  # type: ignore
-    emit('connection_established', {
-        'status': 'connected',
-        'timestamp': datetime.utcnow().isoformat()
-    })
+    try:
+        logger.info(f"WebSocket client connected")  # type: ignore
+        emit('connection_established', {
+            'status': 'connected',
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"WebSocket connection error: {e}")  # type: ignore
 
 @socketio.on('disconnect')
 def handle_disconnect():
     """Handle client disconnection"""
-    logger.info(f"WebSocket client disconnected")  # type: ignore
+    try:
+        logger.info(f"WebSocket client disconnected")  # type: ignore
+    except Exception as e:
+        logger.error(f"WebSocket disconnect error: {e}")  # type: ignore
 
 @socketio.on('join_leaderboard')
 def handle_join_leaderboard(data):
@@ -355,7 +387,7 @@ def handle_join_leaderboard(data):
     emit('joined_leaderboard', {
         'topic': topic,
         'room': room,
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.now().isoformat()
     })
 
 @socketio.on('leave_leaderboard')
@@ -368,7 +400,7 @@ def handle_leave_leaderboard(data):
     emit('left_leaderboard', {
         'topic': topic,
         'room': room,
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.now().isoformat()
     })
 
 
@@ -384,7 +416,7 @@ def handle_multiplayer_join(data):
         logger.info(f"Client joined multiplayer room: {room_code}")  # type: ignore
         emit('multiplayer:joined_room', {
             'room_code': room_code,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now().isoformat()
         })
 
 
@@ -398,7 +430,7 @@ def handle_multiplayer_leave(data):
         logger.info(f"Client left multiplayer room: {room_code}")  # type: ignore
         emit('multiplayer:left_room', {
             'room_code': room_code,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now().isoformat()
         })
 
 
@@ -434,7 +466,7 @@ def handle_multiplayer_answer(data):
                     'score': participant.score,
                     'rank': participant.rank,
                     'correct_answers': participant.correct_answers,
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now().isoformat()
                 }, to=f'multiplayer_{room_code}')
                 
                 logger.info(f"Updated score for user {user_id} in room {room_code}: {points_earned} points")
@@ -457,7 +489,7 @@ def handle_multiplayer_next_question(data):
             'room_code': room_code,
             'question_index': question_index,
             'question': question_data,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now().isoformat()
         }, to=f'multiplayer_{room_code}')
         
         logger.info(f"Broadcasting question {question_index} to room {room_code}")
@@ -483,7 +515,7 @@ def handle_multiplayer_game_end(data):
             emit('multiplayer:game_ended', {
                 'room_code': room_code,
                 'results': results,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now().isoformat()
             }, to=f'multiplayer_{room_code}')
             
             logger.info(f"Game ended in room {room_code}")
@@ -507,7 +539,7 @@ def handle_multiplayer_chat(data):
             'user_id': user_id,
             'username': username,
             'message': message,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now().isoformat()
         }, to=f'multiplayer_{room_code}')
         
     except Exception as e:
@@ -613,7 +645,7 @@ def test_email(current_user_id):
                 'success': True,
                 'message': f'Test email sent successfully to {test_email_address}',
                 'email_method': 'SMTP',
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now().isoformat()
             })
             
         except Exception as e:
@@ -889,7 +921,7 @@ def update_skill_level(current_user_id):
         
         old_level = user.skill_level
         user.skill_level = skill_level
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now()
         db.session.commit()
         
         print(f"📊 User {user.username} skill level updated: {old_level} → {skill_level}")
@@ -1500,7 +1532,7 @@ def submit_answer(current_user_id, quiz_id):
         is_quiz_completed = quiz_session.completed_questions >= quiz_session.total_questions
         if is_quiz_completed:
             quiz_session.status = 'completed'
-            quiz_session.completed_at = datetime.utcnow()
+            quiz_session.completed_at = datetime.now()
             
             # Ensure minimum time if somehow it's 0
             if quiz_session.total_time_seconds == 0:
@@ -1518,8 +1550,8 @@ def submit_answer(current_user_id, quiz_id):
                     quiz_session_id=quiz_id,
                     emit_event=lambda event, data, **kwargs: socketio.emit(
                         event, 
-                        data, 
-                        to=f"leaderboard_{quiz_session.topic}",  # type: ignore
+                        data,
+                        to=kwargs.pop('to', f"leaderboard_{quiz_session.topic}"),
                         **kwargs
                     )
                 )
@@ -1547,7 +1579,7 @@ def submit_answer(current_user_id, quiz_id):
                         socketio.emit('badge:awarded', {
                             'badge': badge.to_dict(),
                             'user_id': current_user_id,
-                            'timestamp': datetime.utcnow().isoformat()
+                            'timestamp': datetime.now().isoformat()
                         }, to=f'user_{current_user_id}')  # type: ignore
             except Exception as badge_error:
                 logger.error(f"❌ Error checking badges: {badge_error}")
@@ -1585,7 +1617,7 @@ def submit_answer(current_user_id, quiz_id):
                                 'milestone_name': milestone.name,
                                 'progress_percentage': path.progress_percentage,
                                 'user_id': current_user_id,
-                                'timestamp': datetime.utcnow().isoformat()
+                                'timestamp': datetime.now().isoformat()
                             }, to=f'user_{current_user_id}')  # type: ignore
                             
             except Exception as milestone_error:
@@ -1625,6 +1657,181 @@ def submit_answer(current_user_id, quiz_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quiz/<int:quiz_id>/timer/start', methods=['POST', 'OPTIONS'])
+@auth_required
+def start_quiz_timer(current_user_id, quiz_id):
+    """
+    Start the countdown timer for a quiz session.
+    Sets time_limit_seconds and time_started fields.
+    """
+    try:
+        data = request.get_json()
+        
+        if 'time_limit_seconds' not in data:
+            return jsonify({'error': 'time_limit_seconds is required'}), 400
+        
+        time_limit = int(data['time_limit_seconds'])
+        if time_limit <= 0:
+            return jsonify({'error': 'time_limit_seconds must be positive'}), 400
+        
+        # Get quiz session and verify ownership
+        quiz_session = QuizSession.query.filter_by(
+            id=quiz_id,
+            user_id=current_user_id
+        ).first()
+        
+        if not quiz_session:
+            return jsonify({'error': 'Quiz session not found'}), 404
+        
+        if quiz_session.status != 'active':
+            return jsonify({'error': f'Cannot start timer for {quiz_session.status} quiz'}), 400
+        
+        # Initialize timer
+        quiz_session.time_limit_seconds = time_limit
+        quiz_session.time_started = datetime.now()
+        quiz_session.time_paused_at = None
+        quiz_session.total_paused_seconds = 0
+        
+        db.session.commit()
+        
+        logger.info(f"⏱️ Timer started for quiz {quiz_id}: {time_limit} seconds")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Timer started',
+            'time_limit_seconds': quiz_session.time_limit_seconds,
+            'time_remaining_seconds': quiz_session.get_remaining_time_seconds(),
+            'time_started': quiz_session.time_started.isoformat()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error starting timer for quiz {quiz_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/quiz/<int:quiz_id>/timer/pause', methods=['POST', 'OPTIONS'])
+@auth_required
+def pause_quiz_timer(current_user_id, quiz_id):
+    """
+    Pause the countdown timer for a quiz session.
+    """
+    try:
+        # Get quiz session and verify ownership
+        quiz_session = QuizSession.query.filter_by(
+            id=quiz_id,
+            user_id=current_user_id
+        ).first()
+        
+        if not quiz_session:
+            return jsonify({'error': 'Quiz session not found'}), 404
+        
+        if quiz_session.status != 'active':
+            return jsonify({'error': f'Cannot pause timer for {quiz_session.status} quiz'}), 400
+        
+        if not quiz_session.time_started:
+            return jsonify({'error': 'Timer not started'}), 400
+        
+        if quiz_session.time_paused_at:
+            return jsonify({'error': 'Timer already paused'}), 400
+        
+        # Pause timer
+        quiz_session.pause_timer()
+        db.session.commit()
+        
+        logger.info(f"⏸️ Timer paused for quiz {quiz_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Timer paused',
+            'time_remaining_seconds': quiz_session.get_remaining_time_seconds(),
+            'is_paused': True
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error pausing timer for quiz {quiz_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/quiz/<int:quiz_id>/timer/resume', methods=['POST', 'OPTIONS'])
+@auth_required
+def resume_quiz_timer(current_user_id, quiz_id):
+    """
+    Resume the countdown timer for a quiz session.
+    """
+    try:
+        # Get quiz session and verify ownership
+        quiz_session = QuizSession.query.filter_by(
+            id=quiz_id,
+            user_id=current_user_id
+        ).first()
+        
+        if not quiz_session:
+            return jsonify({'error': 'Quiz session not found'}), 404
+        
+        if quiz_session.status != 'active':
+            return jsonify({'error': f'Cannot resume timer for {quiz_session.status} quiz'}), 400
+        
+        if not quiz_session.time_started:
+            return jsonify({'error': 'Timer not started'}), 400
+        
+        if not quiz_session.time_paused_at:
+            return jsonify({'error': 'Timer not paused'}), 400
+        
+        # Resume timer
+        quiz_session.resume_timer()
+        db.session.commit()
+        
+        logger.info(f"▶️ Timer resumed for quiz {quiz_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Timer resumed',
+            'time_remaining_seconds': quiz_session.get_remaining_time_seconds(),
+            'is_paused': False
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error resuming timer for quiz {quiz_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/quiz/<int:quiz_id>/timer/status', methods=['GET', 'OPTIONS'])
+@auth_required
+def get_quiz_timer_status(current_user_id, quiz_id):
+    """
+    Get current timer status for a quiz session.
+    Used to sync timer state on page reload or reconnection.
+    """
+    try:
+        # Get quiz session and verify ownership
+        quiz_session = QuizSession.query.filter_by(
+            id=quiz_id,
+            user_id=current_user_id
+        ).first()
+        
+        if not quiz_session:
+            return jsonify({'error': 'Quiz session not found'}), 404
+        
+        remaining = quiz_session.get_remaining_time_seconds()
+        is_expired = quiz_session.is_timer_expired() if remaining is not None else False
+        
+        return jsonify({
+            'time_limit_seconds': quiz_session.time_limit_seconds,
+            'time_remaining_seconds': remaining,
+            'is_started': quiz_session.time_started is not None,
+            'is_paused': quiz_session.time_paused_at is not None,
+            'is_expired': is_expired,
+            'server_time': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting timer status for quiz {quiz_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/quiz/<int:quiz_id>/complete', methods=['POST'])
 @auth_required
@@ -1673,7 +1880,7 @@ def complete_quiz(current_user_id, quiz_id):
         
         # Calculate final statistics atomically
         quiz_session.status = 'completed'
-        quiz_session.completed_at = datetime.utcnow()
+        quiz_session.completed_at = datetime.now()
         
         # Calculate total time if not already set
         if quiz_session.total_time_seconds == 0:
@@ -1833,6 +2040,105 @@ def get_difficulty_recommendation(current_user_id):
         
     except Exception as e:
         return jsonify({'error': f'Failed to get difficulty recommendation: {str(e)}'}), 500
+
+
+@app.route('/api/quiz/<int:quiz_id>/auto-submit', methods=['POST'])
+@auth_required
+def auto_submit_quiz(current_user_id, quiz_id):
+    """
+    Auto-submit quiz when timer expires.
+    Marks all unanswered questions as incorrect and completes the quiz.
+    """
+    try:
+        # Get quiz session and verify ownership
+        quiz_session = QuizSession.query.filter_by(
+            id=quiz_id,
+            user_id=current_user_id
+        ).first()
+        
+        if not quiz_session:
+            return jsonify({'error': 'Quiz session not found'}), 404
+        
+        if quiz_session.status == 'completed':
+            # Already completed, return existing results
+            questions = Question.query.filter_by(quiz_session_id=quiz_id).all()
+            return jsonify({
+                'success': True,
+                'message': 'Quiz already completed',
+                'quiz_session': quiz_session.to_dict(),
+                'summary': {
+                    'total_questions': quiz_session.total_questions,
+                    'correct_answers': quiz_session.correct_answers,
+                    'score_percentage': quiz_session.score_percentage,
+                    'time_taken': sum([q.time_taken or 0 for q in questions])
+                }
+            }), 200
+        
+        # Get all unanswered questions
+        unanswered_questions = Question.query.filter_by(
+            quiz_session_id=quiz_id,
+            is_correct=None
+        ).all()
+        
+        # Mark all unanswered questions as answered but incorrect
+        for question in unanswered_questions:
+            question.is_correct = False
+            question.user_answer = ''  # Mark as not answered
+            question.answered_at = datetime.now()
+            question.time_taken = 0
+            quiz_session.completed_questions += 1
+        
+        # Finalize quiz
+        quiz_session.status = 'completed'
+        quiz_session.completed_at = datetime.now()
+        
+        # Calculate final score
+        quiz_session.calculate_score()
+        
+        # Calculate total time
+        all_questions = Question.query.filter_by(quiz_session_id=quiz_id).all()
+        total_time = sum([q.time_taken or 0 for q in all_questions])
+        quiz_session.total_time_seconds = max(total_time, 1)  # Minimum 1 second
+        
+        db.session.commit()
+        
+        logger.info(f"⏱️ Quiz {quiz_id} auto-submitted due to timer expiration: "
+                   f"{quiz_session.correct_answers}/{quiz_session.total_questions} correct")
+        
+        # Update leaderboard
+        try:
+            leaderboard_entry = leaderboard_service.update_leaderboard_entry(
+                quiz_session_id=quiz_id,
+                emit_event=lambda event, data, **kwargs: socketio.emit(
+                    event,
+                    data,
+                    to=f"leaderboard_{quiz_session.topic}",  # type: ignore
+                    **kwargs
+                )
+            )
+        except Exception as lb_error:
+            logger.error(f"❌ Leaderboard update error for auto-submitted quiz {quiz_id}: {lb_error}")
+            leaderboard_entry = None
+        
+        return jsonify({
+            'success': True,
+            'message': 'Quiz auto-submitted',
+            'quiz_session': quiz_session.to_dict(),
+            'leaderboard_entry': leaderboard_entry.to_dict() if leaderboard_entry else None,
+            'summary': {
+                'total_questions': quiz_session.total_questions,
+                'correct_answers': quiz_session.correct_answers,
+                'score_percentage': quiz_session.score_percentage,
+                'time_taken': quiz_session.total_time_seconds,
+                'unanswered_marked_incorrect': len(unanswered_questions)
+            }
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Error auto-submitting quiz {quiz_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/quiz/<int:quiz_id>/results', methods=['GET'])
 @auth_required
@@ -2437,7 +2743,7 @@ def join_multiplayer_room(current_user_id, room_code):
                 'room_code': room_code,
                 'user_id': current_user_id,
                 'current_players': room.current_players,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now().isoformat()
             }, to=f'multiplayer_{room_code}')  # type: ignore
             
             return jsonify({
@@ -2464,7 +2770,7 @@ def leave_multiplayer_room(current_user_id, room_code):
             socketio.emit('multiplayer:player_left', {
                 'room_code': room_code,
                 'user_id': current_user_id,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now().isoformat()
             }, to=f'multiplayer_{room_code}')  # type: ignore
             
             return jsonify({'message': message}), 200
@@ -2489,7 +2795,7 @@ def toggle_ready(current_user_id, room_code):
                 'room_code': room_code,
                 'user_id': current_user_id,
                 'is_ready': participant.is_ready,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now().isoformat()
             }, to=f'multiplayer_{room_code}')  # type: ignore
             
             return jsonify({
@@ -2519,7 +2825,7 @@ def start_multiplayer_game(current_user_id, room_code):
                 'difficulty': room.difficulty,
                 'question_count': room.question_count,
                 'time_limit_per_question': room.time_limit_per_question,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now().isoformat()
             }, to=f'multiplayer_{room_code}')  # type: ignore
             
             return jsonify({
@@ -3252,7 +3558,7 @@ def get_admin_stats(current_user_id):
         flagged_count = FlaggedQuestion.query.filter_by(status='pending').count()
         
         # Active users today
-        today = datetime.utcnow().date()
+        today = datetime.now().date()
         active_today = QuizSession.query.filter(
             db.func.date(QuizSession.started_at) == today
         ).distinct(QuizSession.user_id).count()
@@ -3388,7 +3694,7 @@ def resolve_flag(current_user_id, flag_id):
             return jsonify({'error': 'Flagged question not found'}), 404
         
         flag.status = 'resolved'
-        flag.resolved_at = datetime.utcnow()
+        flag.resolved_at = datetime.now()
         flag.resolved_by_user_id = current_user_id
         
         db.session.commit()
@@ -3429,7 +3735,7 @@ def delete_flagged_question(current_user_id, flag_id):
         if not question:
             # Question already deleted, just resolve the flag
             flag.status = 'resolved'
-            flag.resolved_at = datetime.utcnow()
+            flag.resolved_at = datetime.now()
             flag.resolved_by_user_id = current_user_id
             db.session.commit()
             return jsonify({
@@ -3444,7 +3750,7 @@ def delete_flagged_question(current_user_id, flag_id):
         all_flags = FlaggedQuestion.query.filter_by(question_id=question_id, status='pending').all()
         for f in all_flags:
             f.status = 'resolved'
-            f.resolved_at = datetime.utcnow()
+            f.resolved_at = datetime.now()
             f.resolved_by_user_id = current_user_id
         
         db.session.commit()
@@ -3837,13 +4143,13 @@ def get_topic_leaderboard(topic):
         
         # Filter by time period
         if time_period == 'today':
-            today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             query = query.filter(QuizLeaderboard.timestamp >= today)
         elif time_period == 'week':
-            week_ago = datetime.utcnow() - timedelta(days=7)
+            week_ago = datetime.now() - timedelta(days=7)
             query = query.filter(QuizLeaderboard.timestamp >= week_ago)
         elif time_period == 'month':
-            month_ago = datetime.utcnow() - timedelta(days=30)
+            month_ago = datetime.now() - timedelta(days=30)
             query = query.filter(QuizLeaderboard.timestamp >= month_ago)
         
         # Get top scores
@@ -3875,7 +4181,7 @@ def get_live_leaderboard(topic):
     """Get live leaderboard for users currently taking quizzes on a topic"""
     try:
         # Get active and recently completed quiz sessions (last 5 minutes)
-        recent_time = datetime.utcnow() - timedelta(minutes=5)
+        recent_time = datetime.now() - timedelta(minutes=5)
         
         active_sessions = QuizSession.query.filter(
             QuizSession.topic == topic,
@@ -3892,7 +4198,7 @@ def get_live_leaderboard(topic):
         live_rankings = []
         for session in active_sessions:
             # Calculate current stats
-            time_elapsed = (datetime.utcnow() - session.started_at).total_seconds()
+            time_elapsed = (datetime.now() - session.started_at).total_seconds()
             
             # Calculate average difficulty weight
             questions = Question.query.filter_by(quiz_session_id=session.id).all()
@@ -3937,7 +4243,7 @@ def get_live_leaderboard(topic):
             'live_leaderboard': live_rankings,
             'topic': topic,
             'total_active': len(live_rankings),
-            'last_updated': datetime.utcnow().isoformat()
+            'last_updated': datetime.now().isoformat()
         }), 200
         
     except Exception as e:

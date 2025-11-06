@@ -821,7 +821,7 @@ const Results: React.FC = () => {
 
                           return (
                             <tr
-                              key={entry.user_id}
+                              key={`${entry.quiz_session_id}-${entry.user_id}`}
                               className={`${
                                 isCurrentUser ? 'bg-blue-50 font-semibold' : 'hover:bg-gray-50'
                               }`}

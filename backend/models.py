@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
+from sqlalchemy import and_
 import bcrypt
 import json
 
@@ -42,6 +43,13 @@ class User(db.Model):
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
     
     def to_dict(self):
+        # Safely compute quiz count using database query
+        quiz_count = 0
+        try:
+            quiz_count = db.session.query(QuizSession).filter_by(user_id=self.id).count()  # type: ignore
+        except Exception:
+            quiz_count = 0
+
         return {
             'id': self.id,
             'username': self.username,
@@ -50,7 +58,7 @@ class User(db.Model):
             'skill_level': self.skill_level,
             'role': self.role,
             'created_at': self.created_at.isoformat(),
-            'quiz_count': len(self.quiz_sessions)
+            'quiz_count': quiz_count
         }
 
 class QuizSession(db.Model):
@@ -66,6 +74,13 @@ class QuizSession(db.Model):
     correct_answers = db.Column(db.Integer, nullable=False, default=0)
     score_percentage = db.Column(db.Float, nullable=False, default=0.0)
     total_time_seconds = db.Column(db.Integer, nullable=False, default=0)  # Total time taken in seconds
+    
+    # Timer fields for countdown timer feature
+    time_limit_seconds = db.Column(db.Integer, nullable=True)  # Maximum time allowed for quiz (in seconds)
+    time_started = db.Column(db.DateTime, nullable=True)  # When the timer actually started
+    time_paused_at = db.Column(db.DateTime, nullable=True)  # When timer was last paused
+    total_paused_seconds = db.Column(db.Integer, nullable=False, default=0)  # Cumulative pause time in seconds
+    
     session_data = db.Column(db.Text, nullable=True)  # JSON string for storing questions and answers
     status = db.Column(db.String(20), nullable=False, default='active')  # active, completed, abandoned
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -91,7 +106,67 @@ class QuizSession(db.Model):
         else:
             self.score_percentage = 0.0
     
+    def get_remaining_time_seconds(self):
+        """
+        Calculate remaining time for quiz.
+        Returns time in seconds, or 0 if timer expired.
+        Takes into account pauses.
+        """
+        if not self.time_limit_seconds:
+            return None  # No time limit
+        
+        if not self.time_started:
+            return self.time_limit_seconds  # Timer hasn't started yet
+        
+        # Calculate elapsed time
+        now = datetime.now()
+        elapsed = (now - self.time_started).total_seconds()
+        
+        # Subtract paused time
+        total_paused = self.total_paused_seconds
+        if self.time_paused_at:
+            # Currently paused, add pause duration
+            total_paused += (now - self.time_paused_at).total_seconds()
+        
+        # Actual elapsed time = total elapsed - paused time
+        actual_elapsed = elapsed - total_paused
+        
+        # Calculate remaining
+        remaining = max(0, self.time_limit_seconds - actual_elapsed)
+        return int(remaining)
+    
+    def is_timer_expired(self):
+        """Check if time has expired"""
+        remaining = self.get_remaining_time_seconds()
+        return remaining is not None and remaining <= 0
+    
+    def pause_timer(self):
+        """Pause the timer"""
+        if not self.time_paused_at and self.time_started:
+            self.time_paused_at = datetime.now()
+    
+    def resume_timer(self):
+        """Resume the timer"""
+        if self.time_paused_at and self.time_started:
+            pause_duration = (datetime.now() - self.time_paused_at).total_seconds()
+            self.total_paused_seconds += int(pause_duration)
+            self.time_paused_at = None
+    
     def to_dict(self):
+        # Safely get questions count
+        questions_count = 0
+        try:
+            if self.questions:
+                questions_count = len(self.questions)
+            else:
+                questions_count = 0
+        except Exception:
+            # Fallback to database query if relationship access fails
+            try:
+                questions_count = db.session.query(Question).filter_by(quiz_session_id=self.id).count() if self.id else 0
+            except Exception:
+                questions_count = 0
+        
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -103,10 +178,13 @@ class QuizSession(db.Model):
             'correct_answers': self.correct_answers,
             'score_percentage': self.score_percentage,
             'total_time_seconds': self.total_time_seconds,
+            'time_limit_seconds': self.time_limit_seconds,
+            'time_remaining_seconds': self.get_remaining_time_seconds(),
+            'is_paused': self.time_paused_at is not None,
             'status': self.status,
             'started_at': self.started_at.isoformat(),
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'questions_count': len(self.questions)
+            'questions_count': questions_count
         }
 
 class Question(db.Model):
@@ -160,7 +238,7 @@ class Question(db.Model):
     def check_answer(self, user_answer):
         """Check if user answer is correct using advanced evaluation"""
         self.user_answer = user_answer
-        self.answered_at = datetime.utcnow()
+        self.answered_at = datetime.now()
         
         # Normalize answers for comparison
         user_answer_normalized = str(user_answer).strip()
@@ -294,25 +372,24 @@ class PasswordResetToken(db.Model):
     def __init__(self, user_id, token, expires_in_hours=24):
         self.user_id = user_id
         self.token = token
-        self.expires_at = datetime.utcnow() + timedelta(hours=expires_in_hours)
+        self.expires_at = datetime.now() + timedelta(hours=expires_in_hours)
     
     def is_valid(self):
         """Check if token is still valid (not expired and not used)"""
-        return not self.used and datetime.utcnow() < self.expires_at
+        return not self.used and datetime.now() < self.expires_at
     
     def mark_as_used(self):
         """Mark token as used"""
         self.used = True
-        self.used_at = datetime.utcnow()
+        self.used_at = datetime.now()
     
     @classmethod
     def cleanup_expired(cls):
         """Remove expired tokens from database"""
-        expired_tokens = cls.query.filter(cls.expires_at < datetime.utcnow()).all()
-        for token in expired_tokens:
-            db.session.delete(token)
+        now = datetime.now()
+        expired_count = db.session.query(cls).filter(cls.expires_at < now).delete()  # type: ignore
         db.session.commit()
-        return len(expired_tokens)
+        return expired_count
     
     def to_dict(self):
         return {
@@ -458,7 +535,7 @@ class QuizLeaderboard(db.Model):
         elif self.timestamp:
             submitted_at = self.timestamp.isoformat()
         else:
-            submitted_at = datetime.utcnow().isoformat()
+            submitted_at = datetime.now().isoformat()
         
         return {
             'id': self.id,
@@ -474,7 +551,7 @@ class QuizLeaderboard(db.Model):
             'accuracy': round((self.correct_count / self.total_questions * 100), 1) if self.total_questions > 0 else 0,
             'time_taken': self.time_taken,
             'rank': self.rank,
-            'timestamp': self.timestamp.isoformat() if self.timestamp else datetime.utcnow().isoformat(),
+            'timestamp': self.timestamp.isoformat() if self.timestamp else datetime.now().isoformat(),
             'submitted_at': submitted_at
         }
 
@@ -523,14 +600,16 @@ class UserBadge(db.Model):
     progress_data = db.Column(db.Text, nullable=True)  # JSON for tracking progress towards badge
     
     # Relationships
-    user = db.relationship('User', backref='badges')
+    user = db.relationship('User', backref='earned_badges')
+    # Note: 'badge' is created automatically via the backref in Badge.user_badges
     
     def to_dict(self):
+        badge_obj = Badge.query.get(self.badge_id) if self.badge_id else None
         return {
             'id': self.id,
             'user_id': self.user_id,
             'badge_id': self.badge_id,
-            'badge': self.badge.to_dict() if self.badge else None,
+            'badge': badge_obj.to_dict() if badge_obj else None,
             'earned_at': self.earned_at.isoformat(),
             'progress_data': json.loads(self.progress_data) if self.progress_data else None
         }

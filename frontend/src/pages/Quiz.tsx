@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { quizAPI, Question, QuizSession } from '../lib/api';
 import Header from '../components/Header';
+import InlineTimer from '../components/InlineTimer';
 
 interface QuizState {
   quizData: {
@@ -9,6 +10,9 @@ interface QuizState {
     questions: Question[];
   };
 }
+
+// Default quiz duration: 30 minutes
+const DEFAULT_QUIZ_DURATION_SECONDS = 30 * 60;
 
 const Quiz: React.FC = () => {
   const location = useLocation();
@@ -27,6 +31,11 @@ const Quiz: React.FC = () => {
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackRating, setFeedbackRating] = useState(0);
+  
+  // Timer states - simplified (no pause/resume)
+  const [timerDuration, setTimerDuration] = useState(DEFAULT_QUIZ_DURATION_SECONDS);
+  const [timerStarted, setTimerStarted] = useState(false);
+  const [isAutoSubmitting, setIsAutoSubmitting] = useState(false);
 
   useEffect(() => {
     if (!quizData) {
@@ -34,7 +43,65 @@ const Quiz: React.FC = () => {
       return;
     }
     setStartTime(Date.now());
+    
+    // Start the timer for the quiz
+    initializeTimer();
   }, [quizData, navigate]);
+
+  const initializeTimer = async () => {
+    if (!quizData) return;
+    
+    try {
+      // Try to sync timer with backend first
+      const timerStatus = await quizAPI.getTimerStatus(quizData.quiz_session.id);
+      
+      if (timerStatus.is_started && !timerStatus.is_expired) {
+        // Timer already started on backend, use remaining time
+        setTimerDuration(timerStatus.time_remaining_seconds || DEFAULT_QUIZ_DURATION_SECONDS);
+      } else if (!timerStatus.is_started) {
+        // Start new timer on backend
+        const result = await quizAPI.startTimer(quizData.quiz_session.id, {
+          time_limit_seconds: DEFAULT_QUIZ_DURATION_SECONDS,
+        });
+        setTimerDuration(result.time_remaining_seconds);
+      } else if (timerStatus.is_expired) {
+        // Timer already expired, auto-submit
+        await handleTimerExpired();
+        return;
+      }
+      
+      setTimerStarted(true);
+    } catch (error) {
+      console.error('Error initializing timer:', error);
+      // Fallback: start local timer if backend sync fails
+      setTimerDuration(DEFAULT_QUIZ_DURATION_SECONDS);
+      setTimerStarted(true);
+    }
+  };
+
+  const handleTimerExpired = async () => {
+    if (isAutoSubmitting) return;
+    
+    setIsAutoSubmitting(true);
+    console.log('⏱️ Timer expired! Auto-submitting quiz...');
+    
+    try {
+      const result = await quizAPI.autoSubmitQuiz(quizData.quiz_session.id);
+      
+      console.log('✅ Quiz auto-submitted:', result);
+      
+      // Show a notification before redirecting
+      alert(`⏱️ Time's up! Your quiz has been auto-submitted.\n\nScore: ${result.quiz_session.score_percentage.toFixed(1)}%\nCorrect: ${result.summary.correct_answers}/${result.summary.total_questions}`);
+      
+      // Redirect to results page
+      navigate('/results', { state: { quizId: quizData.quiz_session.id } });
+    } catch (error: any) {
+      console.error('Error auto-submitting quiz:', error);
+      alert('Error auto-submitting quiz. Please refresh the page.');
+    } finally {
+      setIsAutoSubmitting(false);
+    }
+  };
 
   if (!quizData) {
     return null;
@@ -236,14 +303,22 @@ const Quiz: React.FC = () => {
           <div className="question-card animate-fade-in-scale mb-8">
             <div className="p-6 sm:p-8">
               <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800">
-                    📝 {currentQuestion.question_type}
-                  </span>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800">
+                  📝 {currentQuestion.question_type}
+                </span>
+                <div className="flex items-center gap-3">
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-green-100 to-blue-100 text-green-800">
                     {currentQuestion.difficulty_level === 'Beginner' ? '🌱' : currentQuestion.difficulty_level === 'Intermediate' ? '🚀' : '🏆'} {currentQuestion.difficulty_level}
                   </span>
+                  {timerStarted && (
+                    <InlineTimer
+                      initialSeconds={timerDuration}
+                      onTimeUp={handleTimerExpired}
+                    />
+                  )}
                 </div>
+              </div>
                 <h3 className="text-xl font-bold text-gray-900 leading-relaxed">
                   {currentQuestion.question_text}
                 </h3>

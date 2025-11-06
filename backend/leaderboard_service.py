@@ -61,7 +61,7 @@ def update_leaderboard_entry(quiz_session_id, emit_event=None):
     try:
         # Get quiz session with questions
         quiz_session = QuizSession.query.options(
-            joinedload(QuizSession.questions)
+            joinedload(QuizSession.questions)  # type: ignore
         ).filter_by(id=quiz_session_id).first()
         
         if not quiz_session:
@@ -98,21 +98,21 @@ def update_leaderboard_entry(quiz_session_id, emit_event=None):
             leaderboard_entry.total_questions = quiz_session.total_questions
             leaderboard_entry.time_taken = total_time
             leaderboard_entry.avg_difficulty_weight = avg_difficulty_weight
-            leaderboard_entry.timestamp = quiz_session.completed_at or datetime.utcnow()
+            leaderboard_entry.timestamp = quiz_session.completed_at or datetime.now()
             
             logger.info(f"Updated leaderboard entry for quiz {quiz_session_id}, score: {weighted_score}")
         else:
             # Create new entry
             leaderboard_entry = QuizLeaderboard(
-                user_id=quiz_session.user_id,
-                quiz_session_id=quiz_session_id,
-                topic=quiz_session.topic,
-                score=weighted_score,
-                correct_count=quiz_session.correct_answers,
-                total_questions=quiz_session.total_questions,
-                time_taken=total_time,
-                avg_difficulty_weight=avg_difficulty_weight,
-                timestamp=quiz_session.completed_at or datetime.utcnow()
+                user_id=quiz_session.user_id,  # type: ignore
+                quiz_session_id=quiz_session_id,  # type: ignore
+                topic=quiz_session.topic,  # type: ignore
+                score=weighted_score,  # type: ignore
+                correct_count=quiz_session.correct_answers,  # type: ignore
+                total_questions=quiz_session.total_questions,  # type: ignore
+                time_taken=total_time,  # type: ignore
+                avg_difficulty_weight=avg_difficulty_weight,  # type: ignore
+                timestamp=quiz_session.completed_at or datetime.now()  # type: ignore
             )
             db.session.add(leaderboard_entry)
             
@@ -131,7 +131,7 @@ def update_leaderboard_entry(quiz_session_id, emit_event=None):
                 emit_event('leaderboard:update', {
                     'topic': quiz_session.topic,
                     'entry': leaderboard_entry.to_dict(),
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now().isoformat()
                 }, to=room_name)
                 logger.info(f"Emitted leaderboard update event for topic: {quiz_session.topic}")
                 
@@ -141,7 +141,7 @@ def update_leaderboard_entry(quiz_session_id, emit_event=None):
                     'entry': leaderboard_entry.to_dict(),
                     'user': quiz_session.user.username if quiz_session.user else 'Unknown',
                     'quiz_topic': quiz_session.topic,
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now().isoformat()
                 }, to='leaderboard_admin_global')
                 logger.info(f"✅ Emitted admin global leaderboard update: {quiz_session.user.username} completed {quiz_session.topic}")
             except Exception as e:
@@ -159,8 +159,11 @@ def update_leaderboard_entry(quiz_session_id, emit_event=None):
 
 def recalculate_ranks(topic=None, quiz_id=None):
     """
-    Recalculate ranks for all leaderboard entries.
+    Recalculate ranks for all leaderboard entries with proper tie handling.
     Ordering: score (desc), time_taken (asc), completed_at (asc)
+    
+    Tie handling: Users with identical scores AND times get the same rank.
+    Subsequent ranks skip appropriately (e.g., 1, 2, 2, 4 not 1, 2, 3, 4).
     
     Args:
         topic: Optional topic filter - recalculate only for specific topic
@@ -178,14 +181,26 @@ def recalculate_ranks(topic=None, quiz_id=None):
         
         # Order by: score (desc), time_taken (asc), completed_at (asc)
         entries = query.order_by(
-            desc(QuizLeaderboard.score),
-            asc(QuizLeaderboard.time_taken),
+            desc(QuizLeaderboard.score),  # type: ignore
+            asc(QuizLeaderboard.time_taken),  # type: ignore
             asc(QuizSession.completed_at)
         ).all()
         
-        # Assign ranks
-        for rank, entry in enumerate(entries, start=1):
-            entry.rank = rank
+        # Assign ranks with tie handling
+        # Users with identical scores AND times get the same rank
+        for idx, entry in enumerate(entries):
+            if idx == 0:
+                entry.rank = 1
+            else:
+                prev_entry = entries[idx - 1]
+                # Check if tied with previous (same score AND same time)
+                if (prev_entry.score == entry.score and 
+                    prev_entry.time_taken == entry.time_taken):
+                    # Same rank as previous
+                    entry.rank = prev_entry.rank
+                else:
+                    # New rank (use index + 1 to account for ties)
+                    entry.rank = idx + 1
         
         db.session.commit()
         
@@ -245,8 +260,8 @@ def get_live_rankings(topic=None, quiz_id=None, limit=50, offset=0, search=None)
         # Order by rank (or fallback to score/time/date ordering)
         entries = query.order_by(
             asc(QuizLeaderboard.rank),
-            desc(QuizLeaderboard.score),
-            asc(QuizLeaderboard.time_taken),
+            desc(QuizLeaderboard.score),  # type: ignore
+            asc(QuizLeaderboard.time_taken),  # type: ignore
             asc(QuizSession.completed_at)
         ).limit(limit).offset(offset).all()
         
@@ -349,7 +364,7 @@ def cleanup_incomplete_sessions(hours=24):
         hours: Remove sessions older than this many hours that are still 'active'
     """
     try:
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        cutoff_time = datetime.now() - timedelta(hours=hours)
         
         # Find abandoned sessions
         abandoned_sessions = QuizSession.query.filter(
@@ -500,15 +515,6 @@ def get_aggregated_user_leaderboard(topic=None, limit=50, offset=0, search=None)
             'total_users': 0,
             'error': str(e)
         }
-        
-        logger.info(f"Marked {len(abandoned_sessions)} sessions as abandoned")
-        
-        return len(abandoned_sessions)
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Failed to cleanup incomplete sessions: {e}")
-        return 0
 
 
 def get_concurrent_quiz_leaderboard(topic, time_window_minutes=30, limit=50):
@@ -533,7 +539,7 @@ def get_concurrent_quiz_leaderboard(topic, time_window_minutes=30, limit=50):
         from sqlalchemy import func
         
         # Calculate time threshold
-        time_threshold = datetime.utcnow() - timedelta(minutes=time_window_minutes)
+        time_threshold = datetime.now() - timedelta(minutes=time_window_minutes)
         
         logger.info(f"🏆 Getting concurrent quiz leaderboard for topic: {topic}, window: {time_window_minutes}min")
         
@@ -574,7 +580,7 @@ def get_concurrent_quiz_leaderboard(topic, time_window_minutes=30, limit=50):
             if session.status == 'completed' and session.completed_at:
                 time_taken = int((session.completed_at - session.started_at).total_seconds())
             else:
-                time_taken = int((datetime.utcnow() - session.started_at).total_seconds())
+                time_taken = int((datetime.now() - session.started_at).total_seconds())
             
             # Get weighted score from leaderboard if completed
             if session.status == 'completed':
@@ -617,9 +623,25 @@ def get_concurrent_quiz_leaderboard(topic, time_window_minutes=30, limit=50):
         # This ensures the highest score wins, and if tied, fastest wins
         leaderboard_entries.sort(key=lambda x: (-x['weighted_score'], x['time_taken']))
         
-        # Assign ranks
-        for rank, entry in enumerate(leaderboard_entries, start=1):
-            entry['rank'] = rank
+        # Assign ranks with tie handling
+        # Users with identical scores AND times get the same rank
+        # Subsequent ranks skip appropriately (e.g., 1, 2, 2, 4)
+        rank = 1
+        for idx, entry in enumerate(leaderboard_entries):
+            if idx > 0:
+                prev_entry = leaderboard_entries[idx - 1]
+                # Check if this entry is tied with previous (same score AND same time)
+                if (prev_entry['weighted_score'] == entry['weighted_score'] and 
+                    prev_entry['time_taken'] == entry['time_taken']):
+                    # Same rank as previous
+                    entry['rank'] = prev_entry['rank']
+                else:
+                    # New rank (account for ties)
+                    rank = idx + 1
+                    entry['rank'] = rank
+            else:
+                # First entry gets rank 1
+                entry['rank'] = 1
         
         # Apply limit
         leaderboard_entries = leaderboard_entries[:limit]
@@ -631,7 +653,7 @@ def get_concurrent_quiz_leaderboard(topic, time_window_minutes=30, limit=50):
             'total_concurrent': len(concurrent_sessions),
             'time_window': time_window_minutes,
             'topic': topic,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now().isoformat()
         }
         
     except Exception as e:
