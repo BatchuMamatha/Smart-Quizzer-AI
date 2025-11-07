@@ -63,7 +63,6 @@ const Header: React.FC<HeaderProps> = ({
     { path: '/dashboard', label: '🏠 Dashboard' },
     { path: '/analytics', label: '📊 Analytics' },
     { path: '/history', label: '📜 History' },
-    { path: '/leaderboard', label: '🏆 Leaderboard' },
     { path: '/content-upload', label: '📁 Upload Content' },
     { path: '/profile', label: '👤 Profile' },
   ];

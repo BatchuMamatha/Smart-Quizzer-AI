@@ -48,11 +48,18 @@ const Results: React.FC = () => {
       return;
     }
 
+    let currentTopic = '';
+    let isMounted = true;
+
     const fetchResults = async () => {
       try {
         setLoading(true);
         const data = await quizAPI.getResults(quizId);
+        
+        if (!isMounted) return;
+        
         setResults(data);
+        currentTopic = data.quiz_session.topic;
         
         // Update leaderboard entry for this completed quiz
         try {
@@ -63,28 +70,131 @@ const Results: React.FC = () => {
           // Don't fail the results page if leaderboard update fails
         }
         
-        // Fetch leaderboard after getting results
-        fetchLeaderboard(data.quiz_session.topic);
-        
-        // 🔥 NEW: Join WebSocket room for real-time leaderboard updates
+        // Fetch initial leaderboard
         if (data.quiz_session.topic) {
-          socketService.joinLeaderboardRoom(data.quiz_session.topic);
+          await fetchLeaderboard(data.quiz_session.topic);
           
-          // Listen for leaderboard updates
-          socketService.onLeaderboardUpdate((updateData) => {
-            console.log('🔔 Real-time leaderboard update received:', updateData);
-            if (updateData.topic === data.quiz_session.topic) {
-              // Re-fetch leaderboard when someone completes quiz
-              fetchLeaderboard(data.quiz_session.topic);
-            }
-          });
+          // Setup WebSocket connection for real-time updates
+          setupWebSocketListener(data.quiz_session.topic);
         }
       } catch (error: any) {
+        if (!isMounted) return;
         console.error('Error fetching results:', error);
         setError(error.response?.data?.error || 'Failed to load results');
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
+    };
+
+    const setupWebSocketListener = (topic: string) => {
+      console.log(`🔌 Setting up WebSocket listener for topic: ${topic}`);
+      
+      // Wait for socket to be ready
+      const socket = socketService.getSocket();
+      
+      if (!socket || !socketService.getConnectionStatus()) {
+        console.warn('⚠️ Socket not ready yet, retrying in 500ms...');
+        const retryTimeout = setTimeout(() => {
+          if (isMounted) {
+            setupWebSocketListener(topic);
+          }
+        }, 500);
+        return () => clearTimeout(retryTimeout);
+      }
+      
+      // Join the topic-specific room
+      socketService.joinLeaderboardRoom(topic);
+      
+      // Set up listener with proper reference for cleanup
+      const handleLeaderboardUpdate = (updateData: any) => {
+        if (!isMounted) return;
+        
+        console.log('🔔 Real-time leaderboard update received:', updateData);
+        
+        if (updateData.topic === topic && updateData.entry) {
+          // Merge the update into the current leaderboard instead of re-fetching everything
+          mergeLeaderboardUpdate(updateData.entry);
+        }
+      };
+      
+      socketService.onLeaderboardUpdate(handleLeaderboardUpdate);
+      
+      // Return cleanup function
+      return () => {
+        socketService.offLeaderboardUpdate();
+        socketService.leaveLeaderboardRoom(topic);
+      };
+    };
+
+    const mergeLeaderboardUpdate = (newEntry: any) => {
+      /**
+       * Merge a single leaderboard entry into the current leaderboard state.
+       * - If the user already exists, update their entry
+       * - If new user, add them
+       * - Re-sort and re-rank accordingly
+       */
+      setLeaderboard(prevLeaderboard => {
+        if (!newEntry || !newEntry.user_id) {
+          console.warn('Invalid leaderboard entry:', newEntry);
+          return prevLeaderboard;
+        }
+
+        // Create a map for easy lookup and update
+        const leaderboardMap = new Map<number, LeaderboardEntry>();
+        prevLeaderboard.forEach(entry => {
+          leaderboardMap.set(entry.user_id, entry);
+        });
+
+        // Normalize the incoming entry to match our LeaderboardEntry interface
+        const normalizedEntry: LeaderboardEntry = {
+          rank: newEntry.rank || 0,
+          user_id: newEntry.user_id,
+          username: newEntry.username,
+          full_name: newEntry.full_name || newEntry.username,
+          quiz_session_id: newEntry.quiz_session_id,
+          status: newEntry.status || 'completed',
+          accuracy: typeof newEntry.accuracy === 'number' ? newEntry.accuracy : 0,
+          correct_answers: newEntry.correct_answers || 0,
+          total_questions: newEntry.total_questions || 0,
+          completed_questions: newEntry.completed_questions || newEntry.total_questions || 0,
+          time_taken: newEntry.time_taken || 0,
+          weighted_score: newEntry.accuracy || 0,
+          started_at: newEntry.started_at || '',
+          completed_at: newEntry.completed_at || null
+        };
+
+        // Update or insert the entry
+        leaderboardMap.set(normalizedEntry.user_id, normalizedEntry);
+
+        // Convert back to array and sort by accuracy desc, then time asc
+        let updatedLeaderboard = Array.from(leaderboardMap.values()).sort((a, b) => {
+          // Sort primarily by accuracy (descending)
+          if (Math.abs(a.accuracy - b.accuracy) > 0.01) {
+            return b.accuracy - a.accuracy;
+          }
+          // If accuracies are equal (within 0.01), sort by time (ascending)
+          return a.time_taken - b.time_taken;
+        });
+
+        // Re-assign ranks with tie handling
+        updatedLeaderboard = updatedLeaderboard.map((entry, idx) => {
+          if (idx === 0) {
+            return { ...entry, rank: 1 };
+          }
+          const prevEntry = updatedLeaderboard[idx - 1];
+          const isTie = Math.abs(prevEntry.accuracy - entry.accuracy) < 0.01 && 
+                        prevEntry.time_taken === entry.time_taken;
+          return {
+            ...entry,
+            rank: isTie ? prevEntry.rank : idx + 1
+          };
+        });
+
+        console.log(`✅ Merged leaderboard update: ${updatedLeaderboard.length} users, new entry from ${normalizedEntry.username}`);
+        return updatedLeaderboard;
+      });
     };
 
     const fetchLeaderboard = async (topic?: string) => {
@@ -94,10 +204,12 @@ const Results: React.FC = () => {
         // 🔥 Fetch concurrent quiz leaderboard - shows only users taking this quiz NOW
         const response = await api.get(`/leaderboard/concurrent/${topic}`, {
           params: {
-            time_window: 30,  // Last 30 minutes
+            time_window: 120,  // Last 2 hours
             limit: 10
           }
         });
+        
+        if (!isMounted) return;
         
         const leaderboardData = response.data;
         
@@ -123,12 +235,15 @@ const Results: React.FC = () => {
           setCurrentUserRank(null);
         }
       } catch (error) {
+        if (!isMounted) return;
         console.error('Error fetching concurrent quiz leaderboard:', error);
         // Set empty state on error
         setLeaderboard([]);
         setCurrentUserRank(null);
       } finally {
-        setLoadingLeaderboard(false);
+        if (isMounted) {
+          setLoadingLeaderboard(false);
+        }
       }
     };
 
@@ -136,8 +251,9 @@ const Results: React.FC = () => {
 
     // Cleanup: Leave WebSocket room when component unmounts
     return () => {
-      if (results?.quiz_session?.topic) {
-        socketService.leaveLeaderboardRoom(results.quiz_session.topic);
+      isMounted = false;
+      if (currentTopic) {
+        socketService.leaveLeaderboardRoom(currentTopic);
         socketService.offLeaderboardUpdate();
       }
     };
@@ -848,7 +964,7 @@ const Results: React.FC = () => {
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-semibold text-purple-600">
-                                    {entry.weighted_score.toFixed(1)}
+                                    {entry.accuracy.toFixed(1)}%
                                   </span>
                                   <span className="text-xs text-gray-500">
                                     ({entry.correct_answers}/{entry.total_questions})
@@ -896,7 +1012,7 @@ const Results: React.FC = () => {
                     Be the First!
                   </h3>
                   <p className="text-gray-600 mb-2">
-                    You're the only one who took this quiz in the last 30 minutes.
+                    You're the only one who took this quiz in the last 2 hours.
                   </p>
                   <p className="text-gray-500 text-sm">
                     Invite your friends to compete and see real-time rankings!

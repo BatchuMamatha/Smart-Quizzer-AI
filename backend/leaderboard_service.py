@@ -124,19 +124,21 @@ def update_leaderboard_entry(quiz_session_id, emit_event=None):
         recalculate_ranks(topic=quiz_session.topic)
         
         # Emit WebSocket event for real-time update
+        # - Use a user-specific event for topic rooms so the Results page can listen
+        # - Emit a separate admin event to the admin room so admin UI can remain isolated
         if emit_event:
             try:
-                # Emit to topic-specific room
+                # Emit to topic-specific room (user leaderboard updates)
                 room_name = f"leaderboard_{quiz_session.topic}"
-                emit_event('leaderboard:update', {
+                emit_event('leaderboard:user_update', {
                     'topic': quiz_session.topic,
                     'entry': leaderboard_entry.to_dict(),
                     'timestamp': datetime.now().isoformat()
                 }, to=room_name)
-                logger.info(f"Emitted leaderboard update event for topic: {quiz_session.topic}")
-                
-                # 🔥 NEW: Also emit to admin global leaderboard room
-                emit_event('leaderboard:update', {
+                logger.info(f"Emitted user leaderboard update event for topic: {quiz_session.topic}")
+
+                # Emit to admin global leaderboard room (admin-only)
+                emit_event('leaderboard:admin_update', {
                     'topic': 'admin_global',
                     'entry': leaderboard_entry.to_dict(),
                     'user': quiz_session.user.username if quiz_session.user else 'Unknown',
@@ -517,154 +519,120 @@ def get_aggregated_user_leaderboard(topic=None, limit=50, offset=0, search=None)
         }
 
 
-def get_concurrent_quiz_leaderboard(topic, time_window_minutes=30, limit=50):
+def get_concurrent_quiz_leaderboard(topic, time_window_minutes=120, limit=50):
     """
-    🔥 NEW: Get leaderboard for users taking the SAME quiz concurrently.
-    This shows ONLY users who started the quiz within the time window.
-    Perfect for real-time competitive quizzes.
-    
-    Args:
-        topic: Quiz topic to filter by
-        time_window_minutes: How recent the quiz must be (default 30 minutes)
-        limit: Maximum number of users to return
-        
-    Returns:
-        dict: {
-            'leaderboard': List of concurrent users with ranks,
-            'total_concurrent': Total number of concurrent takers,
-            'time_window': Time window used for filtering
-        }
+    USER LEADERBOARD: Real-time leaderboard for users taking the SAME quiz concurrently.
+
+    Ranking: accuracy (correct / total) desc, time_taken asc.
+    Each user appears only once (best session chosen if multiple), ties handled properly.
     """
     try:
-        from sqlalchemy import func
-        
-        # Calculate time threshold
         time_threshold = datetime.now() - timedelta(minutes=time_window_minutes)
-        
-        logger.info(f"🏆 Getting concurrent quiz leaderboard for topic: {topic}, window: {time_window_minutes}min")
-        
-        # Get all quiz sessions for this topic that started within the time window
-        concurrent_sessions = QuizSession.query.filter(
+
+        logger.info(f"[USER LEADERBOARD] 🏆 Getting concurrent quiz leaderboard for topic: {topic}, window: {time_window_minutes}min")
+
+        # Get sessions matching topic and recent completion time
+        # Check EITHER started_at (for active quizzes) OR completed_at (for completed quizzes) within window
+        sessions = QuizSession.query.filter(
             QuizSession.topic == topic,
-            QuizSession.started_at >= time_threshold,
-            QuizSession.status.in_(['active', 'completed'])
+            QuizSession.status.in_(['active', 'completed']),
+            # Include if started recently (active quiz) OR completed recently (finished quiz)
+            or_(
+                QuizSession.started_at >= time_threshold,  # Active quiz started recently
+                QuizSession.completed_at >= time_threshold  # Completed quiz finished recently
+            )
         ).all()
-        
-        if not concurrent_sessions:
-            logger.info(f"No concurrent quiz takers found for {topic}")
+
+        if not sessions:
+            logger.info(f"[USER LEADERBOARD] ⚠️ No concurrent quiz takers found for {topic} in last {time_window_minutes} minutes")
             return {
                 'leaderboard': [],
                 'total_concurrent': 0,
                 'time_window': time_window_minutes,
-                'topic': topic
+                'topic': topic,
+                'source': 'none'
             }
-        
-        # Build leaderboard entries
-        leaderboard_entries = []
-        
-        for session in concurrent_sessions:
-            # Get user info
-            user = User.query.get(session.user_id)
+
+        # Build best-per-user mapping to ensure one entry per user
+        best_by_user = {}
+
+        for s in sessions:
+            user = User.query.get(s.user_id)
             if not user:
                 continue
-            
-            # Calculate current stats
-            total_questions = session.total_questions
-            correct_answers = session.correct_answers
-            completed_questions = session.completed_questions
-            
-            # Calculate accuracy percentage
-            accuracy = (correct_answers / completed_questions * 100) if completed_questions > 0 else 0
-            
-            # Calculate time taken so far
-            if session.status == 'completed' and session.completed_at:
-                time_taken = int((session.completed_at - session.started_at).total_seconds())
+
+            total_questions = s.total_questions or 0
+            correct_answers = s.correct_answers or 0
+            accuracy = (correct_answers / total_questions * 100) if total_questions > 0 else 0.0
+
+            if s.status == 'completed' and s.completed_at:
+                time_taken = int((s.completed_at - s.started_at).total_seconds())
             else:
-                time_taken = int((datetime.now() - session.started_at).total_seconds())
-            
-            # Get weighted score from leaderboard if completed
-            if session.status == 'completed':
-                leaderboard_entry = QuizLeaderboard.query.filter_by(
-                    quiz_session_id=session.id
-                ).first()
-                
-                if leaderboard_entry:
-                    weighted_score = leaderboard_entry.score
-                else:
-                    # Calculate on the fly
-                    questions = Question.query.filter_by(quiz_session_id=session.id).all()
-                    weighted_score, _ = compute_weighted_score(questions)
-            else:
-                # For active quizzes, calculate current score
-                questions = Question.query.filter_by(
-                    quiz_session_id=session.id,
-                    is_correct=True
-                ).all()
-                weighted_score, _ = compute_weighted_score(questions)
-            
-            # Add to leaderboard
-            leaderboard_entries.append({
+                time_taken = int((datetime.now() - s.started_at).total_seconds())
+
+            candidate = {
                 'user_id': user.id,
                 'username': user.username,
-                'full_name': user.full_name,
-                'quiz_session_id': session.id,
-                'status': session.status,  # 'active' or 'completed'
-                'accuracy': round(accuracy, 1),
+                'full_name': user.full_name or user.username,
+                'quiz_session_id': s.id,
+                'status': s.status,
+                'accuracy': round(accuracy, 2),
                 'correct_answers': correct_answers,
                 'total_questions': total_questions,
-                'completed_questions': completed_questions,
                 'time_taken': time_taken,
-                'weighted_score': round(weighted_score, 2),
-                'started_at': session.started_at.isoformat(),
-                'completed_at': session.completed_at.isoformat() if session.completed_at else None
-            })
-        
-        # Sort by: weighted_score (desc), then time_taken (asc)
-        # This ensures the highest score wins, and if tied, fastest wins
-        leaderboard_entries.sort(key=lambda x: (-x['weighted_score'], x['time_taken']))
-        
-        # Assign ranks with tie handling
-        # Users with identical scores AND times get the same rank
-        # Subsequent ranks skip appropriately (e.g., 1, 2, 2, 4)
+                'started_at': s.started_at.isoformat(),
+                'completed_at': s.completed_at.isoformat() if s.completed_at else None
+            }
+
+            existing = best_by_user.get(user.id)
+            if not existing:
+                best_by_user[user.id] = candidate
+            else:
+                # Prefer higher accuracy; if equal, prefer faster time
+                if candidate['accuracy'] > existing['accuracy']:
+                    best_by_user[user.id] = candidate
+                elif abs(candidate['accuracy'] - existing['accuracy']) < 0.0001 and candidate['time_taken'] < existing['time_taken']:
+                    best_by_user[user.id] = candidate
+
+        leaderboard_entries = list(best_by_user.values())
+
+        # Sort by accuracy desc, time asc
+        leaderboard_entries.sort(key=lambda x: (-x['accuracy'], x['time_taken']))
+
+        # Assign ranks with tie handling (equal accuracy within 0.01 and equal time -> same rank)
         rank = 1
         for idx, entry in enumerate(leaderboard_entries):
-            if idx > 0:
-                prev_entry = leaderboard_entries[idx - 1]
-                # Check if this entry is tied with previous (same score AND same time)
-                if (prev_entry['weighted_score'] == entry['weighted_score'] and 
-                    prev_entry['time_taken'] == entry['time_taken']):
-                    # Same rank as previous
-                    entry['rank'] = prev_entry['rank']
-                else:
-                    # New rank (account for ties)
-                    rank = idx + 1
-                    entry['rank'] = rank
-            else:
-                # First entry gets rank 1
+            if idx == 0:
                 entry['rank'] = 1
-        
-        # Apply limit
+            else:
+                prev = leaderboard_entries[idx - 1]
+                if abs(prev['accuracy'] - entry['accuracy']) < 0.01 and prev['time_taken'] == entry['time_taken']:
+                    entry['rank'] = prev['rank']
+                else:
+                    entry['rank'] = idx + 1
+
         leaderboard_entries = leaderboard_entries[:limit]
-        
-        logger.info(f"✅ Found {len(leaderboard_entries)} concurrent quiz takers for {topic}")
-        
+
+        logger.info(f"[USER LEADERBOARD] ✅ Found {len(leaderboard_entries)} concurrent quiz takers for {topic}")
+
         return {
             'leaderboard': leaderboard_entries,
-            'total_concurrent': len(concurrent_sessions),
+            'total_concurrent': len(leaderboard_entries),
             'time_window': time_window_minutes,
             'topic': topic,
-            'timestamp': datetime.now().isoformat()
+            'source': 'active_participants'
         }
-        
+
     except Exception as e:
-        logger.error(f"Failed to get concurrent quiz leaderboard: {e}")
+        logger.error(f"[USER LEADERBOARD] ❌ Failed to get concurrent quiz leaderboard: {e}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return {
             'leaderboard': [],
             'total_concurrent': 0,
             'time_window': time_window_minutes,
             'topic': topic,
+            'source': 'error',
             'error': str(e)
         }
 

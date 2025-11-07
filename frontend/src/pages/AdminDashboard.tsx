@@ -125,22 +125,47 @@ const AdminDashboard: React.FC = () => {
       return;
     }
 
+    let isMounted = true;
+
     fetchAdminData();
     
-    // 🔥 NEW: Connect WebSocket for real-time admin leaderboard updates
-    const socket = socketService.getSocket();
-    
-    // Wait for connection before joining room
-    const setupWebSocket = () => {
-      setIsConnected(socketService.getConnectionStatus());
+    // 🔥 NEW: Connect WebSocket for real-time admin leaderboard updates with retry logic
+    const setupWebSocketListener = async () => {
+      const socket = socketService.getSocket();
+      let retries = 0;
+      const maxRetries = 3;
       
-      // Join admin leaderboard room for global updates
+      // Poll for socket connection with exponential backoff
+      while (!socketService.getConnectionStatus() && retries < maxRetries) {
+        console.log(`⏳ Waiting for socket connection... (attempt ${retries + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 500 * (retries + 1)));
+        retries++;
+      }
+      
+      if (!socketService.getConnectionStatus()) {
+        console.error('❌ Socket connection timeout - admin leaderboard may not update in real-time');
+        if (isMounted) {
+          setIsConnected(false);
+        }
+        return;
+      }
+      
+      if (!isMounted) return;
+      
+      // Socket is ready - join admin room
+      console.log('✅ Socket connected, joining admin leaderboard room...');
       socketService.joinLeaderboardRoom('admin_global');
       
-      // Listen for leaderboard updates from ANY quiz completion
-      socketService.onLeaderboardUpdate((updateData) => {
-        console.log('🔔 Admin received leaderboard update:', updateData);
+      if (isMounted) {
+        setIsConnected(true);
+      }
+      
+      // Listen for admin-specific leaderboard updates
+      socketService.onAdminLeaderboardUpdate((updateData) => {
+        if (!isMounted) return;
         
+        console.log('🔔 Admin received leaderboard update:', updateData);
+
         // If we're on the leaderboard tab, refresh it
         if (activeTab === 'leaderboard') {
           console.log('🔄 Auto-refreshing admin leaderboard...');
@@ -150,26 +175,24 @@ const AdminDashboard: React.FC = () => {
       });
     };
 
-    // If already connected, set up immediately
-    if (socket && socket.connected) {
-      setupWebSocket();
-    } else if (socket) {
-      // Wait for connection event
-      socket.once('connect', () => {
-        setupWebSocket();
-      });
-    }
+    // Start WebSocket setup
+    setupWebSocketListener().catch(err => {
+      console.error('Error setting up admin WebSocket:', err);
+    });
 
     // Monitor connection status changes
     const checkConnection = setInterval(() => {
-      setIsConnected(socketService.getConnectionStatus());
+      if (isMounted) {
+        setIsConnected(socketService.getConnectionStatus());
+      }
     }, 2000);
     
     // Cleanup WebSocket on unmount
     return () => {
+      isMounted = false;
       clearInterval(checkConnection);
       socketService.leaveLeaderboardRoom('admin_global');
-      socketService.offLeaderboardUpdate();
+      socketService.offAdminLeaderboardUpdate();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);

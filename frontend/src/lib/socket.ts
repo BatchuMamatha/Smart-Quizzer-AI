@@ -135,10 +135,13 @@ class SocketService {
       return;
     }
 
-    console.log('👂 Listening for leaderboard updates...');
+    console.log('👂 Listening for user leaderboard updates...');
+    // User-facing leaderboard updates are emitted as 'leaderboard:user_update'
+    // Remove any existing listener first to avoid duplicates
+    this.socket.off('leaderboard:user_update');
     
-    this.socket.on('leaderboard:update', (data) => {
-      console.log('📊 Leaderboard update received:', data);
+    this.socket.on('leaderboard:user_update', (data) => {
+      console.log('📊 User leaderboard update received:', data);
       callback(data);
     });
   }
@@ -151,8 +154,35 @@ class SocketService {
       return;
     }
 
-    console.log('🔇 Removing leaderboard update listener');
-    this.socket.off('leaderboard:update');
+    console.log('🔇 Removing user leaderboard update listener');
+    this.socket.off('leaderboard:user_update');
+  }
+
+  /**
+   * Listen for admin leaderboard updates (admin UI)
+   */
+  public onAdminLeaderboardUpdate(callback: (data: any) => void): void {
+    if (!this.socket) {
+      console.warn('⚠️  Cannot listen for admin updates - socket not initialized');
+      return;
+    }
+    console.log('👂 Listening for admin leaderboard updates...');
+    // Remove any existing listener first to avoid duplicates
+    this.socket.off('leaderboard:admin_update');
+    
+    this.socket.on('leaderboard:admin_update', (data) => {
+      console.log('📊 Admin leaderboard update received:', data);
+      callback(data);
+    });
+  }
+
+  /**
+   * Remove admin leaderboard update listener
+   */
+  public offAdminLeaderboardUpdate(): void {
+    if (!this.socket) return;
+    console.log('🔇 Removing admin leaderboard update listener');
+    this.socket.off('leaderboard:admin_update');
   }
 
   /**
