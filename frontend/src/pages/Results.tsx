@@ -40,6 +40,7 @@ const Results: React.FC = () => {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentUserRank, setCurrentUserRank] = useState<number | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
 
   useEffect(() => {
@@ -227,11 +228,13 @@ const Results: React.FC = () => {
         const currentUser = userManager.getCurrentUser();
         
         if (currentUser && leaderboardData.leaderboard) {
+          setCurrentUserId(currentUser.id);
           const userEntry = leaderboardData.leaderboard.find(
             (entry: any) => entry.user_id === currentUser.id
           );
           setCurrentUserRank(userEntry ? userEntry.rank : null);
         } else {
+          setCurrentUserId(null);
           setCurrentUserRank(null);
         }
       } catch (error) {
@@ -239,6 +242,7 @@ const Results: React.FC = () => {
         console.error('Error fetching concurrent quiz leaderboard:', error);
         // Set empty state on error
         setLeaderboard([]);
+        setCurrentUserId(null);
         setCurrentUserRank(null);
       } finally {
         if (isMounted) {
@@ -927,7 +931,7 @@ const Results: React.FC = () => {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {leaderboard.slice(0, 10).map((entry) => {
-                          const isCurrentUser = entry.rank === currentUserRank;
+                          const isCurrentUser = currentUserId !== null && entry.user_id === currentUserId;
                           const getRankIcon = (rank: number) => {
                             if (rank === 1) return '🥇';
                             if (rank === 2) return '🥈';
