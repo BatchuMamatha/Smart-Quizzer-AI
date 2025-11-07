@@ -120,26 +120,83 @@ def get_performance_trends(user_id, days=30, topic=None):
     """
     Get performance trends over specified period
     Returns daily aggregated metrics for charts and analysis
+    Aggregates data from QuizSession table
     """
     start_date = date.today() - timedelta(days=days)
     
-    query = PerformanceTrend.query.filter(
-        PerformanceTrend.user_id == user_id,
-        PerformanceTrend.date >= start_date
+    # Query quiz sessions within the date range
+    query = QuizSession.query.filter(
+        QuizSession.user_id == user_id,
+        QuizSession.status == 'completed',
+        func.date(QuizSession.completed_at) >= start_date
     )
     
     if topic:
         query = query.filter_by(topic=topic)
-    else:
-        query = query.filter_by(topic=None)  # Overall performance
     
-    trends = query.order_by(PerformanceTrend.date).all()
+    sessions = query.order_by(QuizSession.completed_at).all()
+    
+    if not sessions:
+        return {
+            'trends': [],
+            'period_days': days,
+            'data_points': 0,
+            'current_streak': 0
+        }
+    
+    # Aggregate by date
+    daily_data = {}
+    for session in sessions:
+        session_date = session.completed_at.date() if session.completed_at else date.today()
+        date_key = session_date.isoformat()
+        
+        if date_key not in daily_data:
+            daily_data[date_key] = {
+                'date': session_date,
+                'quizzes_completed': 0,
+                'total_questions': 0,
+                'correct_answers': 0,
+                'total_time': 0
+            }
+        
+        daily_data[date_key]['quizzes_completed'] += 1
+        daily_data[date_key]['total_questions'] += session.total_questions
+        daily_data[date_key]['correct_answers'] += session.correct_answers
+        daily_data[date_key]['total_time'] += session.total_time_seconds
+    
+    # Calculate daily metrics
+    trends = []
+    for date_key in sorted(daily_data.keys()):
+        data = daily_data[date_key]
+        accuracy_rate = (data['correct_answers'] / data['total_questions'] * 100) if data['total_questions'] > 0 else 0
+        avg_time_per_question = data['total_time'] / data['total_questions'] if data['total_questions'] > 0 else 0
+        
+        trends.append({
+            'date': data['date'].isoformat(),
+            'quizzes_completed': data['quizzes_completed'],
+            'total_questions': data['total_questions'],
+            'correct_answers': data['correct_answers'],
+            'accuracy_rate': round(accuracy_rate, 2),
+            'avg_time_per_question': round(avg_time_per_question, 2),
+            'id': hash(f"{user_id}_{date_key}_{topic or 'overall'}") % (10 ** 8)  # Generate consistent ID
+        })
+    
+    # Calculate current streak (consecutive days with quizzes)
+    current_streak = 1
+    if trends:
+        for i in range(len(trends) - 1, 0, -1):
+            current_date = datetime.fromisoformat(trends[i]['date']).date()
+            prev_date = datetime.fromisoformat(trends[i - 1]['date']).date()
+            if (current_date - prev_date).days == 1:
+                current_streak += 1
+            else:
+                break
     
     return {
-        'trends': [t.to_dict() for t in trends],
+        'trends': trends,
         'period_days': days,
         'data_points': len(trends),
-        'current_streak': trends[-1].daily_streak if trends else 0
+        'current_streak': current_streak
     }
 
 

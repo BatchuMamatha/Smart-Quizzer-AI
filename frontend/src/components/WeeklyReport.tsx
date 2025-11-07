@@ -143,30 +143,44 @@ const WeeklyReport: React.FC = () => {
 
       {/* Topic Breakdown */}
       {Object.keys(report.topic_breakdown).length > 0 && (
-        <div className="px-6 pb-6">
-          <h3 className="font-semibold text-gray-900 mb-3">Topic Performance</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {Object.entries(report.topic_breakdown).map(([topic, stats]: [string, any]) => (
-              <div key={topic} className="bg-gray-50 rounded-lg p-3">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-medium text-gray-900">{topic}</span>
-                  <span className="text-lg font-bold text-indigo-600">
-                    {stats.avg_accuracy?.toFixed(1) || 0}%
-                  </span>
-                </div>
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
-                    style={{ width: `${stats.avg_accuracy || 0}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {stats.quizzes_completed} {stats.quizzes_completed === 1 ? 'quiz' : 'quizzes'}
-                </p>
-              </div>
-            ))}
+        <>
+          {/* Visual Divider */}
+          <div className="px-6 py-4">
+            <div className="border-t border-gray-200"></div>
           </div>
-        </div>
+          
+          <div className="px-6 pb-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">📚 Topic Performance Breakdown</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Object.entries(report.topic_breakdown).map(([topic, stats]: [string, any]) => {
+                // Calculate average accuracy from the backend data structure
+                // Backend returns: { count, correct, total }
+                const avgAccuracy = stats.total > 0 ? (stats.correct / stats.total) * 100 : 0;
+                const quizCount = stats.count || 0;
+                
+                return (
+                  <div key={topic} className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-4 border border-indigo-100">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-semibold text-gray-900">{topic}</span>
+                      <span className="text-lg font-bold text-indigo-600">
+                        {avgAccuracy.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+                        style={{ width: `${Math.min(avgAccuracy, 100)}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      {quizCount} {quizCount === 1 ? 'quiz' : 'quizzes'} completed
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Motivational Footer */}

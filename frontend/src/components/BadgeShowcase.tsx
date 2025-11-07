@@ -59,11 +59,6 @@ const BadgeShowcase: React.FC = () => {
   const categories = [
     { value: 'all', label: 'All Badges' },
     { value: 'milestone', label: 'Milestones' },
-    { value: 'perfect_score', label: 'Perfect Scores' },
-    { value: 'speed', label: 'Speed' },
-    { value: 'streak', label: 'Streaks' },
-    { value: 'accuracy', label: 'Accuracy' },
-    { value: 'topic_master', label: 'Topic Masters' },
     { value: 'special', label: 'Special' },
   ];
 

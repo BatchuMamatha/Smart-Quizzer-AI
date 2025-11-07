@@ -16,10 +16,13 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ days = 30, topic })
     try {
       setLoading(true);
       const data = await analyticsAPI.getPerformanceTrends({ days, topic });
-      setTrends(data.trends);
-      setCurrentStreak(data.current_streak);
+      console.log('Performance trends data received:', data);
+      setTrends(data.trends || []);
+      setCurrentStreak(data.current_streak || 0);
     } catch (error) {
       console.error('Failed to load performance trends:', error);
+      setTrends([]);
+      setCurrentStreak(0);
     } finally {
       setLoading(false);
     }
@@ -31,7 +34,7 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ days = 30, topic })
 
   const getMaxValue = () => {
     if (trends.length === 0) return 100;
-    return Math.max(...trends.map((t) => t.accuracy_rate), 100);
+    return 100; // Always use 100% as max since accuracy is percentage
   };
 
   const formatDate = (dateStr: string) => {
@@ -84,9 +87,9 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ days = 30, topic })
           {topic ? `${topic} Performance` : 'Overall Performance'}
         </h3>
 
-        <div className="relative h-64">
+        <div className="relative h-64 mb-4">
           {/* Y-axis labels */}
-          <div className="absolute left-0 top-0 bottom-8 flex flex-col justify-between text-xs text-gray-500">
+          <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 w-12 pr-2">
             <span>100%</span>
             <span>75%</span>
             <span>50%</span>
@@ -94,45 +97,49 @@ const PerformanceChart: React.FC<PerformanceChartProps> = ({ days = 30, topic })
             <span>0%</span>
           </div>
 
-          {/* Chart area */}
-          <div className="ml-12 h-full flex items-end gap-1">
+          {/* Chart area - main bars container */}
+          <div className="ml-14 h-full flex items-end justify-center gap-4 pr-2 bg-gray-50 rounded border border-gray-100">
             {trends.map((trend, index) => {
-              const height = (trend.accuracy_rate / maxValue) * 100;
-              const isGood = trend.accuracy_rate >= 70;
-              const isExcellent = trend.accuracy_rate >= 90;
+              const accuracyRate = trend.accuracy_rate || 0;
+              const height = Math.max((accuracyRate / 100) * 100, 5); // Ensure minimum height for visibility
+              const isGood = accuracyRate >= 70;
+              const isExcellent = accuracyRate >= 90;
 
               return (
-                <div key={trend.id} className="flex-1 flex flex-col items-center group">
-                  {/* Bar */}
-                  <div className="w-full relative" style={{ height: '90%' }}>
-                    <div className="absolute bottom-0 w-full flex flex-col items-center">
-                      <div
-                        className={`w-full rounded-t transition-all duration-300 relative ${
-                          isExcellent
-                            ? 'bg-gradient-to-t from-green-500 to-green-400'
-                            : isGood
-                            ? 'bg-gradient-to-t from-blue-500 to-blue-400'
-                            : 'bg-gradient-to-t from-gray-400 to-gray-300'
-                        } hover:opacity-80`}
-                        style={{ height: `${height}%` }}
-                      >
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                          <div className="bg-gray-900 text-white text-xs rounded-lg p-2 whitespace-nowrap shadow-lg">
-                            <p className="font-semibold">{formatDate(trend.date)}</p>
-                            <p>Accuracy: {trend.accuracy_rate.toFixed(1)}%</p>
-                            <p>Quizzes: {trend.quizzes_completed}</p>
-                            {trend.avg_time_per_question && (
-                              <p>Avg Time: {trend.avg_time_per_question.toFixed(1)}s</p>
-                            )}
-                          </div>
-                        </div>
+                <div key={trend.id || index} className="flex flex-col items-center h-full group pb-2" style={{ width: '60px' }}>
+                  {/* Tooltip container */}
+                  <div className="relative w-full h-full flex flex-col items-center justify-end">
+                    {/* Tooltip - appears on hover */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                      <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                        <p className="font-semibold">{formatDate(trend.date)}</p>
+                        <p>Accuracy: {accuracyRate.toFixed(1)}%</p>
+                        <p>Quizzes: {trend.quizzes_completed}</p>
+                        {trend.avg_time_per_question && (
+                          <p>Avg Time: {trend.avg_time_per_question.toFixed(1)}s</p>
+                        )}
                       </div>
                     </div>
+
+                    {/* Bar */}
+                    <div
+                      className={`w-10 cursor-pointer transition-all duration-300 hover:opacity-100 opacity-75 ${
+                        isExcellent
+                          ? 'bg-gradient-to-t from-green-500 to-green-400'
+                          : isGood
+                          ? 'bg-gradient-to-t from-blue-500 to-blue-400'
+                          : 'bg-gradient-to-t from-gray-400 to-gray-300'
+                      } rounded-t hover:shadow-lg`}
+                      style={{ 
+                        height: `${height}%`,
+                        minHeight: '8px'
+                      }}
+                      title={`${formatDate(trend.date)}: ${accuracyRate.toFixed(1)}%`}
+                    />
                   </div>
 
                   {/* X-axis label */}
-                  <div className="text-xs text-gray-500 mt-2 transform -rotate-45 origin-top-left">
+                  <div className="text-xs text-gray-600 mt-1 font-medium text-center w-full truncate">
                     {formatDate(trend.date)}
                   </div>
                 </div>

@@ -4,7 +4,6 @@ import { UserManager } from '../lib/userManager';
 import { quizAPI, analyticsAPI, Recommendation } from '../lib/api';
 import Header from '../components/Header';
 import BadgeShowcase from '../components/BadgeShowcase';
-import BadgeProgress from '../components/BadgeProgress';
 import PerformanceChart from '../components/PerformanceChart';
 import WeeklyReport from '../components/WeeklyReport';
 import RecommendationCard from '../components/RecommendationCard';
@@ -26,9 +25,9 @@ const Analytics: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const tabs = [
-        { id: 'overview' as const, label: '📊 Overview', icon: '📊' },
-        { id: 'badges' as const, label: '🏆 Badges', icon: '🏆' },
-        { id: 'recommendations' as const, label: '🤖 AI Insights', icon: '🤖' },
+        { id: 'overview' as const, label: 'Overview', icon: '📊' },
+        { id: 'badges' as const, label: 'Badges', icon: '🏆' },
+        { id: 'recommendations' as const, label: 'AI Insights', icon: '🤖' },
     ];
 
     const fetchRecommendations = useCallback(async () => {
@@ -209,31 +208,15 @@ const Analytics: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Topic Performance */}
-                            <div className="bg-white rounded-xl shadow-lg p-8">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">📚 Topic Performance</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="bg-green-50 rounded-lg p-6 border-2 border-green-200">
-                                        <div className="text-lg font-semibold text-gray-700 mb-2">🏆 Best Topic</div>
-                                        <div className="text-2xl font-bold text-green-700">{stats.best_topic}</div>
-                                    </div>
-                                    
-                                    <div className="bg-orange-50 rounded-lg p-6 border-2 border-orange-200">
-                                        <div className="text-lg font-semibold text-gray-700 mb-2">📖 Focus Area</div>
-                                        <div className="text-2xl font-bold text-orange-700">{stats.worst_topic}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Weekly Report */}
+                            {/* Performance Trends & Topic Insights */}
                             <div className="bg-white rounded-lg shadow-sm p-6">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Weekly Report</h2>
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">📈 Performance Trends & Topic Insights</h2>
                                 <WeeklyReport />
                             </div>
 
                             {/* Performance Chart */}
                             <div className="bg-white rounded-lg shadow-sm p-6">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Performance Trends</h2>
+                                <h2 className="text-2xl font-bold text-gray-900 mb-6">📊 Historical Performance</h2>
                                 <PerformanceChart days={30} />
                             </div>
 
@@ -288,12 +271,6 @@ const Analytics: React.FC = () => {
                             <div className="bg-white rounded-lg shadow-sm p-6">
                                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Badges</h2>
                                 <BadgeShowcase />
-                            </div>
-
-                            {/* Badge Progress */}
-                            <div className="bg-white rounded-lg shadow-sm p-6">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Badge Progress</h2>
-                                <BadgeProgress />
                             </div>
                         </>
                     )}

@@ -131,14 +131,14 @@ const AdminDashboard: React.FC = () => {
     
     // 🔥 NEW: Connect WebSocket for real-time admin leaderboard updates with retry logic
     const setupWebSocketListener = async () => {
-      const socket = socketService.getSocket();
       let retries = 0;
       const maxRetries = 3;
       
       // Poll for socket connection with exponential backoff
       while (!socketService.getConnectionStatus() && retries < maxRetries) {
-        console.log(`⏳ Waiting for socket connection... (attempt ${retries + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, 500 * (retries + 1)));
+        const attempt = retries + 1;
+        console.log(`⏳ Waiting for socket connection... (attempt ${attempt}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 500 * attempt));
         retries++;
       }
       
