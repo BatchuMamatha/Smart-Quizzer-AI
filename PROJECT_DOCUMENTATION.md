@@ -548,6 +548,15 @@ def calculate_performance_trends(user_id, days=30):
     return trends
 ```
 
+**Key Features:**
+- Real-time performance tracking across all quizzes
+- Topic-specific accuracy calculation
+- Streak management for motivation
+- Difficulty progression analysis
+
+![Quiz Performance Analysis](./images/user-quiz-performance-analysis.png)
+*Performance Analysis - Detailed quiz results with accuracy metrics and time tracking*
+
 ---
 
 #### Learning Path Service Module (learning_path_service.py)
@@ -842,6 +851,85 @@ const AnalyticsDashboard: React.FC = () => {
 
 ---
 
+#### User Dashboard Component (pages/Dashboard.tsx)
+
+The user dashboard provides a comprehensive overview of learning progress with quick access to key features:
+
+![User Dashboard](./images/user-dashboard.png)
+*User Dashboard - Main interface showing recent quizzes, performance statistics, and badge progress*
+
+---
+
+#### Analytics Dashboard Component (pages/AnalyticsDashboard.tsx)
+
+**Features:**
+- Performance trend charts (line graphs)
+- Topic mastery heatmap
+- Badge showcase with progress
+- AI-powered recommendations
+- Weekly performance reports
+
+**Analytics Tabs:**
+1. **Overview** - Summary statistics and recent performance
+2. **Badges** - Earned and locked badges with progress
+3. **Topic Mastery** - Heatmap of performance by topic
+4. **AI Insights** - Personalized recommendations and weak areas
+
+![Learning Analytics Dashboard](./images/user-learning-analytics1.png)
+*Comprehensive Analytics Dashboard - Performance trends and topic mastery visualization*
+
+![Detailed Analytics View](./images/user-learning-analytics2.png)
+*Analytics Details - In-depth performance metrics and personalized recommendations*
+
+```typescript
+interface AnalyticsData {
+  overview: {
+    totalQuizzes: number;
+    averageAccuracy: number;
+    totalTimeSpent: number;
+    currentStreak: number;
+  };
+  trends: PerformanceTrend[];
+  topicMastery: TopicMastery[];
+  badges: BadgeProgress[];
+  recommendations: AIRecommendation[];
+}
+
+const AnalyticsDashboard: React.FC = () => {
+  const [analytics, setAnalytics] = useState<AnalyticsData>(null);
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'badges' | 'topics' | 'insights'>('overview');
+  
+  useEffect(() => {
+    loadAnalytics();
+  }, []);
+  
+  const loadAnalytics = async () => {
+    const response = await api.get('/api/user/adaptive-analytics');
+    setAnalytics(response.data);
+  };
+};
+```
+
+---
+
+#### Leaderboard Component (pages/Leaderboard.tsx)
+
+The leaderboard displays global rankings and competitive performance metrics across the platform:
+
+![Real-time Leaderboard](./images/user-realtime-leadboard.png)
+*Global Leaderboard - Real-time rankings showing top performers with competitive metrics*
+
+---
+
+#### Badge Achievement System (components/BadgeShowcase.tsx)
+
+The badge showcase displays earned achievements and progress toward future badges:
+
+![Badge Achievements](./images/user-badges.png)
+*Badge Showcase - Earned achievements and progress tracking for gamification*
+
+---
+
 #### Admin Dashboard Component (pages/AdminDashboard.tsx)
 
 **Admin Features:**
@@ -850,6 +938,9 @@ const AnalyticsDashboard: React.FC = () => {
 - Flagged content review
 - Feedback analysis
 - System health monitoring
+
+![Admin Dashboard](./images/admin-dashboard.png)
+*Admin Dashboard - Comprehensive platform management and user statistics overview*
 
 **Admin Permissions:**
 ```typescript

@@ -22,6 +22,18 @@ Smart Quizzer AI is an adaptive learning platform that transforms educational co
 
 ---
 
+## 🎨 Features Overview
+
+### User Dashboard & Quiz Interface
+![User Dashboard](./images/user-dashboard.png)
+*Intuitive dashboard with quick access to quizzes, history, analytics, and profile management*
+
+### Admin Dashboard & Moderation
+![Admin Dashboard](./images/admin-dashboard.png)
+*Comprehensive admin panel for user management, content moderation, and system monitoring*
+
+---
+
 ## ✨ Core Features
 
 ### 🤖 AI-Powered Quiz Generation
@@ -221,6 +233,30 @@ Smart-Quizzer-AI/
 | `Leaderboard.tsx` | Global and topic-specific rankings |
 | `Admin.tsx` | Administrative controls and monitoring |
 | `Analytics.tsx` | Performance visualization charts |
+
+---
+
+## 📊 Results and Analytics
+
+### Quiz Performance Analysis
+![Quiz Performance Analysis](./images/user-quiz-performance-analysis.png)
+*Real-time performance analysis showing accuracy, completion time, and detailed answer breakdown*
+
+### Learning Analytics Dashboard
+![Learning Analytics Overview](./images/user-learning-analytics1.png)
+*Comprehensive analytics dashboard with performance trends, topic mastery, and progress tracking*
+
+### Detailed Analytics Insights
+![Analytics Detailed Insights](./images/user-learning-analytics2.png)
+*In-depth performance metrics including weekly reports, badge progress, and personalized recommendations*
+
+### Real-time Leaderboard
+![Global Leaderboard](./images/user-realtime-leadboard.png)
+*Live competitive leaderboard showing global rankings based on accuracy, speed, and consistency*
+
+### Badge Achievement System
+![Achievement Badges](./images/user-badges.png)
+*Gamification system displaying earned badges and achievement milestones*
 
 ---
 
