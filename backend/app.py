@@ -747,9 +747,15 @@ def register():
             if email_result['success']:
                 print(f"📧 Welcome email sent to {user.email}")
             else:
-                print(f"⚠️ Welcome email failed: {email_result.get('error', 'Unknown error')}")
+                error_msg = email_result.get('error', 'Unknown error')
+                print(f"⚠️ Welcome email failed: {error_msg}")
+                # Log detailed error info for debugging
+                if 'BadCredentials' in str(error_msg):
+                    print(f"   → Issue: Gmail authentication failed (Error 535)")
+                    print(f"   → Fix: Use Google App Password, not regular Gmail password")
+                    print(f"   → Get App Password: https://myaccount.google.com/apppasswords")
         except Exception as e:
-            print(f"⚠️ Welcome email error: {e}")
+            print(f"⚠️ Welcome email exception: {e}")
         
         # Add stats to user data
         user_dict = user.to_dict()
@@ -1028,7 +1034,8 @@ def forgot_password():
         # Send actual password reset email
         try:
             frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
-            reset_url = f"{frontend_url}/reset-password"
+            # Use URL parameter format matching frontend route: /reset-password/:token
+            reset_url = f"{frontend_url}/reset-password/{reset_token}"
             
             # Use SMTP email service
             print(f"📧 Sending password reset email to {user.email}")
@@ -1050,7 +1057,17 @@ def forgot_password():
                 }), 200
             else:
                 # Email failed but token was created - log error but don't expose to user
-                print(f"❌ Failed to send reset email to {user.email}: {email_result.get('error')}")
+                error_msg = email_result.get('error', 'Unknown error') if email_result else 'No response'
+                print(f"❌ Failed to send reset email to {user.email}: {error_msg}")
+                
+                # Log helpful diagnostic info
+                if 'BadCredentials' in str(error_msg) or '535' in str(error_msg):
+                    print(f"   → Issue: Gmail authentication failed (Error 535)")
+                    print(f"   → Fix: Use Google App Password, not regular Gmail password")
+                    print(f"   → Get App Password: https://myaccount.google.com/apppasswords")
+                elif 'not configured' in str(error_msg).lower():
+                    print(f"   → Issue: Email service not properly configured")
+                    print(f"   → Fix: Set SMTP_USERNAME and SMTP_PASSWORD in .env file")
                 
                 # Still return the token for development/testing purposes
                 return jsonify({
@@ -1063,7 +1080,13 @@ def forgot_password():
                 }), 200
                 
         except Exception as email_error:
-            print(f"❌ Email service error: {email_error}")
+            error_str = str(email_error)
+            print(f"❌ Email service exception: {error_str}")
+            
+            # Log helpful diagnostic info
+            if 'Temporary failure' in error_str or 'Connection refused' in error_str:
+                print(f"   → Issue: Cannot connect to SMTP server")
+                print(f"   → Fix: Verify SMTP_SERVER ({os.getenv('SMTP_SERVER', 'smtp.gmail.com')}) and SMTP_PORT ({os.getenv('SMTP_PORT', '587')})")
             
             # Return token for development if email fails
             return jsonify({
@@ -1072,7 +1095,7 @@ def forgot_password():
                 'user_exists': True,
                 'email_sent': False,
                 'reset_token': reset_token,  # For development only
-                'debug_info': str(email_error) if os.getenv('DEBUG') else None
+                'debug_info': error_str if os.getenv('DEBUG') else None
             }), 200
         
     except Exception as e:
@@ -1221,17 +1244,27 @@ def get_email_status(current_user_id):
     try:
         from email_service import email_service
         
-        return jsonify({
-            'email_configured': email_service.is_configured,
+        config_status = {
+            'is_configured': email_service.is_configured,
+            'has_valid_credentials': email_service.has_valid_credentials,
             'smtp_server': email_service.smtp_server if email_service.is_configured else None,
             'smtp_port': email_service.smtp_port if email_service.is_configured else None,
             'from_email': email_service.from_email if email_service.is_configured else None,
-            'configuration_check': {
+            'configuration_details': {
                 'smtp_server': bool(email_service.smtp_server),
-                'smtp_username': bool(email_service.smtp_username),
-                'smtp_password': bool(email_service.smtp_password)
-            }
-        }), 200
+                'smtp_port': bool(email_service.smtp_port),
+                'smtp_username_set': bool(email_service.smtp_username),
+                'smtp_password_set': bool(email_service.smtp_password),
+                'smtp_username_valid': not (email_service.smtp_username.upper().startswith('YOUR_') or 'YOUR_EMAIL' in email_service.smtp_username.upper()),
+                'smtp_password_valid': not (email_service.smtp_password.upper().startswith('YOUR_') or 'YOUR_APP_PASSWORD' in email_service.smtp_password.upper())
+            },
+            'status_message': 'Email service is properly configured with valid credentials' if email_service.has_valid_credentials else (
+                'Email service not configured - SMTP_USERNAME and SMTP_PASSWORD need to be set in .env' if not email_service.is_configured else
+                'Email service has placeholder credentials - Update .env with real Gmail App Password (https://myaccount.google.com/apppasswords)'
+            )
+        }
+        
+        return jsonify(config_status), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

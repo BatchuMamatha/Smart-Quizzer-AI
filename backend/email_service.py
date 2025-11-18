@@ -22,15 +22,30 @@ class EmailService:
     def __init__(self):
         self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
         self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
-        self.smtp_username = os.getenv('SMTP_USERNAME', '')
-        self.smtp_password = os.getenv('SMTP_PASSWORD', '')
+        self.smtp_username = os.getenv('SMTP_USERNAME', '').strip()
+        self.smtp_password = os.getenv('SMTP_PASSWORD', '').strip()
         self.from_email = os.getenv('FROM_EMAIL', self.smtp_username)
-        self.is_configured = bool(self.smtp_username and self.smtp_password)
         
-        if self.is_configured:
-            logger.info(f"✅ Email service configured: {self.smtp_server}:{self.smtp_port}")
+        # Check for placeholder credentials
+        has_placeholder_email = self.smtp_username.upper() in ['YOUR_EMAIL@GMAIL.COM', 'YOUR-EMAIL@GMAIL.COM', 'YOUR_EMAIL@GMAIL.COM']
+        has_placeholder_password = self.smtp_password.upper() in ['YOUR_16_CHAR_APP_PASSWORD', 'YOUR_APP_PASSWORD', 'YOUR-APP-PASSWORD']
+        has_placeholder_values = self.smtp_username.startswith('YOUR_') or self.smtp_password.startswith('YOUR_')
+        
+        self.is_configured = bool(self.smtp_username and self.smtp_password)
+        self.has_valid_credentials = self.is_configured and not (has_placeholder_email or has_placeholder_password or has_placeholder_values)
+        
+        if self.has_valid_credentials:
+            logger.info(f"✅ Email service configured correctly: {self.smtp_server}:{self.smtp_port} (Username: {self.smtp_username[:10]}...)")
+        elif self.is_configured and not self.has_valid_credentials:
+            logger.warning("⚠️  Email service has placeholder credentials!")
+            logger.warning("   Fix: Update SMTP_USERNAME and SMTP_PASSWORD in .env with real Gmail credentials")
+            logger.warning("   1. Get Google App Password from: https://myaccount.google.com/apppasswords")
+            logger.warning("   2. Use App Password (16 characters), NOT regular Gmail password")
+            logger.warning("   3. Update .env with: SMTP_USERNAME=yourmail@gmail.com")
+            logger.warning("   4. Update .env with: SMTP_PASSWORD=your16charapppassword")
         else:
-            logger.warning("⚠️  Email service not configured. Set SMTP_USERNAME and SMTP_PASSWORD in .env")
+            logger.warning("⚠️  Email service not configured!")
+            logger.warning("   Fix: Set SMTP_USERNAME and SMTP_PASSWORD in .env file")
     
     def send_email(self, to_email, subject, html_content, text_content=None):
         """
@@ -46,10 +61,21 @@ class EmailService:
             dict: {'success': bool, 'message': str, 'error': str if failed}
         """
         if not self.is_configured:
+            error_msg = 'Email service not configured - SMTP_USERNAME and SMTP_PASSWORD not set'
+            logger.error(f"❌ {error_msg}")
             return {
                 'success': False,
-                'error': 'Email service not configured',
-                'message': 'SMTP credentials not set in environment variables'
+                'error': error_msg,
+                'message': 'Email service not configured'
+            }
+        
+        if not self.has_valid_credentials:
+            error_msg = 'Email service has placeholder/invalid credentials - update .env with real Gmail App Password'
+            logger.error(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'error': error_msg,
+                'message': 'Email configuration incomplete'
             }
         
         try:
@@ -64,20 +90,46 @@ class EmailService:
                 msg.attach(MIMEText(text_content, 'plain'))
             msg.attach(MIMEText(html_content, 'html'))
             
-            # Send email
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
-                server.send_message(msg)
-            
-            logger.info(f"✅ Email sent successfully to {to_email}")
-            return {
-                'success': True,
-                'message': f'Email sent to {to_email}'
-            }
+            # Send email with proper error handling
+            try:
+                with smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=10) as server:
+                    server.starttls()
+                    server.login(self.smtp_username, self.smtp_password)
+                    server.send_message(msg)
+                
+                logger.info(f"✅ Email sent successfully to {to_email}")
+                return {
+                    'success': True,
+                    'message': f'Email sent to {to_email}'
+                }
+            except smtplib.SMTPAuthenticationError as auth_error:
+                error_msg = f"Gmail authentication failed: Invalid SMTP credentials (Error 535: BadCredentials). Use Google App Password, not regular Gmail password."
+                logger.error(f"❌ {error_msg}")
+                logger.error(f"   Details: {str(auth_error)}")
+                return {
+                    'success': False,
+                    'error': error_msg,
+                    'message': 'Email authentication failed'
+                }
+            except smtplib.SMTPException as smtp_error:
+                error_msg = f"SMTP error: {str(smtp_error)}"
+                logger.error(f"❌ Failed to send email to {to_email}: {error_msg}")
+                return {
+                    'success': False,
+                    'error': error_msg,
+                    'message': 'SMTP connection failed'
+                }
+            except TimeoutError:
+                error_msg = "SMTP connection timeout - check SMTP_SERVER and SMTP_PORT"
+                logger.error(f"❌ {error_msg}")
+                return {
+                    'success': False,
+                    'error': error_msg,
+                    'message': 'Email connection timeout'
+                }
             
         except Exception as e:
-            error_msg = str(e)
+            error_msg = f"Unexpected error: {str(e)}"
             logger.error(f"❌ Failed to send email to {to_email}: {error_msg}")
             return {
                 'success': False,
@@ -176,7 +228,9 @@ class EmailService:
     
     def send_password_reset_email(self, user_email, user_name, reset_token, reset_url):
         """Send password reset email with token"""
-        reset_link = f"{reset_url}?token={reset_token}"
+        # reset_url should already contain the token in URL parameter format
+        # Example: http://localhost:3000/reset-password/token123
+        reset_link = reset_url
         
         subject = "Smart Quizzer - Password Reset Request"
         text_content = f"""

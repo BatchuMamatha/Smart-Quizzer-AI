@@ -12,11 +12,7 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
-  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
   const [isAdminLogin, setIsAdminLogin] = useState(false);
-  const [isAdminSignup, setIsAdminSignup] = useState(false);
 
   const navigate = useNavigate();
   const userManager = UserManager.getInstance();
@@ -69,39 +65,6 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!forgotPasswordEmail.trim()) {
-      setForgotPasswordMessage('Please enter your email address');
-      return;
-    }
-
-    try {
-      const response = await authAPI.forgotPassword({ email: forgotPasswordEmail });
-      
-      if (response.success) {
-        setShowForgotPassword(false);
-        setForgotPasswordMessage('');
-        setForgotPasswordEmail('');
-        
-        setSuccessMessage(`Reset instructions sent to ${forgotPasswordEmail}!`);
-        
-        // Auto-clear after 8 seconds
-        setTimeout(() => {
-          setSuccessMessage('');
-        }, 8000);
-        
-      } else {
-        setForgotPasswordMessage(response.message || 'Failed to process reset request');
-      }
-      
-    } catch (error: any) {
-      console.error('Forgot password error:', error);
-      setForgotPasswordMessage('Failed to send reset email. Please try again.');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
       {/* Background Decorations */}
@@ -150,21 +113,19 @@ const Login: React.FC = () => {
           </div>
         )}
 
-        {/* Main Login/Signup Form */}
-        {!showForgotPassword && (
-          <div className="bg-white bg-opacity-90 backdrop-blur-lg border border-white border-opacity-30 rounded-2xl shadow-xl p-8 animate-fade-in-scale">
+        {/* Main Login Form */}
+        <div className="bg-white bg-opacity-90 backdrop-blur-lg border border-white border-opacity-30 rounded-2xl shadow-xl p-8 animate-fade-in-scale">
             {/* Login Mode Toggle */}
             <div className="mb-6 flex gap-2">
               <button
                 type="button"
                 onClick={() => {
                   setIsAdminLogin(false);
-                  setIsAdminSignup(false);
                   setFormData({ username: '', password: '' });
                   setError('');
                 }}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-                  !isAdminLogin && !isAdminSignup
+                  !isAdminLogin
                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
@@ -176,12 +137,11 @@ const Login: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setIsAdminLogin(true);
-                  setIsAdminSignup(false);
                   setFormData({ username: '', password: '' });
                   setError('');
                 }}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-                  isAdminLogin && !isAdminSignup
+                  isAdminLogin
                     ? 'bg-gradient-to-r from-amber-500 to-red-500 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
@@ -278,22 +238,21 @@ const Login: React.FC = () => {
                 )}
               </button>
 
-              {/* Forgot Password Link - Only show for regular users */}
+              {/* Forgot Password Link - Direct link to dedicated page */}
               {!isAdminLogin && (
                 <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotPassword(true)}
+                  <Link
+                    to="/forgot-password"
                     className="text-blue-600 hover:text-blue-800 font-medium transition-colors underline"
                   >
                     Forgot your password?
-                  </button>
+                  </Link>
                 </div>
               )}
             </form>
 
             {/* Register Link - Only show for regular users */}
-            {!isAdminLogin && !isAdminSignup && (
+            {!isAdminLogin && (
               <div className="mt-6 text-center border-t border-gray-200 pt-6">
                 <p className="text-gray-600">
                   Don't have an account?{' '}
@@ -307,75 +266,6 @@ const Login: React.FC = () => {
               </div>
             )}
           </div>
-        )}
-
-        {/* Forgot Password Form */}
-        {showForgotPassword && (
-          <div className="bg-white bg-opacity-90 backdrop-blur-lg border border-white border-opacity-30 rounded-2xl shadow-xl p-8 animate-fade-in-scale">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
-                <button
-                  onClick={() => {
-                    setShowForgotPassword(false);
-                    setForgotPasswordMessage('');
-                    setForgotPasswordEmail('');
-                  }}
-                  className="mr-3 text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  ←
-                </button>
-                Reset Password
-              </h2>
-              <p className="text-gray-600">Enter your email to receive reset instructions</p>
-            </div>
-
-            {/* Forgot Password Message */}
-            {forgotPasswordMessage && (
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-yellow-800 text-sm">{forgotPasswordMessage}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleForgotPassword} className="space-y-6">
-              <div>
-                <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700 mb-2">
-                  📧 Email Address
-                </label>
-                <input
-                  id="forgot-email"
-                  type="email"
-                  value={forgotPasswordEmail}
-                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                  className="form-input"
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-
-              <div className="flex space-x-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
-                >
-                  <span className="mr-2">📧</span>
-                  Send Reset Link
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForgotPassword(false);
-                    setForgotPasswordMessage('');
-                    setForgotPasswordEmail('');
-                  }}
-                  className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
       </div>
     </div>
   );
