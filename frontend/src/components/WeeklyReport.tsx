@@ -66,6 +66,15 @@ const WeeklyReport: React.FC = () => {
     );
   }
 
+  // Calculate average accuracy from correct answers and total questions
+  const avgAccuracy = (report.avg_accuracy !== undefined && report.avg_accuracy !== null) 
+    ? report.avg_accuracy 
+    : (report.total_questions > 0 ? (report.correct_answers / report.total_questions) * 100 : 0);
+
+  const accuracyChange = (report.accuracy_change !== undefined && report.accuracy_change !== null) 
+    ? report.accuracy_change 
+    : 0;
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       {/* Header */}
@@ -81,38 +90,38 @@ const WeeklyReport: React.FC = () => {
         <div className="text-center">
           <p className="text-gray-500 text-sm mb-1">Quizzes Completed</p>
           <p className="text-3xl font-bold text-gray-900">{report.quizzes_completed}</p>
-          {report.quiz_count_change !== 0 && (
-            <p className={`text-sm font-medium ${getChangeColor(report.quiz_count_change)}`}>
-              {report.quiz_count_change > 0 ? '+' : ''}
-              {report.quiz_count_change} from last week
+          {(report.quiz_count_change ?? 0) !== 0 && (
+            <p className={`text-sm font-medium ${getChangeColor(report.quiz_count_change ?? 0)}`}>
+              {(report.quiz_count_change ?? 0) > 0 ? '+' : ''}
+              {report.quiz_count_change ?? 0} from last week
             </p>
           )}
         </div>
 
         <div className="text-center">
           <p className="text-gray-500 text-sm mb-1">Average Accuracy</p>
-          <p className="text-3xl font-bold text-gray-900">{report.avg_accuracy.toFixed(1)}%</p>
-          {report.accuracy_change !== 0 && (
-            <p className={`text-sm font-medium ${getChangeColor(report.accuracy_change)}`}>
-              {report.accuracy_change > 0 ? '+' : ''}
-              {report.accuracy_change.toFixed(1)}% from last week
+          <p className="text-3xl font-bold text-gray-900">{avgAccuracy.toFixed(1)}%</p>
+          {accuracyChange !== 0 && (
+            <p className={`text-sm font-medium ${getChangeColor(accuracyChange)}`}>
+              {accuracyChange > 0 ? '+' : ''}
+              {accuracyChange.toFixed(1)}% from last week
             </p>
           )}
         </div>
 
         <div className="text-center">
           <p className="text-gray-500 text-sm mb-1">Total Questions</p>
-          <p className="text-3xl font-bold text-gray-900">{report.total_questions}</p>
+          <p className="text-3xl font-bold text-gray-900">{report.total_questions ?? 0}</p>
           <p className="text-sm text-gray-500">
-            {report.correct_answers} correct
+            {report.correct_answers ?? 0} correct
           </p>
         </div>
 
         <div className="text-center">
           <p className="text-gray-500 text-sm mb-1">Current Streak</p>
-          <p className="text-3xl font-bold text-gray-900">{report.current_streak} 🔥</p>
+          <p className="text-3xl font-bold text-gray-900">{report.current_streak ?? 0} 🔥</p>
           <p className="text-sm text-gray-500">
-            {report.current_streak === 1 ? 'day' : 'days'}
+            {(report.current_streak ?? 0) === 1 ? 'day' : 'days'}
           </p>
         </div>
       </div>
@@ -120,21 +129,21 @@ const WeeklyReport: React.FC = () => {
       {/* Improvement Trend */}
       <div className="px-6 pb-6">
         <div className={`bg-gray-50 rounded-lg p-4 border-l-4 ${
-          report.improvement_trend === 'improving' ? 'border-green-500' :
-          report.improvement_trend === 'declining' ? 'border-red-500' : 'border-gray-400'
+          (report.improvement_trend ?? 'stable') === 'improving' ? 'border-green-500' :
+          (report.improvement_trend ?? 'stable') === 'declining' ? 'border-red-500' : 'border-gray-400'
         }`}>
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{getTrendIcon(report.improvement_trend)}</span>
+            <span className="text-3xl">{getTrendIcon(report.improvement_trend ?? 'stable')}</span>
             <div>
-              <p className={`font-semibold ${getTrendColor(report.improvement_trend)}`}>
-                {report.improvement_trend === 'improving' && 'You\'re Improving!'}
-                {report.improvement_trend === 'declining' && 'Room for Improvement'}
-                {report.improvement_trend === 'stable' && 'Maintaining Performance'}
+              <p className={`font-semibold ${getTrendColor(report.improvement_trend ?? 'stable')}`}>
+                {(report.improvement_trend ?? 'stable') === 'improving' && 'You\'re Improving!'}
+                {(report.improvement_trend ?? 'stable') === 'declining' && 'Room for Improvement'}
+                {(report.improvement_trend ?? 'stable') === 'stable' && 'Maintaining Performance'}
               </p>
               <p className="text-sm text-gray-600">
-                {report.improvement_trend === 'improving' && 'Keep up the great work! Your scores are trending upward.'}
-                {report.improvement_trend === 'declining' && 'Don\'t worry! Review your weak areas and practice more.'}
-                {report.improvement_trend === 'stable' && 'You\'re consistent! Try challenging yourself with harder topics.'}
+                {(report.improvement_trend ?? 'stable') === 'improving' && 'Keep up the great work! Your scores are trending upward.'}
+                {(report.improvement_trend ?? 'stable') === 'declining' && 'Don\'t worry! Review your weak areas and practice more.'}
+                {(report.improvement_trend ?? 'stable') === 'stable' && 'You\'re consistent! Try challenging yourself with harder topics.'}
               </p>
             </div>
           </div>
@@ -142,7 +151,7 @@ const WeeklyReport: React.FC = () => {
       </div>
 
       {/* Topic Breakdown */}
-      {Object.keys(report.topic_breakdown).length > 0 && (
+      {(report.topic_breakdown && Object.keys(report.topic_breakdown).length > 0) && (
         <>
           {/* Visual Divider */}
           <div className="px-6 py-4">
@@ -155,8 +164,8 @@ const WeeklyReport: React.FC = () => {
               {Object.entries(report.topic_breakdown).map(([topic, stats]: [string, any]) => {
                 // Calculate average accuracy from the backend data structure
                 // Backend returns: { count, correct, total }
-                const avgAccuracy = stats.total > 0 ? (stats.correct / stats.total) * 100 : 0;
-                const quizCount = stats.count || 0;
+                const avgAccuracy = (stats && stats.total && stats.total > 0) ? (stats.correct / stats.total) * 100 : 0;
+                const quizCount = (stats && stats.count) || 0;
                 
                 return (
                   <div key={topic} className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-4 border border-indigo-100">
