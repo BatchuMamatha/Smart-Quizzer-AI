@@ -26,8 +26,11 @@ const Header: React.FC<HeaderProps> = ({
   const [buttonPosition, setButtonPosition] = useState({ top: 0, left: 0, width: 0 });
 
   const handleLogout = () => {
-    userManager.logout();
-    navigate('/login');
+    // Add confirmation dialog
+    if (window.confirm('Are you sure you want to logout?')) {
+      userManager.logout();
+      navigate('/login');
+    }
   };
 
   // Close menu when clicking outside

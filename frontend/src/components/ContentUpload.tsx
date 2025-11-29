@@ -115,8 +115,16 @@ const ContentUpload: React.FC<ContentUploadProps> = ({ onContentProcessed, onErr
   };
 
   const analyzeText = async () => {
-    if (!textInput.trim() || textInput.trim().length < 10) {
+    const trimmedText = textInput.trim();
+    
+    if (!trimmedText || trimmedText.length < 10) {
       onError('Please enter at least 10 characters of text content');
+      return;
+    }
+    
+    // Check if text is only whitespace
+    if (trimmedText.replace(/\s/g, '').length === 0) {
+      onError('Content cannot contain only whitespace');
       return;
     }
 

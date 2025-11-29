@@ -90,21 +90,42 @@ const ResetPassword: React.FC = () => {
     }
   };
 
+  const validatePasswordStrength = (password: string): { valid: boolean; message: string } => {
+    if (password.length < 8) {
+      return { valid: false, message: 'Password must be at least 8 characters long' };
+    }
+    if (!/[A-Z]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one uppercase letter' };
+    }
+    if (!/[a-z]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one lowercase letter' };
+    }
+    if (!/[0-9]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one number' };
+    }
+    if (!/[!@#$%^&*()_+\-=[\]{}|;:',.<>?/~`]/.test(password)) {
+      return { valid: false, message: 'Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;:\',.<>?/~`)' };
+    }
+    return { valid: true, message: 'Password is valid' };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     setSuccess('');
 
-    // Validation
-    if (formData.new_password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    // Validate password match
+    if (formData.new_password !== formData.confirm_password) {
+      setError('Passwords do not match');
       setLoading(false);
       return;
     }
 
-    if (formData.new_password !== formData.confirm_password) {
-      setError('Passwords do not match');
+    // Validate password strength
+    const passwordValidation = validatePasswordStrength(formData.new_password);
+    if (!passwordValidation.valid) {
+      setError(passwordValidation.message);
       setLoading(false);
       return;
     }
@@ -293,17 +314,34 @@ const ResetPassword: React.FC = () => {
                         {getStrengthText(passwordStrength)}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-300 rounded-full h-2">
+                    <div className="w-full bg-gray-300 rounded-full h-2 mb-2">
                       <div
                         className={`h-2 rounded-full transition-all ${getStrengthColor(passwordStrength)}`}
                         style={{ width: `${(passwordStrength / 5) * 100}%` }}
                       />
                     </div>
-                    <p className="text-xs text-gray-600 mt-2">
-                      {passwordStrength < 2 && "Use uppercase, lowercase, numbers and symbols"}
-                      {passwordStrength >= 2 && passwordStrength < 4 && "Good, but add more variety"}
-                      {passwordStrength >= 4 && "Great password!"}
-                    </p>
+                    <div className="text-xs space-y-1">
+                      <div className={`flex items-center ${formData.new_password.length >= 8 ? 'text-green-600' : 'text-gray-600'}`}>
+                        <span className="mr-1">{formData.new_password.length >= 8 ? '✓' : '○'}</span>
+                        At least 8 characters
+                      </div>
+                      <div className={`flex items-center ${/[A-Z]/.test(formData.new_password) ? 'text-green-600' : 'text-gray-600'}`}>
+                        <span className="mr-1">{/[A-Z]/.test(formData.new_password) ? '✓' : '○'}</span>
+                        One uppercase letter
+                      </div>
+                      <div className={`flex items-center ${/[a-z]/.test(formData.new_password) ? 'text-green-600' : 'text-gray-600'}`}>
+                        <span className="mr-1">{/[a-z]/.test(formData.new_password) ? '✓' : '○'}</span>
+                        One lowercase letter
+                      </div>
+                      <div className={`flex items-center ${/[0-9]/.test(formData.new_password) ? 'text-green-600' : 'text-gray-600'}`}>
+                        <span className="mr-1">{/[0-9]/.test(formData.new_password) ? '✓' : '○'}</span>
+                        One number
+                      </div>
+                      <div className={`flex items-center ${/[!@#$%^&*()_+\-=[\]{}|;:',.<>?/~`]/.test(formData.new_password) ? 'text-green-600' : 'text-gray-600'}`}>
+                        <span className="mr-1">{/[!@#$%^&*()_+\-=[\]{}|;:',.<>?/~`]/.test(formData.new_password) ? '✓' : '○'}</span>
+                        One special character
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

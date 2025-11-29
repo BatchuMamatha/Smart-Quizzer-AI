@@ -35,16 +35,16 @@ class EmailService:
         self.has_valid_credentials = self.is_configured and not (has_placeholder_email or has_placeholder_password or has_placeholder_values)
         
         if self.has_valid_credentials:
-            logger.info(f"✅ Email service configured correctly: {self.smtp_server}:{self.smtp_port} (Username: {self.smtp_username[:10]}...)")
+            logger.info(f"Email service configured correctly: {self.smtp_server}:{self.smtp_port} (Username: {self.smtp_username[:10]}...)")
         elif self.is_configured and not self.has_valid_credentials:
-            logger.warning("⚠️  Email service has placeholder credentials!")
+            logger.warning("WARNING: Email service has placeholder credentials!")
             logger.warning("   Fix: Update SMTP_USERNAME and SMTP_PASSWORD in .env with real Gmail credentials")
             logger.warning("   1. Get Google App Password from: https://myaccount.google.com/apppasswords")
             logger.warning("   2. Use App Password (16 characters), NOT regular Gmail password")
             logger.warning("   3. Update .env with: SMTP_USERNAME=yourmail@gmail.com")
             logger.warning("   4. Update .env with: SMTP_PASSWORD=your16charapppassword")
         else:
-            logger.warning("⚠️  Email service not configured!")
+            logger.warning("WARNING: Email service not configured!")
             logger.warning("   Fix: Set SMTP_USERNAME and SMTP_PASSWORD in .env file")
     
     def send_email(self, to_email, subject, html_content, text_content=None):
@@ -62,7 +62,7 @@ class EmailService:
         """
         if not self.is_configured:
             error_msg = 'Email service not configured - SMTP_USERNAME and SMTP_PASSWORD not set'
-            logger.error(f"❌ {error_msg}")
+            logger.error(f"ERROR: {error_msg}")
             return {
                 'success': False,
                 'error': error_msg,
@@ -71,7 +71,7 @@ class EmailService:
         
         if not self.has_valid_credentials:
             error_msg = 'Email service has placeholder/invalid credentials - update .env with real Gmail App Password'
-            logger.error(f"❌ {error_msg}")
+            logger.error(f"ERROR: {error_msg}")
             return {
                 'success': False,
                 'error': error_msg,
@@ -97,14 +97,14 @@ class EmailService:
                     server.login(self.smtp_username, self.smtp_password)
                     server.send_message(msg)
                 
-                logger.info(f"✅ Email sent successfully to {to_email}")
+                logger.info(f"Email sent successfully to {to_email}")
                 return {
                     'success': True,
                     'message': f'Email sent to {to_email}'
                 }
             except smtplib.SMTPAuthenticationError as auth_error:
                 error_msg = f"Gmail authentication failed: Invalid SMTP credentials (Error 535: BadCredentials). Use Google App Password, not regular Gmail password."
-                logger.error(f"❌ {error_msg}")
+                logger.error(f"ERROR: {error_msg}")
                 logger.error(f"   Details: {str(auth_error)}")
                 return {
                     'success': False,
@@ -113,7 +113,7 @@ class EmailService:
                 }
             except smtplib.SMTPException as smtp_error:
                 error_msg = f"SMTP error: {str(smtp_error)}"
-                logger.error(f"❌ Failed to send email to {to_email}: {error_msg}")
+                logger.error(f"ERROR: Failed to send email to {to_email}: {error_msg}")
                 return {
                     'success': False,
                     'error': error_msg,
@@ -121,7 +121,7 @@ class EmailService:
                 }
             except TimeoutError:
                 error_msg = "SMTP connection timeout - check SMTP_SERVER and SMTP_PORT"
-                logger.error(f"❌ {error_msg}")
+                logger.error(f"ERROR: {error_msg}")
                 return {
                     'success': False,
                     'error': error_msg,
@@ -130,7 +130,7 @@ class EmailService:
             
         except Exception as e:
             error_msg = f"Unexpected error: {str(e)}"
-            logger.error(f"❌ Failed to send email to {to_email}: {error_msg}")
+            logger.error(f"ERROR: Failed to send email to {to_email}: {error_msg}")
             return {
                 'success': False,
                 'error': error_msg,

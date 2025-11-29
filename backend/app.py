@@ -126,6 +126,37 @@ def send_password_reset_email(user_email, user_name, reset_token, reset_url):
             'message': 'Failed to send password reset email'
         }
 
+# ==================== PASSWORD VALIDATION ====================
+
+def validate_password(password):
+    """Validate password strength
+    Requirements:
+    - Minimum 8 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one number
+    - At least one special character
+    """
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    
+    if not any(c.isupper() for c in password):
+        return False, "Password must contain at least one uppercase letter"
+    
+    if not any(c.islower() for c in password):
+        return False, "Password must contain at least one lowercase letter"
+    
+    if not any(c.isdigit() for c in password):
+        return False, "Password must contain at least one number"
+    
+    special_chars = "!@#$%^&*()_+-=[]{}|;:',.<>?/~`"
+    if not any(c in special_chars for c in password):
+        return False, "Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;:',.<>?/~`)"
+    
+    return True, "Password is valid"
+
+# ==================== APP INITIALIZATION ====================
+
 def create_app():
     app = Flask(__name__)
     
@@ -694,6 +725,32 @@ def reset_service_health(current_user_id):
         }), 500
 
 # Auth Routes
+@app.route('/api/auth/check-username', methods=['POST'])
+def check_username_availability():
+    """Check if username is available for registration"""
+    try:
+        data = request.get_json()
+        if not data or 'username' not in data:
+            return jsonify({'error': 'Username is required'}), 400
+        
+        username = data['username'].strip()
+        if not username:
+            return jsonify({'available': False, 'message': 'Username cannot be empty'}), 200
+        
+        if len(username) < 3:
+            return jsonify({'available': False, 'message': 'Username must be at least 3 characters'}), 200
+        
+        # Check if username exists
+        existing_user = User.query.filter_by(username=username).first()
+        
+        if existing_user:
+            return jsonify({'available': False, 'message': 'Username already taken'}), 200
+        
+        return jsonify({'available': True, 'message': 'Username is available'}), 200
+    except Exception as e:
+        logger.error(f"Error checking username availability: {e}")
+        return jsonify({'error': 'Failed to check username availability'}), 500
+
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     try:
@@ -715,6 +772,12 @@ def register():
             print(f"⚠️ Registration failed: Email '{data['email']}' already exists")
             return jsonify({'error': 'Email already exists'}), 409
         
+        # Validate password strength
+        is_valid, password_message = validate_password(data['password'])
+        if not is_valid:
+            print(f"⚠️ Registration failed: {password_message}")
+            return jsonify({'error': password_message}), 400
+        
         # Validate skill level
         if data['skill_level'] not in ['Beginner', 'Intermediate', 'Advanced']:
             return jsonify({'error': 'Invalid skill level'}), 400
@@ -723,6 +786,21 @@ def register():
         role = data.get('role', 'user')
         if role not in ['user', 'admin']:
             role = 'user'
+        
+        # Verify admin code if trying to register as admin
+        if role == 'admin':
+            admin_code = data.get('admin_code', '').strip()
+            expected_code = os.getenv('ADMIN_REGISTRATION_CODE', 'ADMIN2024')
+            
+            if not admin_code:
+                print(f"⚠️ Admin registration failed: No admin code provided")
+                return jsonify({'error': 'Admin verification code is required'}), 403
+            
+            if admin_code != expected_code:
+                print(f"⚠️ Admin registration failed: Invalid admin code")
+                return jsonify({'error': 'Invalid admin verification code'}), 403
+            
+            print(f"✅ Admin verification code validated")
         
         # Create new user
         user = User(  # type: ignore
@@ -991,9 +1069,14 @@ def test_auth(current_user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Password reset rate limiting tracking (email -> list of timestamps)
+password_reset_attempts = {}
+MAX_RESET_ATTEMPTS = 3
+RESET_ATTEMPT_WINDOW = 900  # 15 minutes in seconds
+
 @app.route('/api/auth/forgot-password', methods=['POST'])
 def forgot_password():
-    """Handle forgot password request with real email sending"""
+    """Handle forgot password request with real email sending (supports both users and admins)"""
     try:
         data = request.get_json()
         if not data or 'email' not in data:
@@ -1003,7 +1086,28 @@ def forgot_password():
         if not email:
             return jsonify({'error': 'Email cannot be empty'}), 400
         
-        # Check if user exists
+        # Rate limiting: Check reset attempts for this email
+        current_time = datetime.now().timestamp()
+        if email in password_reset_attempts:
+            # Clean old attempts outside the window
+            password_reset_attempts[email] = [
+                timestamp for timestamp in password_reset_attempts[email]
+                if current_time - timestamp < RESET_ATTEMPT_WINDOW
+            ]
+            
+            # Check if too many attempts
+            if len(password_reset_attempts[email]) >= MAX_RESET_ATTEMPTS:
+                return jsonify({
+                    'error': 'Too many password reset requests. Please try again in 15 minutes.',
+                    'retry_after': 900
+                }), 429
+        else:
+            password_reset_attempts[email] = []
+        
+        # Record this attempt
+        password_reset_attempts[email].append(current_time)
+        
+        # Check if user or admin exists (no role restriction)
         user = User.query.filter_by(email=email).first()
         
         if not user:
@@ -1162,9 +1266,11 @@ def reset_password():
         token = data['token']
         new_password = data['new_password']
         
-        # Validate password
-        if len(new_password) < 6:
-            return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+        # Validate password strength
+        is_valid, password_message = validate_password(new_password)
+        if not is_valid:
+            print(f"⚠️ Password reset failed: {password_message}")
+            return jsonify({'error': password_message}), 400
         
         # Clean up expired tokens
         PasswordResetToken.cleanup_expired()
@@ -1504,6 +1610,11 @@ def submit_answer(current_user_id, quiz_id):
         
         if 'question_id' not in data or 'answer' not in data:
             return jsonify({'error': 'question_id and answer are required'}), 400
+        
+        # Validate answer length (prevent extremely long answers)
+        answer_text = str(data['answer'])
+        if len(answer_text) > 5000:
+            return jsonify({'error': 'Answer is too long. Maximum 5000 characters allowed'}), 400
         
         # Get quiz session and verify ownership
         quiz_session = QuizSession.query.filter_by(id=quiz_id, user_id=current_user_id).first()
@@ -2189,6 +2300,10 @@ def get_quiz_results(current_user_id, quiz_id):
         # Get all questions with answers
         questions = Question.query.filter_by(quiz_session_id=quiz_id).all()
         
+        # Calculate actual time taken (sum of individual question times, which excludes paused time)
+        # This is more accurate than quiz_session.total_time_seconds if timer was paused
+        actual_time_taken = sum([q.time_taken or 0 for q in questions])
+        
         return jsonify({
             'quiz_session': quiz_session.to_dict(),
             'questions': [q.to_dict(include_correct_answer=True) for q in questions],
@@ -2196,7 +2311,7 @@ def get_quiz_results(current_user_id, quiz_id):
                 'total_questions': quiz_session.total_questions,
                 'correct_answers': quiz_session.correct_answers,
                 'score_percentage': quiz_session.score_percentage,
-                'time_taken': sum([q.time_taken or 0 for q in questions])
+                'time_taken': actual_time_taken  # This excludes paused time automatically
             }
         }), 200
         
@@ -4239,6 +4354,24 @@ if __name__ == '__main__':
     print("🤖 Gemini AI Model ✅")
     print("📁 Advanced Content Processing ✅")
     print("🔌 WebSocket Support (Real-time Leaderboard) ✅")
+    
+    # Email configuration validation at startup
+    print("\n📧 Email Service Status:")
+    if not email_service.is_configured:
+        print("   ⚠️  WARNING: Email service NOT configured!")
+        print("   → Email features (welcome emails, password reset) will NOT work")
+        print("   → Fix: Set SMTP_USERNAME and SMTP_PASSWORD in .env file")
+        print("   → Get App Password: https://myaccount.google.com/apppasswords")
+    elif not email_service.has_valid_credentials:
+        print("   ⚠️  WARNING: Email has PLACEHOLDER credentials!")
+        print("   → Replace placeholder values with real Gmail App Password")
+        print("   → Current username: " + email_service.smtp_username)
+        print("   → Get App Password: https://myaccount.google.com/apppasswords")
+    else:
+        print("   ✅ Email service configured correctly")
+        print(f"   → SMTP Server: {email_service.smtp_server}:{email_service.smtp_port}")
+        print(f"   → From: {email_service.from_email}")
+    
     print("\n🌐 API running on: http://localhost:5000")
     print("📖 API Documentation:")
     print("   Authentication:")

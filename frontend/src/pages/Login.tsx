@@ -31,6 +31,20 @@ const Login: React.FC = () => {
     setLoading(true);
     setError('');
 
+    // Validate username is not empty
+    if (!formData.username.trim()) {
+      setError('Please enter a username before continuing');
+      setLoading(false);
+      return;
+    }
+
+    // Validate password is not empty
+    if (!formData.password.trim()) {
+      setError('Please enter a password before continuing');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await authAPI.login(formData);
       
@@ -163,9 +177,6 @@ const Login: React.FC = () => {
               </p>
             </div>
 
-            {/* Admin Signup Form */}
-            {/* Admin signup removed - admins created via backend only */}
-
             {/* Regular Login Form (User or Admin) */}
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Username */}
@@ -251,9 +262,9 @@ const Login: React.FC = () => {
               )}
             </form>
 
-            {/* Register Link - Only show for regular users */}
-            {!isAdminLogin && (
-              <div className="mt-6 text-center border-t border-gray-200 pt-6">
+            {/* Register Link */}
+            <div className="mt-6 text-center border-t border-gray-200 pt-6">
+              {!isAdminLogin ? (
                 <p className="text-gray-600">
                   Don't have an account?{' '}
                   <Link
@@ -263,8 +274,18 @@ const Login: React.FC = () => {
                     Create Account
                   </Link>
                 </p>
-              </div>
-            )}
+              ) : (
+                <p className="text-gray-600">
+                  Need admin access?{' '}
+                  <Link
+                    to="/admin-register"
+                    className="text-amber-600 hover:text-amber-800 font-semibold transition-colors"
+                  >
+                    Request Admin Account
+                  </Link>
+                </p>
+              )}
+            </div>
           </div>
       </div>
     </div>

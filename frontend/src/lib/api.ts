@@ -302,6 +302,14 @@ export interface MultiplayerResults {
 
 // API Methods
 export const authAPI = {
+  checkUsernameAvailability: async (username: string): Promise<{
+    available: boolean;
+    message: string;
+  }> => {
+    const response = await api.post('/auth/check-username', { username });
+    return response.data;
+  },
+
   register: async (data: {
     username: string;
     email: string;

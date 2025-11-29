@@ -35,7 +35,9 @@ class User(db.Model):
     quiz_sessions = db.relationship('QuizSession', backref='user', lazy=True, cascade='all, delete-orphan')
     
     def set_password(self, password):
-        """Hash and set password"""
+        """Hash and set password (with length validation)"""
+        if len(password) < 8:
+            raise ValueError("Password must be at least 8 characters long")
         self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     
     def check_password(self, password):
@@ -100,11 +102,14 @@ class QuizSession(db.Model):
         return {}
     
     def calculate_score(self):
-        """Calculate and update score percentage"""
+        """Calculate and update score percentage with range validation"""
         if self.total_questions > 0:
             self.score_percentage = (self.correct_answers / self.total_questions) * 100
         else:
             self.score_percentage = 0.0
+        
+        # Ensure score stays within valid 0-100 range
+        self.score_percentage = max(0.0, min(100.0, self.score_percentage))
     
     def get_remaining_time_seconds(self):
         """

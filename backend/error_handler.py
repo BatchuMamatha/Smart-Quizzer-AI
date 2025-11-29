@@ -382,6 +382,13 @@ class InputValidator:
                     value=custom_topic,
                     validation_rule="required_when=topic=Custom"
                 ))
+            elif not custom_topic or custom_topic.isspace():
+                errors.append(ValidationError(
+                    message="Custom topic cannot be empty or contain only whitespace",
+                    field="custom_topic",
+                    value="whitespace only",
+                    validation_rule="not_whitespace"
+                ))
             elif len(custom_topic) < 10:
                 errors.append(ValidationError(
                     message="Custom topic content must be at least 10 characters long",

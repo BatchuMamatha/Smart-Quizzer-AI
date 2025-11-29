@@ -250,7 +250,7 @@ const Dashboard: React.FC = () => {
                       <span className="mr-2 text-lg">🔢</span>
                       Number of Questions
                     </label>
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className="grid grid-cols-4 gap-3 mb-3">
                       {[3, 5, 7, 10].map((num) => (
                         <button
                           key={num}
@@ -266,6 +266,26 @@ const Dashboard: React.FC = () => {
                           Questions
                         </button>
                       ))}
+                    </div>
+                    {/* Custom Input Option */}
+                    <div className="flex items-center space-x-2">
+                      <label htmlFor="custom-questions" className="text-sm text-gray-600 whitespace-nowrap">
+                        Or enter custom:
+                      </label>
+                      <input
+                        id="custom-questions"
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={numQuestions}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 1;
+                          setNumQuestions(Math.min(Math.max(value, 1), 20));
+                        }}
+                        className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
+                        placeholder="1-20"
+                      />
+                      <span className="text-sm text-gray-500">questions</span>
                     </div>
                   </div>
 

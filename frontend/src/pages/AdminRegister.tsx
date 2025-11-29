@@ -3,25 +3,21 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authAPI } from '../lib/api';
 import { UserManager } from '../lib/userManager';
 
-const Register: React.FC = () => {
+const AdminRegister: React.FC = () => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
     confirmPassword: '',
     full_name: '',
-    skill_level: 'Intermediate',
+    skill_level: 'Advanced', // Default for admins
+    adminCode: '', // Security code to verify admin creation
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const [usernameAvailability, setUsernameAvailability] = useState<{
-    checking: boolean;
-    available: boolean | null;
-    message: string;
-  }>({ checking: false, available: null, message: '' });
   const navigate = useNavigate();
   const userManager = UserManager.getInstance();
 
@@ -45,50 +41,6 @@ const Register: React.FC = () => {
     if (name === 'password') {
       setPasswordStrength(calculatePasswordStrength(value));
     }
-
-    // Check username availability as user types
-    if (name === 'username') {
-      if (value.length >= 3) {
-        checkUsernameAvailability(value);
-      } else {
-        setUsernameAvailability({ checking: false, available: null, message: '' });
-      }
-    }
-  };
-
-  const checkUsernameAvailability = async (username: string) => {
-    if (!username || username.length < 3) return;
-
-    setUsernameAvailability({ checking: true, available: null, message: 'Checking...' });
-
-    try {
-      const result = await authAPI.checkUsernameAvailability(username);
-      setUsernameAvailability({
-        checking: false,
-        available: result.available,
-        message: result.message
-      });
-    } catch (error) {
-      setUsernameAvailability({
-        checking: false,
-        available: null,
-        message: 'Error checking username'
-      });
-    }
-  };
-
-  const getPasswordStrengthColor = (strength: number) => {
-    if (strength <= 1) return 'bg-red-500';
-    if (strength <= 2) return 'bg-yellow-500';
-    if (strength <= 3) return 'bg-blue-500';
-    return 'bg-green-500';
-  };
-
-  const getPasswordStrengthText = (strength: number) => {
-    if (strength <= 1) return 'Weak';
-    if (strength <= 2) return 'Fair';
-    if (strength <= 3) return 'Good';
-    return 'Strong';
   };
 
   const validatePasswordStrength = (password: string): { valid: boolean; message: string } => {
@@ -137,40 +89,70 @@ const Register: React.FC = () => {
       return;
     }
 
+    // Validate admin code (simple verification)
+    // In production, this should be a more secure mechanism
+    if (!formData.adminCode.trim()) {
+      setError('Admin verification code is required');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { confirmPassword, ...registerData } = formData;
-      const response = await authAPI.register(registerData);
+      const { confirmPassword, adminCode, ...registerData } = formData;
+      // Add role field to specify admin registration
+      const adminRegisterData = {
+        ...registerData,
+        role: 'admin',
+        admin_code: adminCode, // Send code to backend for verification
+      };
+
+      const response = await authAPI.register(adminRegisterData);
       userManager.login(response.user, response.tokens.access_token);
-      navigate('/dashboard');
+      navigate('/admin');
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Registration failed');
+      setError(error.response?.data?.error || 'Admin registration failed');
     } finally {
       setLoading(false);
     }
   };
 
+  const getStrengthColor = () => {
+    if (passwordStrength <= 1) return 'bg-red-500';
+    if (passwordStrength === 2) return 'bg-yellow-500';
+    if (passwordStrength === 3) return 'bg-blue-500';
+    return 'bg-green-500';
+  };
+
+  const getStrengthText = () => {
+    if (passwordStrength <= 1) return 'Weak';
+    if (passwordStrength === 2) return 'Fair';
+    if (passwordStrength === 3) return 'Good';
+    if (passwordStrength === 4) return 'Strong';
+    return 'Very Strong';
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-red-50 to-orange-50 py-12 px-4 sm:px-6 lg:px-8">
       {/* Background Decorations */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-green-400 to-blue-500 rounded-full opacity-20 blur-3xl"></div>
-        <div className="absolute top-1/3 left-1/3 w-64 h-64 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full opacity-15 blur-3xl"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-amber-400 to-red-500 rounded-full opacity-20 blur-3xl"></div>
+        <div className="absolute top-1/3 left-1/3 w-64 h-64 bg-gradient-to-br from-orange-400 to-pink-500 rounded-full opacity-15 blur-3xl"></div>
       </div>
 
       <div className="relative max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center animate-fade-in-up">
-          <div className="mx-auto h-20 w-20 bg-gradient-to-br from-green-600 to-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl hover-glow">
-            <span className="text-3xl text-white">✨</span>
+          <div className="mx-auto h-20 w-20 bg-gradient-to-br from-amber-600 to-red-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl hover-glow">
+            <span className="text-3xl text-white">🔑</span>
           </div>
           <h2 className="text-4xl font-bold text-gradient mb-2">
-            Join Smart Quizzer
+            Admin Registration
           </h2>
           <p className="text-gray-600 text-lg font-medium">
-            Start Your AI-Powered Learning Journey
+            Create Administrator Account
           </p>
           <p className="text-gray-500 mt-2">
-            Create your account and unlock personalized quizzes
+            Secure access to platform management
           </p>
         </div>
 
@@ -242,27 +224,7 @@ const Register: React.FC = () => {
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <span className="text-gray-400 text-lg">👤</span>
                     </div>
-                    {formData.username.length >= 3 && (
-                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                        {usernameAvailability.checking ? (
-                          <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                        ) : usernameAvailability.available === true ? (
-                          <span className="text-green-500 text-xl">✅</span>
-                        ) : usernameAvailability.available === false ? (
-                          <span className="text-red-500 text-xl">❌</span>
-                        ) : null}
-                      </div>
-                    )}
                   </div>
-                  {formData.username.length >= 3 && usernameAvailability.message && (
-                    <p className={`text-sm mt-1 ${
-                      usernameAvailability.available === true ? 'text-green-600' :
-                      usernameAvailability.available === false ? 'text-red-600' :
-                      'text-gray-600'
-                    }`}>
-                      {usernameAvailability.message}
-                    </p>
-                  )}
                 </div>
 
                 {/* Email */}
@@ -283,7 +245,7 @@ const Register: React.FC = () => {
                       value={formData.email}
                       onChange={handleChange}
                       className="form-input pl-12 focus-ring"
-                      placeholder="Enter your email"
+                      placeholder="your.email@example.com"
                     />
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <span className="text-gray-400 text-lg">📧</span>
@@ -291,30 +253,32 @@ const Register: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Skill Level */}
+                {/* Admin Code */}
                 <div>
-                  <label htmlFor="skill_level" className="form-label">
+                  <label htmlFor="adminCode" className="form-label">
                     <span className="flex items-center gap-2">
-                      <span className="text-lg">🎯</span>
-                      Skill Level
+                      <span className="text-lg">🔐</span>
+                      Admin Verification Code
                     </span>
                   </label>
                   <div className="relative">
-                    <select
-                      id="skill_level"
-                      name="skill_level"
-                      value={formData.skill_level}
+                    <input
+                      id="adminCode"
+                      name="adminCode"
+                      type="password"
+                      required
+                      value={formData.adminCode}
                       onChange={handleChange}
-                      className="form-select pl-12 focus-ring"
-                    >
-                      <option value="Beginner">🌱 Beginner - Just starting out</option>
-                      <option value="Intermediate">🚀 Intermediate - Some experience</option>
-                      <option value="Advanced">🏆 Advanced - Expert level</option>
-                    </select>
+                      className="form-input pl-12 focus-ring"
+                      placeholder="Enter admin verification code"
+                    />
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">🎯</span>
+                      <span className="text-gray-400 text-lg">🔐</span>
                     </div>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Contact system administrator for verification code
+                  </p>
                 </div>
 
                 {/* Password */}
@@ -335,7 +299,7 @@ const Register: React.FC = () => {
                       value={formData.password}
                       onChange={handleChange}
                       className="form-input pl-12 pr-12 focus-ring"
-                      placeholder="Create a password"
+                      placeholder="Create a strong password"
                     />
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                       <span className="text-gray-400 text-lg">🔒</span>
@@ -343,45 +307,43 @@ const Register: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
                     >
                       <span className="text-lg">{showPassword ? '🙈' : '👁️'}</span>
                     </button>
                   </div>
-                  
-                  {/* Password Strength Indicator */}
+
+                  {/* Password Strength Meter */}
                   {formData.password && (
                     <div className="mt-2">
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-gray-500">Password Strength</span>
-                        <span className={`font-medium ${passwordStrength <= 1 ? 'text-red-600' : passwordStrength <= 2 ? 'text-yellow-600' : passwordStrength <= 3 ? 'text-blue-600' : 'text-green-600'}`}>
-                          {getPasswordStrengthText(passwordStrength)}
-                        </span>
+                      <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                        <span>Password Strength:</span>
+                        <span className="font-semibold">{getStrengthText()}</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div
-                          className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrengthColor(passwordStrength)}`}
+                          className={`h-full ${getStrengthColor()} transition-all duration-300`}
                           style={{ width: `${(passwordStrength / 5) * 100}%` }}
-                        ></div>
+                        />
                       </div>
-                      <div className="text-xs space-y-1">
-                        <div className={`flex items-center ${formData.password.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
+                      <div className="text-xs space-y-1 mt-2">
+                        <div className={`flex items-center ${formData.password.length >= 8 ? 'text-green-600' : 'text-gray-600'}`}>
                           <span className="mr-1">{formData.password.length >= 8 ? '✓' : '○'}</span>
                           At least 8 characters
                         </div>
-                        <div className={`flex items-center ${/[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
+                        <div className={`flex items-center ${/[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}`}>
                           <span className="mr-1">{/[A-Z]/.test(formData.password) ? '✓' : '○'}</span>
                           One uppercase letter
                         </div>
-                        <div className={`flex items-center ${/[a-z]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
+                        <div className={`flex items-center ${/[a-z]/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}`}>
                           <span className="mr-1">{/[a-z]/.test(formData.password) ? '✓' : '○'}</span>
                           One lowercase letter
                         </div>
-                        <div className={`flex items-center ${/[0-9]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
+                        <div className={`flex items-center ${/[0-9]/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}`}>
                           <span className="mr-1">{/[0-9]/.test(formData.password) ? '✓' : '○'}</span>
                           One number
                         </div>
-                        <div className={`flex items-center ${/[!@#$%^&*()_+\-=[\]{}|;:',.<>?/~`]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
+                        <div className={`flex items-center ${/[!@#$%^&*()_+\-=[\]{}|;:',.<>?/~`]/.test(formData.password) ? 'text-green-600' : 'text-gray-600'}`}>
                           <span className="mr-1">{/[!@#$%^&*()_+\-=[\]{}|;:',.<>?/~`]/.test(formData.password) ? '✓' : '○'}</span>
                           One special character
                         </div>
@@ -394,7 +356,7 @@ const Register: React.FC = () => {
                 <div>
                   <label htmlFor="confirmPassword" className="form-label">
                     <span className="flex items-center gap-2">
-                      <span className="text-lg">🔐</span>
+                      <span className="text-lg">🔒</span>
                       Confirm Password
                     </span>
                   </label>
@@ -411,29 +373,29 @@ const Register: React.FC = () => {
                       placeholder="Confirm your password"
                     />
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">🔐</span>
+                      <span className="text-gray-400 text-lg">🔒</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
                     >
                       <span className="text-lg">{showConfirmPassword ? '🙈' : '👁️'}</span>
                     </button>
                   </div>
-                  
+
                   {/* Password Match Indicator */}
                   {formData.confirmPassword && (
-                    <div className="mt-2 flex items-center text-xs">
+                    <div className="mt-2 text-xs">
                       {formData.password === formData.confirmPassword ? (
-                        <span className="flex items-center text-green-600">
+                        <span className="text-green-600 flex items-center">
                           <span className="mr-1">✅</span>
                           Passwords match
                         </span>
                       ) : (
-                        <span className="flex items-center text-red-600">
+                        <span className="text-red-600 flex items-center">
                           <span className="mr-1">❌</span>
-                          Passwords don't match
+                          Passwords do not match
                         </span>
                       )}
                     </div>
@@ -441,6 +403,7 @@ const Register: React.FC = () => {
                 </div>
               </div>
 
+              {/* Submit Button */}
               <div>
                 <button
                   type="submit"
@@ -450,12 +413,12 @@ const Register: React.FC = () => {
                   {loading ? (
                     <div className="flex items-center justify-center">
                       <div className="spinner mr-3"></div>
-                      Creating Account...
+                      Creating Admin Account...
                     </div>
                   ) : (
                     <div className="flex items-center justify-center">
-                      <span className="mr-2">🎉</span>
-                      Create Account
+                      <span className="mr-2">🔑</span>
+                      Create Admin Account
                       <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
                     </div>
                   )}
@@ -469,7 +432,7 @@ const Register: React.FC = () => {
                   <div className="w-full border-t border-gray-300"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500 font-medium">Already have an account?</span>
+                  <span className="px-4 bg-white text-gray-500 font-medium">Already have admin access?</span>
                 </div>
               </div>
               
@@ -479,7 +442,7 @@ const Register: React.FC = () => {
                   className="btn btn-secondary w-full group"
                 >
                   <span className="mr-2">🔑</span>
-                  Sign In
+                  Admin Sign In
                   <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
                 </Link>
               </div>
@@ -488,11 +451,11 @@ const Register: React.FC = () => {
         </div>
 
         <p className="text-center text-xs text-gray-500 mt-8">
-          By creating an account, you agree to our terms of service and privacy policy
+          Admin accounts require verification code for security
         </p>
       </div>
     </div>
   );
 };
 
-export default Register;
+export default AdminRegister;

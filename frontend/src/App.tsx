@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { UserManager } from './lib/userManager';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Import pages
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AdminRegister from './pages/AdminRegister';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
@@ -145,11 +147,13 @@ const UserRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const App: React.FC = () => {
   return (
-    <Router>
-      <div className="App">
-        <Routes>
+    <ErrorBoundary>
+      <Router>
+        <div className="App">
+          <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/admin-register" element={<AdminRegister />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route 
@@ -220,6 +224,7 @@ const App: React.FC = () => {
         </Routes>
       </div>
     </Router>
+    </ErrorBoundary>
   );
 };
 

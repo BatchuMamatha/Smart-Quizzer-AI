@@ -313,8 +313,11 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleLogout = () => {
-    userManager.logout();
-    navigate('/login');
+    // Add confirmation dialog
+    if (window.confirm('Are you sure you want to logout?')) {
+      userManager.logout();
+      navigate('/login');
+    }
   };
 
   if (error && error.includes('Unauthorized')) {
