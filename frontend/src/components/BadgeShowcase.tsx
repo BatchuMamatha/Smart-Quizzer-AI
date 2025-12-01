@@ -110,7 +110,7 @@ const BadgeShowcase: React.FC = () => {
             className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
               selectedCategory === cat.value
                 ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
             {cat.label}
@@ -129,8 +129,8 @@ const BadgeShowcase: React.FC = () => {
               key={badge.id}
               className={`relative group rounded-lg border-2 p-4 transition-all duration-300 ${
                 isEarned
-                  ? `${getRarityBorder(badge.rarity)} shadow-lg hover:shadow-xl`
-                  : 'border-gray-300 bg-gray-50 opacity-60 hover:opacity-80'
+                  ? `${getRarityBorder(badge.rarity)} shadow-lg hover:shadow-xl bg-white dark:bg-gray-800`
+                  : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 opacity-60 hover:opacity-80'
               }`}
             >
               {/* Rarity indicator */}
@@ -153,7 +153,7 @@ const BadgeShowcase: React.FC = () => {
                 </div>
                 <h3
                   className={`font-bold text-sm ${
-                    isEarned ? 'text-gray-900' : 'text-gray-500'
+                    isEarned ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
                   }`}
                 >
                   {badge.name}
@@ -164,18 +164,18 @@ const BadgeShowcase: React.FC = () => {
               <div className="space-y-1">
                 <p
                   className={`text-xs ${
-                    isEarned ? 'text-gray-600' : 'text-gray-400'
+                    isEarned ? 'text-gray-600 dark:text-gray-300' : 'text-gray-400'
                   }`}
                 >
                   {badge.description}
                 </p>
 
                 {isEarned && userBadge && (
-                  <div className="pt-2 border-t border-gray-200">
-                    <p className="text-xs text-indigo-600 font-medium">
+                  <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                    <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
                       ⭐ {badge.points} points
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Earned {new Date(userBadge.earned_at).toLocaleDateString()}
                     </p>
                   </div>
@@ -183,7 +183,7 @@ const BadgeShowcase: React.FC = () => {
 
                 {!isEarned && (
                   <div className="pt-2">
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
                       🔒 Not earned yet
                     </p>
                   </div>
@@ -198,7 +198,7 @@ const BadgeShowcase: React.FC = () => {
                       ? `bg-gradient-to-r ${getRarityColor(
                           badge.rarity
                         )} text-white`
-                      : 'bg-gray-200 text-gray-500'
+                      : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
                   }`}
                 >
                   {badge.rarity}
@@ -210,7 +210,7 @@ const BadgeShowcase: React.FC = () => {
       </div>
 
       {filteredBadges.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
           No badges found in this category
         </div>
       )}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserManager } from '../lib/userManager';
 import api from '../lib/api';
 import socketService from '../lib/socket';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 interface AdminStats {
   total_users: number;
@@ -111,11 +112,47 @@ const AdminDashboard: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   
+  // Logout confirmation
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
   // Moderation filter
   const [flagStatusFilter, setFlagStatusFilter] = useState<'all' | 'pending' | 'resolved'>('pending');
+  
+  // Email masking state - track which emails are unmasked
+  const [unmaskedEmails, setUnmaskedEmails] = useState<Set<number>>(new Set());
 
   const userManager = UserManager.getInstance();
   const currentUser = userManager.getCurrentUser();
+  
+  // Email masking utility function
+  const maskEmail = (email: string, userId: number): string => {
+    if (unmaskedEmails.has(userId)) {
+      return email; // Show full email
+    }
+    
+    const [localPart, domain] = email.split('@');
+    if (!localPart || !domain) return email;
+    
+    // Show first character + asterisks + last character of local part
+    const maskedLocal = localPart.length > 2 
+      ? `${localPart[0]}${'*'.repeat(Math.min(localPart.length - 2, 5))}${localPart[localPart.length - 1]}`
+      : localPart[0] + '*';
+    
+    return `${maskedLocal}@${domain}`;
+  };
+  
+  // Toggle email visibility for a specific user
+  const toggleEmailVisibility = (userId: number) => {
+    setUnmaskedEmails(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     // Check if user is admin
@@ -313,16 +350,17 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleLogout = () => {
-    // Add confirmation dialog
-    if (window.confirm('Are you sure you want to logout?')) {
-      userManager.logout();
-      navigate('/login');
-    }
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    userManager.logout();
+    navigate('/admin/login');
   };
 
   if (error && error.includes('Unauthorized')) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900 dark:to-orange-900 flex items-center justify-center p-4">
         <div className="card max-w-md w-full">
           <div className="card-body text-center">
             <span className="text-red-500 text-6xl mb-6 block">🚫</span>
@@ -338,7 +376,7 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-red-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-red-50 dark:from-purple-900 dark:via-pink-900 dark:to-red-900 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8 flex justify-between items-start">
@@ -356,6 +394,13 @@ const AdminDashboard: React.FC = () => {
               <p className="font-semibold text-gray-900">{currentUser?.full_name}</p>
               <p className="text-xs text-purple-600">Administrator</p>
             </div>
+            <button
+              onClick={() => navigate('/')}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200"
+            >
+              <span className="mr-2">🏠</span>
+              Home
+            </button>
             <button
               onClick={handleLogout}
               className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200"
@@ -492,7 +537,20 @@ const AdminDashboard: React.FC = () => {
                               <div className="font-medium text-gray-900">{user.username}</div>
                               <div className="text-sm text-gray-500">{user.full_name}</div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.email}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-600 dark:text-gray-400 font-mono">
+                                  {maskEmail(user.email, user.id)}
+                                </span>
+                                <button
+                                  onClick={() => toggleEmailVisibility(user.id)}
+                                  className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 rounded transition-colors font-medium"
+                                  title={unmaskedEmails.has(user.id) ? 'Hide email' : 'Show full email'}
+                                >
+                                  {unmaskedEmails.has(user.id) ? '🙈 Hide' : '👁️ Show'}
+                                </button>
+                              </div>
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <select
                                 value={user.skill_level}
@@ -644,9 +702,6 @@ const AdminDashboard: React.FC = () => {
                               <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-lg text-sm font-semibold">
                                 {question.flagged_by.join(', ')}
                               </span>
-                              <span className="text-gray-500 text-sm">
-                                ({question.flagged_by_email})
-                              </span>
                               <span className="text-gray-500 text-sm ml-auto">
                                 {new Date(question.flagged_at).toLocaleDateString()} at {new Date(question.flagged_at).toLocaleTimeString()}
                               </span>
@@ -725,9 +780,18 @@ const AdminDashboard: React.FC = () => {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="font-bold text-gray-900 text-lg">{feedback.username}</span>
-                                <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded">
-                                  {feedback.user_email}
-                                </span>
+                                <div className="flex items-center gap-1">
+                                  <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded font-mono">
+                                    {maskEmail(feedback.user_email, feedback.user_id)}
+                                  </span>
+                                  <button
+                                    onClick={() => toggleEmailVisibility(feedback.user_id)}
+                                    className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 rounded transition-colors font-medium"
+                                    title={unmaskedEmails.has(feedback.user_id) ? 'Hide email' : 'Show full email'}
+                                  >
+                                    {unmaskedEmails.has(feedback.user_id) ? '🙈 Hide' : '👁️ Show'}
+                                  </button>
+                                </div>
                               </div>
                               <span className="text-gray-500 text-sm">
                                 📅 {new Date(feedback.created_at).toLocaleDateString()} at {new Date(feedback.created_at).toLocaleTimeString()}
@@ -991,7 +1055,20 @@ const AdminDashboard: React.FC = () => {
                                       </div>
                                     </div>
                                   </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">
+                                        {maskEmail(user.email, user.user_id)}
+                                      </span>
+                                      <button
+                                        onClick={() => toggleEmailVisibility(user.user_id)}
+                                        className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 rounded transition-colors font-medium"
+                                        title={unmaskedEmails.has(user.user_id) ? 'Hide email' : 'Show full email'}
+                                      >
+                                        {unmaskedEmails.has(user.user_id) ? '🙈 Hide' : '👁️ Show'}
+                                      </button>
+                                    </div>
+                                  </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                                       user.role === 'admin' 
@@ -1214,7 +1291,16 @@ const AdminDashboard: React.FC = () => {
                   <div className="space-y-3">
                     <div>
                       <p className="text-sm text-gray-600 font-medium">Email Address</p>
-                      <p className="text-gray-900 font-semibold">{selectedUser.email}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-gray-900 font-semibold font-mono">{maskEmail(selectedUser.email, selectedUser.id)}</p>
+                        <button
+                          onClick={() => toggleEmailVisibility(selectedUser.id)}
+                          className="text-xs px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-lg transition-colors font-medium"
+                          title={unmaskedEmails.has(selectedUser.id) ? 'Hide email' : 'Show full email'}
+                        >
+                          {unmaskedEmails.has(selectedUser.id) ? '🙈 Hide Email' : '👁️ Show Full Email'}
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600 font-medium">Username</p>
@@ -1317,6 +1403,19 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        title="Logout Confirmation"
+        message="Are you sure you want to logout from the admin panel?"
+        confirmText="Logout"
+        cancelText="Cancel"
+        confirmButtonClass="bg-red-500 hover:bg-red-600"
+        icon="🚪"
+        onConfirm={confirmLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </div>
   );
 };

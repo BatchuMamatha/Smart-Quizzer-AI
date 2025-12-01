@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import api, { quizAPI, QuizResultsResponse, Question } from '../lib/api';
+import api, { quizAPI, topicsAPI, QuizResultsResponse, Question, Topic } from '../lib/api';
 import { useAudioFeedback } from '../lib/audioFeedback';
 import socketService from '../lib/socket';
 import Header from '../components/Header';
+import SocialShare from '../components/SocialShare';
 
 interface ResultsState {
   quizId: number;
@@ -42,6 +43,62 @@ const Results: React.FC = () => {
   const [currentUserRank, setCurrentUserRank] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
+  const [availableTopics, setAvailableTopics] = useState<Topic[]>([]);
+  const [selectedLeaderboardTopic, setSelectedLeaderboardTopic] = useState<string>('');
+
+  // Define fetchLeaderboard outside useEffect so it can be called by handleTopicFilterChange
+  const fetchLeaderboard = async (topic?: string, isMounted: boolean = true) => {
+    try {
+      setLoadingLeaderboard(true);
+      
+      // 🔥 Fetch concurrent quiz leaderboard - shows only users taking this quiz NOW
+      const response = await api.get(`/leaderboard/concurrent/${topic}`, {
+        params: {
+          time_window: 120,  // Last 2 hours
+          limit: 10
+        }
+      });
+      
+      if (!isMounted) return;
+      
+      const leaderboardData = response.data;
+      
+      // Safely handle leaderboard data
+      if (leaderboardData && Array.isArray(leaderboardData.leaderboard)) {
+        setLeaderboard(leaderboardData.leaderboard);
+        console.log(`✅ Concurrent quiz leaderboard loaded: ${leaderboardData.leaderboard.length} users`);
+        console.log(`📊 Total concurrent takers: ${leaderboardData.total_concurrent}`);
+      } else {
+        setLeaderboard([]);
+      }
+      
+      // Find current user's rank in concurrent leaderboard
+      const userManager = (await import('../lib/userManager')).UserManager.getInstance();
+      const currentUser = userManager.getCurrentUser();
+      
+      if (currentUser && leaderboardData.leaderboard) {
+        setCurrentUserId(currentUser.id);
+        const userEntry = leaderboardData.leaderboard.find(
+          (entry: any) => entry.user_id === currentUser.id
+        );
+        setCurrentUserRank(userEntry ? userEntry.rank : null);
+      } else {
+        setCurrentUserId(null);
+        setCurrentUserRank(null);
+      }
+    } catch (error) {
+      if (!isMounted) return;
+      console.error('Error fetching concurrent quiz leaderboard:', error);
+      // Set empty state on error
+      setLeaderboard([]);
+      setCurrentUserId(null);
+      setCurrentUserRank(null);
+    } finally {
+      if (isMounted) {
+        setLoadingLeaderboard(false);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!quizId) {
@@ -61,6 +118,17 @@ const Results: React.FC = () => {
         
         setResults(data);
         currentTopic = data.quiz_session.topic;
+        setSelectedLeaderboardTopic(currentTopic);
+        
+        // Fetch available topics for filter
+        try {
+          const topics = await topicsAPI.getTopics();
+          if (isMounted) {
+            setAvailableTopics(topics);
+          }
+        } catch (err) {
+          console.error('Failed to fetch topics:', err);
+        }
         
         // Update leaderboard entry for this completed quiz
         try {
@@ -73,7 +141,7 @@ const Results: React.FC = () => {
         
         // Fetch initial leaderboard
         if (data.quiz_session.topic) {
-          await fetchLeaderboard(data.quiz_session.topic);
+          await fetchLeaderboard(data.quiz_session.topic, isMounted);
           
           // Setup WebSocket connection for real-time updates
           setupWebSocketListener(data.quiz_session.topic);
@@ -198,59 +266,6 @@ const Results: React.FC = () => {
       });
     };
 
-    const fetchLeaderboard = async (topic?: string) => {
-      try {
-        setLoadingLeaderboard(true);
-        
-        // 🔥 Fetch concurrent quiz leaderboard - shows only users taking this quiz NOW
-        const response = await api.get(`/leaderboard/concurrent/${topic}`, {
-          params: {
-            time_window: 120,  // Last 2 hours
-            limit: 10
-          }
-        });
-        
-        if (!isMounted) return;
-        
-        const leaderboardData = response.data;
-        
-        // Safely handle leaderboard data
-        if (leaderboardData && Array.isArray(leaderboardData.leaderboard)) {
-          setLeaderboard(leaderboardData.leaderboard);
-          console.log(`✅ Concurrent quiz leaderboard loaded: ${leaderboardData.leaderboard.length} users`);
-          console.log(`📊 Total concurrent takers: ${leaderboardData.total_concurrent}`);
-        } else {
-          setLeaderboard([]);
-        }
-        
-        // Find current user's rank in concurrent leaderboard
-        const userManager = (await import('../lib/userManager')).UserManager.getInstance();
-        const currentUser = userManager.getCurrentUser();
-        
-        if (currentUser && leaderboardData.leaderboard) {
-          setCurrentUserId(currentUser.id);
-          const userEntry = leaderboardData.leaderboard.find(
-            (entry: any) => entry.user_id === currentUser.id
-          );
-          setCurrentUserRank(userEntry ? userEntry.rank : null);
-        } else {
-          setCurrentUserId(null);
-          setCurrentUserRank(null);
-        }
-      } catch (error) {
-        if (!isMounted) return;
-        console.error('Error fetching concurrent quiz leaderboard:', error);
-        // Set empty state on error
-        setLeaderboard([]);
-        setCurrentUserId(null);
-        setCurrentUserRank(null);
-      } finally {
-        if (isMounted) {
-          setLoadingLeaderboard(false);
-        }
-      }
-    };
-
     fetchResults();
 
     // Cleanup: Leave WebSocket room when component unmounts
@@ -263,6 +278,12 @@ const Results: React.FC = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizId, navigate]);
+
+  // Handle topic filter change
+  const handleTopicFilterChange = async (newTopic: string) => {
+    setSelectedLeaderboardTopic(newTopic);
+    await fetchLeaderboard(newTopic, true);
+  };
 
   if (loading) {
     return (
@@ -325,7 +346,7 @@ const Results: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <Header 
         title="📊 Quiz Results" 
@@ -383,14 +404,30 @@ const Results: React.FC = () => {
           </div>
           
           {/* Score Overview */}
-          <div className="bg-white overflow-hidden shadow rounded-lg mb-6">
+          <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg mb-6">
             <div className="px-4 py-5 sm:p-6">
               <div className="text-center">
                 <div className="text-6xl mb-4">{getGradeEmoji(scorePercentage)}</div>
                 <h2 className={`text-4xl font-bold mb-2 ${getScoreColor(scorePercentage)}`}>
                   {scorePercentage.toFixed(1)}%
                 </h2>
-                <p className="text-lg text-gray-600 mb-4">
+                
+                {/* Score Calculation Breakdown */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4 inline-block">
+                  <div className="flex items-center justify-center space-x-2 text-gray-700 dark:text-gray-300">
+                    <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{summary.correct_answers}</span>
+                    <span className="text-lg">/</span>
+                    <span className="text-2xl font-bold text-gray-600 dark:text-gray-400">{summary.total_questions}</span>
+                    <span className="text-lg mx-2">correct</span>
+                    <span className="text-lg">=</span>
+                    <span className="text-2xl font-bold text-green-600 dark:text-green-400">{scorePercentage.toFixed(1)}%</span>
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    Score Calculation: ({summary.correct_answers} ÷ {summary.total_questions}) × 100 = {scorePercentage.toFixed(1)}%
+                  </div>
+                </div>
+                
+                <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">
                   {summary.correct_answers} out of {summary.total_questions} correct
                 </p>
                 <p className={`text-lg font-medium ${getScoreColor(scorePercentage)}`}>
@@ -398,19 +435,29 @@ const Results: React.FC = () => {
                 </p>
               </div>
 
+              {/* Social Share Section */}
+              <div className="mt-6">
+                <SocialShare
+                  topic={results.quiz_session.topic}
+                  score={scorePercentage}
+                  totalQuestions={results.summary.total_questions}
+                  correctAnswers={results.summary.correct_answers}
+                />
+              </div>
+
               {/* Stats Grid */}
               <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-blue-50 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-blue-600">{summary.total_questions}</div>
-                  <div className="text-sm text-blue-800">Total Questions</div>
+                <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{summary.total_questions}</div>
+                  <div className="text-sm text-blue-800 dark:text-blue-300">Total Questions</div>
                 </div>
-                <div className="bg-green-50 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-green-600">{summary.correct_answers}</div>
-                  <div className="text-sm text-green-800">Correct Answers</div>
+                <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{summary.correct_answers}</div>
+                  <div className="text-sm text-green-800 dark:text-green-300">Correct Answers</div>
                 </div>
-                <div className="bg-purple-50 p-4 rounded-lg text-center">
-                  <div className="text-2xl font-bold text-purple-600">{Math.floor(summary.time_taken / 60)}m {summary.time_taken % 60}s</div>
-                  <div className="text-sm text-purple-800">Time Taken</div>
+                <div className="bg-purple-50 dark:bg-purple-900/30 p-4 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{Math.floor(summary.time_taken / 60)}m {summary.time_taken % 60}s</div>
+                  <div className="text-sm text-purple-800 dark:text-purple-300">Time Taken</div>
                 </div>
               </div>
             </div>
@@ -454,17 +501,17 @@ const Results: React.FC = () => {
 
           {/* Visual Analysis Section */}
           {showAnalysis && (
-            <div className="bg-white overflow-hidden shadow rounded-lg mb-6 animate-fade-in">
+            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg mb-6 animate-fade-in">
               <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
                   <span className="mr-3 text-2xl">📊</span>
                   Performance Analysis
                 </h3>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Score Breakdown Chart */}
-                  <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 p-6 rounded-xl">
+                    <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
                       <span className="mr-2">🎯</span>
                       Score Breakdown
                     </h4>
@@ -496,17 +543,17 @@ const Results: React.FC = () => {
                             />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-2xl font-bold text-gray-800">{scorePercentage.toFixed(0)}%</span>
+                            <span className="text-2xl font-bold text-gray-800 dark:text-white">{scorePercentage.toFixed(0)}%</span>
                           </div>
                         </div>
                       </div>
                       <div className="mt-4 text-center">
                         <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div className="text-green-600">
+                          <div className="text-green-600 dark:text-green-400">
                             <div className="font-bold text-lg">{summary.correct_answers}</div>
                             <div>Correct</div>
                           </div>
-                          <div className="text-red-600">
+                          <div className="text-red-600 dark:text-red-400">
                             <div className="font-bold text-lg">{summary.total_questions - summary.correct_answers}</div>
                             <div>Incorrect</div>
                           </div>
@@ -516,8 +563,8 @@ const Results: React.FC = () => {
                   </div>
 
                   {/* Question Type Performance */}
-                  <div className="bg-gradient-to-br from-green-50 to-blue-50 p-6 rounded-xl">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <div className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-900/30 dark:to-blue-900/30 p-6 rounded-xl">
+                    <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
                       <span className="mr-2">📝</span>
                       Question Type Performance
                     </h4>
@@ -537,10 +584,10 @@ const Results: React.FC = () => {
                           return (
                             <div key={type} className="space-y-2">
                               <div className="flex justify-between text-sm">
-                                <span className="font-medium">{type}</span>
-                                <span>{stats.correct}/{stats.total} ({percentage.toFixed(0)}%)</span>
+                                <span className="font-medium text-gray-900 dark:text-white">{type}</span>
+                                <span className="text-gray-700 dark:text-gray-300">{stats.correct}/{stats.total} ({percentage.toFixed(0)}%)</span>
                               </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                                 <div
                                   className={`h-2 rounded-full ${
                                     percentage >= 70 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
@@ -556,8 +603,8 @@ const Results: React.FC = () => {
                   </div>
 
                   {/* Difficulty Level Analysis */}
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 p-6 rounded-xl">
+                    <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
                       <span className="mr-2">⚡</span>
                       Difficulty Analysis
                     </h4>
@@ -567,13 +614,13 @@ const Results: React.FC = () => {
                       {/* Easy Level */}
                       <div className="space-y-2 mb-3">
                         <div className="flex justify-between text-sm">
-                          <span className="font-medium flex items-center">
+                          <span className="font-medium flex items-center text-gray-900 dark:text-white">
                             <span className="mr-2">🟢</span>
                             Easy
                           </span>
-                          <span>3/4 (75%)</span>
+                          <span className="text-gray-700 dark:text-gray-300">3/4 (75%)</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                           <div
                             className="h-2 rounded-full bg-green-500"
                             style={{ width: '75%' }}
@@ -584,13 +631,13 @@ const Results: React.FC = () => {
                       {/* Medium Level */}
                       <div className="space-y-2 mb-3">
                         <div className="flex justify-between text-sm">
-                          <span className="font-medium flex items-center">
+                          <span className="font-medium flex items-center text-gray-900 dark:text-white">
                             <span className="mr-2">🟡</span>
                             Medium
                           </span>
-                          <span>1/2 (50%)</span>
+                          <span className="text-gray-700 dark:text-gray-300">1/2 (50%)</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                           <div
                             className="h-2 rounded-full bg-yellow-500"
                             style={{ width: '50%' }}
@@ -601,13 +648,13 @@ const Results: React.FC = () => {
                       {/* Hard Level */}
                       <div className="space-y-2 mb-3">
                         <div className="flex justify-between text-sm">
-                          <span className="font-medium flex items-center">
+                          <span className="font-medium flex items-center text-gray-900 dark:text-white">
                             <span className="mr-2">🔴</span>
                             Hard
                           </span>
-                          <span>0/1 (0%)</span>
+                          <span className="text-gray-700 dark:text-gray-300">0/1 (0%)</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                           <div
                             className="h-2 rounded-full bg-red-500"
                             style={{ width: '0%' }}
@@ -638,13 +685,13 @@ const Results: React.FC = () => {
                             return (
                               <div key={difficulty} className="space-y-2">
                                 <div className="flex justify-between text-sm">
-                                  <span className="font-medium flex items-center">
+                                  <span className="font-medium flex items-center text-gray-900 dark:text-white">
                                     <span className="mr-2">{difficultyEmojis[difficulty as keyof typeof difficultyEmojis]}</span>
                                     {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
                                   </span>
-                                  <span>{stats.correct}/{stats.total} ({percentage.toFixed(0)}%)</span>
+                                  <span className="text-gray-700 dark:text-gray-300">{stats.correct}/{stats.total} ({percentage.toFixed(0)}%)</span>
                                 </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                                   <div
                                     className={`h-2 rounded-full ${
                                       percentage >= 70 ? 'bg-green-500' : percentage >= 50 ? 'bg-yellow-500' : 'bg-red-500'
@@ -661,28 +708,28 @@ const Results: React.FC = () => {
                   </div>
 
                   {/* Time Analysis */}
-                  <div className="bg-gradient-to-br from-orange-50 to-yellow-50 p-6 rounded-xl">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <div className="bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/30 dark:to-yellow-900/30 p-6 rounded-xl">
+                    <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
                       <span className="mr-2">⏰</span>
                       Time Analysis
                     </h4>
                     <div className="space-y-4">
                       <div className="text-center">
-                        <div className="text-3xl font-bold text-orange-600">
+                        <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">
                           {Math.floor(summary.time_taken / 60)}:{(summary.time_taken % 60).toString().padStart(2, '0')}
                         </div>
-                        <div className="text-sm text-gray-600">Total Time</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-300">Total Time</div>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="text-center">
-                          <div className="font-bold text-lg text-blue-600">
+                          <div className="font-bold text-lg text-blue-600 dark:text-blue-400">
                             {(summary.time_taken / summary.total_questions).toFixed(1)}s
                           </div>
-                          <div className="text-gray-600">Avg per Question</div>
+                          <div className="text-gray-600 dark:text-gray-300">Avg per Question</div>
                         </div>
                         <div className="text-center">
-                          <div className="font-bold text-lg text-purple-600">
+                          <div className="font-bold text-lg text-purple-600 dark:text-purple-400">
                             {(() => {
                               const questionsWithTime = questions.filter(q => q.time_taken);
                               if (questionsWithTime.length === 0) return 'N/A';
@@ -690,13 +737,13 @@ const Results: React.FC = () => {
                               return `${avgTime.toFixed(1)}s`;
                             })()}
                           </div>
-                          <div className="text-gray-600">Response Time</div>
+                          <div className="text-gray-600 dark:text-gray-300">Response Time</div>
                         </div>
                       </div>
                       
                       {/* Question Time Distribution */}
                       <div className="space-y-2">
-                        <div className="text-sm font-medium text-gray-700">Time per Question</div>
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Time per Question</div>
                         <div className="space-y-1">
                           {questions.map((question: Question, index: number) => {
                             const time = question.time_taken || 0;
@@ -704,8 +751,8 @@ const Results: React.FC = () => {
                             const width = maxTime > 0 ? (time / maxTime) * 100 : 0;
                             return (
                               <div key={question.id} className="flex items-center space-x-2 text-xs">
-                                <span className="w-8">Q{index + 1}</span>
-                                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                <span className="w-8 text-gray-700 dark:text-gray-300">Q{index + 1}</span>
+                                <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                                   <div
                                     className={`h-2 rounded-full ${
                                       question.is_correct ? 'bg-green-400' : 'bg-red-400'
@@ -713,7 +760,7 @@ const Results: React.FC = () => {
                                     style={{ width: `${width}%` }}
                                   ></div>
                                 </div>
-                                <span className="w-8 text-right">{time}s</span>
+                                <span className="w-8 text-right text-gray-700 dark:text-gray-300">{time}s</span>
                               </div>
                             );
                           })}
@@ -724,37 +771,37 @@ const Results: React.FC = () => {
                 </div>
                 
                 {/* Performance Insights */}
-                <div className="mt-6 bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-xl">
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <div className="mt-6 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 p-6 rounded-xl">
+                  <h4 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center">
                     <span className="mr-2">💡</span>
                     Performance Insights
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm">
                       <div className="text-2xl mb-2">
                         {scorePercentage >= 90 ? '🎉' : scorePercentage >= 70 ? '👍' : scorePercentage >= 50 ? '📚' : '💪'}
                       </div>
-                      <div className="text-sm font-medium text-gray-700">Overall Performance</div>
-                      <div className="text-xs text-gray-600 mt-1">
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Overall Performance</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                         {scorePercentage >= 90 ? 'Excellent mastery!' : 
                          scorePercentage >= 70 ? 'Good understanding' : 
                          scorePercentage >= 50 ? 'Room for improvement' : 'Needs more practice'}
                       </div>
                     </div>
                     
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm">
                       <div className="text-2xl mb-2">
                         {summary.time_taken / summary.total_questions < 30 ? '⚡' : 
                          summary.time_taken / summary.total_questions < 60 ? '⏰' : '🐌'}
                       </div>
-                      <div className="text-sm font-medium text-gray-700">Response Speed</div>
-                      <div className="text-xs text-gray-600 mt-1">
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Response Speed</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                         {summary.time_taken / summary.total_questions < 30 ? 'Quick responses' : 
                          summary.time_taken / summary.total_questions < 60 ? 'Moderate pace' : 'Take your time'}
                       </div>
                     </div>
                     
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm">
                       <div className="text-2xl mb-2">
                         {(() => {
                           const correctStreak = questions.reduce((max, q, i) => {
@@ -770,8 +817,8 @@ const Results: React.FC = () => {
                           return correctStreak >= 3 ? '🔥' : correctStreak >= 2 ? '⭐' : '🎯';
                         })()}
                       </div>
-                      <div className="text-sm font-medium text-gray-700">Consistency</div>
-                      <div className="text-xs text-gray-600 mt-1">
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Consistency</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                         {(() => {
                           const correctStreak = questions.reduce((max, q, i) => {
                             if (q.is_correct) {
@@ -795,22 +842,22 @@ const Results: React.FC = () => {
           )}
 
           {/* Question Details */}
-          <div className="bg-white overflow-hidden shadow rounded-lg mb-6">
+          <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg mb-6">
             <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Question Review</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Question Review</h3>
               
               <div className="space-y-6">
                 {questions.map((question: Question, index: number) => (
-                  <div key={question.id} className="border-l-4 pl-4 border-gray-200">
+                  <div key={question.id} className="border-l-4 pl-4 border-gray-200 dark:border-gray-600">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center space-x-2">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
                           Q{index + 1}
                         </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300">
                           {question.question_type}
                         </span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300">
                           {question.difficulty_level}
                         </span>
                       </div>
@@ -823,14 +870,14 @@ const Results: React.FC = () => {
                       </div>
                     </div>
 
-                    <h4 className="font-medium text-gray-900 mb-2">
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">
                       {question.question_text}
                     </h4>
 
                     {question.question_type === 'MCQ' && (
                       <div className="mb-2">
-                        <p className="text-sm text-gray-600">Options:</p>
-                        <ul className="text-sm text-gray-700 ml-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Options:</p>
+                        <ul className="text-sm text-gray-700 dark:text-gray-300 ml-4">
                           {question.options.map((option: string, idx: number) => (
                             <li key={idx} className={`
                               ${option.charAt(0) === question.correct_answer ? 'text-green-600 font-medium' : ''}
@@ -845,23 +892,23 @@ const Results: React.FC = () => {
 
                     {!question.is_correct && (
                       <div className="mb-2">
-                        <p className="text-sm text-red-600">
+                        <p className="text-sm text-red-600 dark:text-red-400">
                           <strong>Your answer:</strong> {question.user_answer}
                         </p>
-                        <p className="text-sm text-green-600">
+                        <p className="text-sm text-green-600 dark:text-green-400">
                           <strong>Correct answer:</strong> {question.correct_answer}
                         </p>
                       </div>
                     )}
 
-                    <div className="bg-blue-50 p-3 rounded-md">
-                      <p className="text-sm text-blue-800">
+                    <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-md">
+                      <p className="text-sm text-blue-800 dark:text-blue-300">
                         <strong>💡 Explanation:</strong> {question.explanation}
                       </p>
                     </div>
 
                     {question.time_taken && (
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                         ⏱️ Time taken: {question.time_taken} seconds
                       </p>
                     )}
@@ -872,13 +919,50 @@ const Results: React.FC = () => {
           </div>
 
           {/* Leaderboard Section */}
-          <div className="bg-white overflow-hidden shadow rounded-lg mb-6">
+          <div className="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg mb-6">
             <div className="px-4 py-5 sm:p-6">
               <div className="mb-6">
-                <h3 className="text-2xl font-bold text-gray-900 flex items-center">
-                  <span className="mr-3">🏆</span>
-                  Leaderboard - {quiz_session.topic}
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                    <span className="mr-3">🏆</span>
+                    Leaderboard
+                  </h3>
+                  
+                  {/* Topic Filter Dropdown */}
+                  <div className="flex items-center gap-3">
+                    <label htmlFor="topic-filter" className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                      Filter by Topic:
+                    </label>
+                    <select
+                      id="topic-filter"
+                      value={selectedLeaderboardTopic}
+                      onChange={(e) => handleTopicFilterChange(e.target.value)}
+                      className="block w-full sm:w-64 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 dark:text-white"
+                    >
+                      <option value="">{quiz_session.topic} (Current Quiz)</option>
+                      {availableTopics.map((topic) => (
+                        <option key={topic.name} value={topic.name}>
+                          {topic.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
+                {selectedLeaderboardTopic && selectedLeaderboardTopic !== quiz_session.topic && (
+                  <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <span className="text-blue-400">ℹ️</span>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-blue-700">
+                          Viewing leaderboard for <strong>{selectedLeaderboardTopic}</strong>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {loadingLeaderboard ? (
@@ -906,30 +990,30 @@ const Results: React.FC = () => {
 
                   {/* Top 10 Table */}
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-600">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Rank
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Player
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Score
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Accuracy
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Time
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Status
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         {leaderboard.slice(0, 10).map((entry) => {
                           const isCurrentUser = currentUserId !== null && entry.user_id === currentUserId;
                           const getRankIcon = (rank: number) => {
@@ -1030,20 +1114,50 @@ const Results: React.FC = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => navigate('/dashboard')}
-              className="bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-6 rounded-md"
+              className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-md"
             >
+              <span className="mr-2">🏠</span>
               Back to Dashboard
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  // Start a new quiz with the same configuration
+                  const quizData = await quizAPI.startQuiz({
+                    topic: quiz_session.topic,
+                    skill_level: quiz_session.skill_level,
+                    num_questions: quiz_session.num_questions || quiz_session.total_questions,
+                  });
+                  
+                  navigate('/quiz', { 
+                    state: { 
+                      quizId: quizData.quiz_session.id,
+                      topic: quiz_session.topic,
+                      skillLevel: quiz_session.skill_level
+                    } 
+                  });
+                } catch (error: any) {
+                  console.error('Error starting retake quiz:', error);
+                  alert(error.response?.data?.error || 'Failed to start quiz. Please try again.');
+                }
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-md"
+            >
+              <span className="mr-2">🔄</span>
+              Retake This Quiz
             </button>
             <button
               onClick={() => navigate('/dashboard', { state: { startNewQuiz: true } })}
               className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-md"
             >
+              <span className="mr-2">➕</span>
               Take Another Quiz
             </button>
             <button
               onClick={() => window.print()}
-              className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-md"
+              className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-md"
             >
+              <span className="mr-2">🖨️</span>
               Print Results
             </button>
           </div>

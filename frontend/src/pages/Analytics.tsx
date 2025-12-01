@@ -122,6 +122,60 @@ const Analytics: React.FC = () => {
         }
     };
 
+    const exportToCSV = async () => {
+        try {
+            const history = await quizAPI.getHistory();
+            
+            if (history.length === 0) {
+                alert('No data to export. Take some quizzes first!');
+                return;
+            }
+
+            // Prepare CSV data
+            const headers = ['Date', 'Topic', 'Skill Level', 'Score (%)', 'Questions', 'Correct Answers', 'Time (min)', 'Status'];
+            const rows = history.map(quiz => [
+                new Date(quiz.started_at).toLocaleDateString(),
+                quiz.custom_topic ? 'Custom Content' : quiz.topic,
+                quiz.skill_level,
+                quiz.score_percentage.toFixed(1),
+                quiz.num_questions || quiz.total_questions,
+                quiz.completed_questions,
+                ((quiz.time_taken || quiz.total_time_seconds) / 60).toFixed(1),
+                quiz.status
+            ]);
+
+            // Create CSV content
+            let csvContent = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csvContent += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+
+            // Add summary statistics
+            csvContent += '\n\nSummary Statistics\n';
+            csvContent += `Total Quizzes,${stats?.total_quizzes || 0}\n`;
+            csvContent += `Average Score,${stats?.average_score.toFixed(1) || 0}%\n`;
+            csvContent += `Questions Answered,${stats?.questions_answered || 0}\n`;
+            csvContent += `Best Topic,${stats?.best_topic || 'N/A'}\n`;
+            csvContent += `Worst Topic,${stats?.worst_topic || 'N/A'}\n`;
+
+            // Create download link
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', `quiz_analytics_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('Failed to export data:', error);
+            alert('Failed to export data. Please try again.');
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
@@ -152,7 +206,7 @@ const Analytics: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <Header 
                 title="Learning Analytics" 
                 subtitle="Track your progress and performance"
@@ -162,8 +216,8 @@ const Analytics: React.FC = () => {
             
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Tabs */}
-                <div className="bg-white rounded-lg shadow-sm mb-6">
-                    <div className="border-b border-gray-200">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-6">
+                    <div className="border-b border-gray-200 dark:border-gray-700">
                         <nav className="flex -mb-px overflow-x-auto">
                             {tabs.map((tab) => (
                                 <button
@@ -171,8 +225,8 @@ const Analytics: React.FC = () => {
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`px-6 py-4 text-sm font-medium whitespace-nowrap transition-colors ${
                                         activeTab === tab.id
-                                            ? 'border-b-2 border-indigo-600 text-indigo-600'
-                                            : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                            ? 'border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                                     }`}
                                 >
                                     <span className="mr-2">{tab.icon}</span>
@@ -189,47 +243,47 @@ const Analytics: React.FC = () => {
                         <>
                             {/* Main Stats Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-                                    <div className="text-5xl font-bold text-blue-600 mb-2">{stats.total_quizzes}</div>
-                                    <div className="text-gray-600 font-medium">Total Quizzes</div>
+                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center">
+                                    <div className="text-5xl font-bold text-blue-600 dark:text-blue-400 mb-2">{stats.total_quizzes}</div>
+                                    <div className="text-gray-600 dark:text-gray-400 font-medium">Total Quizzes</div>
                                     <div className="text-3xl mt-2">📝</div>
                                 </div>
                                 
-                                <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-                                    <div className="text-5xl font-bold text-green-600 mb-2">{Math.round(stats.average_score)}%</div>
-                                    <div className="text-gray-600 font-medium">Average Score</div>
+                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center">
+                                    <div className="text-5xl font-bold text-green-600 dark:text-green-400 mb-2">{Math.round(stats.average_score)}%</div>
+                                    <div className="text-gray-600 dark:text-gray-400 font-medium">Average Score</div>
                                     <div className="text-3xl mt-2">🎯</div>
                                 </div>
                                 
-                                <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-                                    <div className="text-5xl font-bold text-purple-600 mb-2">{stats.questions_answered}</div>
-                                    <div className="text-gray-600 font-medium">Questions Answered</div>
+                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 text-center">
+                                    <div className="text-5xl font-bold text-purple-600 dark:text-purple-400 mb-2">{stats.questions_answered}</div>
+                                    <div className="text-gray-600 dark:text-gray-400 font-medium">Questions Answered</div>
                                     <div className="text-3xl mt-2">💡</div>
                                 </div>
                             </div>
 
                             {/* Performance Trends & Topic Insights */}
-                            <div className="bg-white rounded-lg shadow-sm p-6">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6">📈 Performance Trends & Topic Insights</h2>
+                            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">📈 Performance Trends & Topic Insights</h2>
                                 <WeeklyReport />
                             </div>
 
                             {/* Performance Chart */}
-                            <div className="bg-white rounded-lg shadow-sm p-6">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6">📊 Historical Performance</h2>
+                            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">📊 Historical Performance</h2>
                                 <PerformanceChart days={30} />
                             </div>
 
                             {/* Progress Visual */}
-                            <div className="bg-white rounded-xl shadow-lg p-8">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">📈 Your Overall Progress</h2>
+                            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">📈 Your Overall Progress</h2>
                                 <div className="space-y-4">
                                     <div>
                                         <div className="flex justify-between mb-2">
-                                            <span className="text-gray-700 font-medium">Overall Performance</span>
-                                            <span className="text-gray-900 font-bold">{Math.round(stats.average_score)}%</span>
+                                            <span className="text-gray-700 dark:text-gray-300 font-medium">Overall Performance</span>
+                                            <span className="text-gray-900 dark:text-white font-bold">{Math.round(stats.average_score)}%</span>
                                         </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-6">
+                                        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-6">
                                             <div 
                                                 className={`h-6 rounded-full ${
                                                     stats.average_score >= 80 ? 'bg-green-500' : 
@@ -243,19 +297,19 @@ const Analytics: React.FC = () => {
                                 
                                 <div className="mt-6 text-center">
                                     {stats.average_score >= 80 && (
-                                        <div className="text-green-600 font-semibold">
+                                        <div className="text-green-600 dark:text-green-400 font-semibold">
                                             <span className="text-2xl mr-2">🎉</span>
                                             Excellent Performance! Keep it up!
                                         </div>
                                     )}
                                     {stats.average_score >= 60 && stats.average_score < 80 && (
-                                        <div className="text-yellow-600 font-semibold">
+                                        <div className="text-yellow-600 dark:text-yellow-400 font-semibold">
                                             <span className="text-2xl mr-2">👍</span>
                                             Good Progress! Keep practicing!
                                         </div>
                                     )}
                                     {stats.average_score < 60 && stats.average_score > 0 && (
-                                        <div className="text-orange-600 font-semibold">
+                                        <div className="text-orange-600 dark:text-orange-400 font-semibold">
                                             <span className="text-2xl mr-2">💪</span>
                                             Keep practicing! You're improving!
                                         </div>
@@ -268,8 +322,8 @@ const Analytics: React.FC = () => {
                     {activeTab === 'badges' && (
                         <>
                             {/* Badge Showcase */}
-                            <div className="bg-white rounded-lg shadow-sm p-6">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Badges</h2>
+                            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Your Badges</h2>
                                 <BadgeShowcase />
                             </div>
                         </>
@@ -277,8 +331,8 @@ const Analytics: React.FC = () => {
 
                     {activeTab === 'recommendations' && (
                         <div className="space-y-6">
-                            <div className="bg-white rounded-lg shadow-sm p-6">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-6">🤖 AI Learning Recommendations</h2>
+                            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">🤖 AI Learning Recommendations</h2>
                                 {recommendations.length > 0 ? (
                                     <div className="space-y-4">
                                         {recommendations.map((rec, idx) => (
@@ -298,7 +352,7 @@ const Analytics: React.FC = () => {
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="text-center py-8 text-gray-500">
+                                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                                         <p>📚 No recommendations yet. Complete more quizzes to get personalized insights!</p>
                                     </div>
                                 )}
@@ -320,6 +374,20 @@ const Analytics: React.FC = () => {
                         className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg font-semibold"
                     >
                         📜 View History
+                    </button>
+                    <button
+                        onClick={exportToCSV}
+                        className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg font-semibold"
+                        title="Download your analytics data as CSV"
+                    >
+                        📥 Export to CSV
+                    </button>
+                    <button
+                        onClick={() => window.print()}
+                        className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-8 py-3 rounded-lg hover:from-orange-700 hover:to-red-700 transition-all shadow-lg font-semibold"
+                        title="Print analytics report"
+                    >
+                        🖨️ Print Report
                     </button>
                 </div>
             </div>

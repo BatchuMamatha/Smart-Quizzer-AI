@@ -49,8 +49,11 @@ export interface User {
   username: string;
   email: string;
   full_name: string;
+  phone_number?: string;
   skill_level: 'Beginner' | 'Intermediate' | 'Advanced';
   role: 'user' | 'admin';
+  email_verified: boolean;
+  avatar_url?: string;
   created_at: string;
   quiz_count?: number;
   total_quizzes?: number;
@@ -87,11 +90,13 @@ export interface QuizSession {
   topic: string;
   skill_level: string;
   custom_topic?: string;
+  num_questions: number;
   total_questions: number;
   completed_questions: number;
   correct_answers: number;
   score_percentage: number;
   total_time_seconds: number;
+  time_taken?: number;
   time_limit_seconds?: number;
   time_remaining_seconds?: number;
   is_paused?: boolean;
@@ -310,11 +315,23 @@ export const authAPI = {
     return response.data;
   },
 
+  checkEmailAvailability: async (email: string, currentUserId?: number): Promise<{
+    available: boolean;
+    message: string;
+  }> => {
+    const response = await api.post('/auth/check-email', { 
+      email, 
+      current_user_id: currentUserId 
+    });
+    return response.data;
+  },
+
   register: async (data: {
     username: string;
     email: string;
     password: string;
     full_name: string;
+    phone_number?: string;
     skill_level: string;
     role?: string;
   }): Promise<AuthResponse> => {
@@ -332,6 +349,46 @@ export const authAPI = {
 
   getProfile: async (): Promise<User> => {
     const response = await api.get('/auth/profile');
+    return response.data;
+  },
+
+  updateProfile: async (data: {
+    full_name?: string;
+    email?: string;
+    phone_number?: string;
+    skill_level?: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    user: User;
+  }> => {
+    const response = await api.put('/auth/profile', data);
+    return response.data;
+  },
+
+  uploadAvatar: async (file: File): Promise<{
+    success: boolean;
+    message: string;
+    avatar_url: string;
+    user: User;
+  }> => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    
+    const response = await api.post('/auth/profile/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  deleteAvatar: async (): Promise<{
+    success: boolean;
+    message: string;
+    user: User;
+  }> => {
+    const response = await api.delete('/auth/profile/avatar');
     return response.data;
   },
 

@@ -226,6 +226,75 @@ class EmailService:
         
         return self.send_email(user_email, subject, html_content, text_content)
     
+    def send_verification_email(self, user_email, user_name, verification_token, verification_url):
+        """Send email verification email with token"""
+        # verification_url should already contain the token in URL parameter format
+        # Example: http://localhost:3000/verify-email/token123
+        verification_link = verification_url
+        
+        subject = "Smart Quizzer - Verify Your Email Address"
+        text_content = f"""
+        Hello {user_name},
+        
+        Thank you for registering with Smart Quizzer AI!
+        
+        Please verify your email address by clicking the link below:
+        {verification_link}
+        
+        This link will expire in 24 hours.
+        
+        If you did not create this account, please ignore this email.
+        
+        Best regards,
+        Smart Quizzer AI Team
+        """
+        
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #2c3e50;">Verify Your Email Address 📧</h2>
+                    
+                    <p>Hello <strong>{user_name}</strong>,</p>
+                    
+                    <p>Thank you for registering with Smart Quizzer AI!</p>
+                    
+                    <p>Please verify your email address to complete your registration and access all features.</p>
+                    
+                    <p style="margin: 30px 0;">
+                        <a href="{verification_link}" 
+                           style="background-color: #27ae60; color: white; padding: 12px 30px; 
+                                  text-decoration: none; border-radius: 5px; display: inline-block;">
+                            Verify Email Address
+                        </a>
+                    </p>
+                    
+                    <p style="color: #7f8c8d; font-size: 12px;">
+                        Or copy and paste this link into your browser:<br/>
+                        <a href="{verification_link}" style="color: #3498db;">{verification_link}</a>
+                    </p>
+                    
+                    <p style="color: #7f8c8d; font-size: 12px; margin-top: 30px;">
+                        This link will expire in 24 hours.
+                    </p>
+                    
+                    <p style="color: #7f8c8d; font-size: 12px;">
+                        If you did not create this account, please ignore this email.
+                    </p>
+                    
+                    <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;"/>
+                    
+                    <p style="color: #7f8c8d; font-size: 12px;">
+                        Smart Quizzer AI Team<br/>
+                        This is an automated message. Please do not reply to this email.
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        return self.send_email(user_email, subject, html_content, text_content)
+
     def send_password_reset_email(self, user_email, user_name, reset_token, reset_url):
         """Send password reset email with token"""
         # reset_url should already contain the token in URL parameter format

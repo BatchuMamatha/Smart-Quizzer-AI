@@ -1,4 +1,5 @@
 import { User } from './api';
+import { sessionTimeout } from './sessionTimeout';
 
 export class UserManager {
   private static instance: UserManager;
@@ -22,6 +23,8 @@ export class UserManager {
     if (userData && token) {
       try {
         this.currentUser = JSON.parse(userData);
+        // Resume session timeout monitoring if user was already logged in
+        sessionTimeout.start();
       } catch (error) {
         console.error('Error parsing user data:', error);
         this.logout();
@@ -44,6 +47,9 @@ export class UserManager {
       fullName: user.full_name,
       tokenStored: !!token
     });
+    
+    // Start session timeout monitoring (30-min inactivity)
+    sessionTimeout.start();
   }
 
   public logout(): void {
@@ -54,6 +60,9 @@ export class UserManager {
     // Also clear localStorage in case there's old data
     localStorage.removeItem('user');
     localStorage.removeItem('access_token');
+    
+    // Stop session timeout monitoring
+    sessionTimeout.stop();
     
     console.log('🔍 UserManager.logout: All session data cleared');
   }

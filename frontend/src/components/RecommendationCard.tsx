@@ -18,15 +18,15 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
   icon = '💡'
 }) => {
   const priorityColors = {
-    high: 'border-red-500 bg-red-50',
-    medium: 'border-yellow-500 bg-yellow-50',
-    low: 'border-blue-500 bg-blue-50'
+    high: 'border-red-500 bg-red-50 dark:bg-red-900/20',
+    medium: 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20',
+    low: 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
   };
 
   const priorityTextColors = {
-    high: 'text-red-700',
-    medium: 'text-yellow-700',
-    low: 'text-blue-700'
+    high: 'text-red-700 dark:text-red-400',
+    medium: 'text-yellow-700 dark:text-yellow-400',
+    low: 'text-blue-700 dark:text-blue-400'
   };
 
   const priorityButtonColors = {
@@ -43,7 +43,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
           <h3 className={`font-semibold text-lg ${priorityTextColors[priority]} mb-2`}>
             {title}
           </h3>
-          <p className="text-gray-700 mb-3">
+          <p className="text-gray-700 dark:text-gray-300 mb-3">
             {description}
           </p>
           <button

@@ -26,8 +26,11 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     full_name = db.Column(db.String(100), nullable=False)
+    phone_number = db.Column(db.String(20), nullable=True)  # Optional phone number
     skill_level = db.Column(db.String(20), nullable=False, default='Beginner')  # Beginner, Intermediate, Advanced
     role = db.Column(db.String(20), nullable=False, default='user')  # user or admin
+    email_verified = db.Column(db.Boolean, nullable=False, default=True)  # Email verification disabled - default to True
+    avatar_url = db.Column(db.String(255), nullable=True)  # Profile picture URL
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -57,8 +60,11 @@ class User(db.Model):
             'username': self.username,
             'email': self.email,
             'full_name': self.full_name,
+            'phone_number': self.phone_number,
             'skill_level': self.skill_level,
             'role': self.role,
+            'email_verified': self.email_verified,
+            'avatar_url': self.avatar_url,
             'created_at': self.created_at.isoformat(),
             'quiz_count': quiz_count
         }
@@ -373,6 +379,52 @@ class PasswordResetToken(db.Model):
     
     # Relationship
     user = db.relationship('User', backref='reset_tokens')
+    
+    def __init__(self, user_id, token, expires_in_hours=24):
+        self.user_id = user_id
+        self.token = token
+        self.expires_at = datetime.now() + timedelta(hours=expires_in_hours)
+    
+    def is_valid(self):
+        """Check if token is still valid (not expired and not used)"""
+        return not self.used and datetime.now() < self.expires_at
+    
+    def mark_as_used(self):
+        """Mark token as used"""
+        self.used = True
+        self.used_at = datetime.now()
+    
+    @classmethod
+    def cleanup_expired(cls):
+        """Remove expired tokens from database"""
+        now = datetime.now()
+        expired_count = db.session.query(cls).filter(cls.expires_at < now).delete()  # type: ignore
+        db.session.commit()
+        return expired_count
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'created_at': self.created_at.isoformat(),
+            'expires_at': self.expires_at.isoformat(),
+            'used': self.used,
+            'used_at': self.used_at.isoformat() if self.used_at else None
+        }
+
+class EmailVerificationToken(db.Model):
+    __tablename__ = 'email_verification_tokens'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    token = db.Column(db.String(100), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relationship
+    user = db.relationship('User', backref='verification_tokens')
     
     def __init__(self, user_id, token, expires_in_hours=24):
         self.user_id = user_id

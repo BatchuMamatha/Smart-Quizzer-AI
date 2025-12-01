@@ -10,6 +10,7 @@ const AdminRegister: React.FC = () => {
     password: '',
     confirmPassword: '',
     full_name: '',
+    phone_number: '',
     skill_level: 'Advanced', // Default for admins
     adminCode: '', // Security code to verify admin creation
   });
@@ -43,6 +44,21 @@ const AdminRegister: React.FC = () => {
     }
   };
 
+  const validateEmail = (email: string): { valid: boolean; message: string } => {
+    // Email regex pattern for comprehensive validation
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    
+    if (!email.trim()) {
+      return { valid: false, message: 'Email address is required' };
+    }
+    
+    if (!emailRegex.test(email)) {
+      return { valid: false, message: 'Please enter a valid email address (e.g., user@example.com)' };
+    }
+    
+    return { valid: true, message: 'Email is valid' };
+  };
+
   const validatePasswordStrength = (password: string): { valid: boolean; message: string } => {
     if (password.length < 8) {
       return { valid: false, message: 'Password must be at least 8 characters long' };
@@ -70,6 +86,14 @@ const AdminRegister: React.FC = () => {
     // Validate username is not empty
     if (!formData.username.trim()) {
       setError('Please enter a username before continuing');
+      setLoading(false);
+      return;
+    }
+
+    // Validate email format
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.valid) {
+      setError(emailValidation.message);
       setLoading(false);
       return;
     }
@@ -132,14 +156,14 @@ const AdminRegister: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-red-50 to-orange-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-red-50 to-orange-50 dark:from-gray-900 dark:via-red-900 dark:to-orange-900 py-12 px-4 sm:px-6 lg:px-8">
       {/* Background Decorations */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-amber-400 to-red-500 rounded-full opacity-20 blur-3xl"></div>
         <div className="absolute top-1/3 left-1/3 w-64 h-64 bg-gradient-to-br from-orange-400 to-pink-500 rounded-full opacity-15 blur-3xl"></div>
       </div>
 
-      <div className="relative max-w-md w-full space-y-8">
+      <div className="relative max-w-4xl w-full space-y-6">
         {/* Header */}
         <div className="text-center animate-fade-in-up">
           <div className="mx-auto h-20 w-20 bg-gradient-to-br from-amber-600 to-red-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl hover-glow">
@@ -148,10 +172,10 @@ const AdminRegister: React.FC = () => {
           <h2 className="text-4xl font-bold text-gradient mb-2">
             Admin Registration
           </h2>
-          <p className="text-gray-600 text-lg font-medium">
+          <p className="text-gray-600 dark:text-gray-300 text-lg font-medium">
             Create Administrator Account
           </p>
-          <p className="text-gray-500 mt-2">
+          <p className="text-gray-500 dark:text-gray-400 mt-2">
             Secure access to platform management
           </p>
         </div>
@@ -159,31 +183,33 @@ const AdminRegister: React.FC = () => {
         {/* Registration Form */}
         <div className="card animate-fade-in-scale">
           <div className="card-body space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 animate-fade-in-up">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 animate-fade-in-up">
                   <div className="flex">
                     <div className="flex-shrink-0">
                       <span className="text-red-400 text-lg">⚠️</span>
                     </div>
                     <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">Registration Error</h3>
-                      <p className="text-sm text-red-600 mt-1">{error}</p>
+                      <h3 className="text-sm font-medium text-red-800 dark:text-red-400">Registration Error</h3>
+                      <p className="text-sm text-red-600 dark:text-red-300 mt-1">{error}</p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-4">
-                {/* Full Name */}
-                <div>
-                  <label htmlFor="full_name" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">👨‍💼</span>
-                      Full Name
-                    </span>
-                  </label>
-                  <div className="relative">
+              {/* Personal Information Section */}
+              <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-3 flex items-center">
+                  <span className="mr-2">👤</span>
+                  Administrator Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Full Name */}
+                  <div>
+                    <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      👨‍💼 Full Name
+                    </label>
                     <input
                       id="full_name"
                       name="full_name"
@@ -192,24 +218,16 @@ const AdminRegister: React.FC = () => {
                       required
                       value={formData.full_name}
                       onChange={handleChange}
-                      className="form-input pl-12 focus-ring"
+                      className="form-input focus-ring"
                       placeholder="Enter your full name"
                     />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">👨‍💼</span>
-                    </div>
                   </div>
-                </div>
 
-                {/* Username */}
-                <div>
-                  <label htmlFor="username" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">👤</span>
-                      Username
-                    </span>
-                  </label>
-                  <div className="relative">
+                  {/* Username */}
+                  <div>
+                    <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      👤 Username
+                    </label>
                     <input
                       id="username"
                       name="username"
@@ -218,24 +236,16 @@ const AdminRegister: React.FC = () => {
                       required
                       value={formData.username}
                       onChange={handleChange}
-                      className="form-input pl-12 focus-ring"
+                      className="form-input focus-ring"
                       placeholder="Choose a username"
                     />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">👤</span>
-                    </div>
                   </div>
-                </div>
 
-                {/* Email */}
-                <div>
-                  <label htmlFor="email" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">📧</span>
-                      Email Address
-                    </span>
-                  </label>
-                  <div className="relative">
+                  {/* Email */}
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      📧 Email Address
+                    </label>
                     <input
                       id="email"
                       name="email"
@@ -244,24 +254,43 @@ const AdminRegister: React.FC = () => {
                       required
                       value={formData.email}
                       onChange={handleChange}
-                      className="form-input pl-12 focus-ring"
+                      className="form-input focus-ring"
                       placeholder="your.email@example.com"
                     />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">📧</span>
-                    </div>
+                  </div>
+
+                  {/* Phone Number (Optional) */}
+                  <div>
+                    <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      📱 Phone <span className="text-gray-400 text-xs">(optional)</span>
+                    </label>
+                    <input
+                      id="phone_number"
+                      name="phone_number"
+                      type="tel"
+                      autoComplete="tel"
+                      pattern="[+]?[0-9]{10,15}"
+                      value={formData.phone_number}
+                      onChange={handleChange}
+                      className="form-input focus-ring"
+                      placeholder="+1234567890"
+                    />
                   </div>
                 </div>
+              </div>
 
-                {/* Admin Code */}
-                <div>
-                  <label htmlFor="adminCode" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">🔐</span>
-                      Admin Verification Code
-                    </span>
-                  </label>
-                  <div className="relative">
+              {/* Security Section */}
+              <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-red-700 dark:text-red-300 mb-3 flex items-center">
+                  <span className="mr-2">🔐</span>
+                  Security & Verification
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Admin Code */}
+                  <div className="md:col-span-2">
+                    <label htmlFor="adminCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      🔐 Admin Verification Code
+                    </label>
                     <input
                       id="adminCode"
                       name="adminCode"
@@ -269,17 +298,13 @@ const AdminRegister: React.FC = () => {
                       required
                       value={formData.adminCode}
                       onChange={handleChange}
-                      className="form-input pl-12 focus-ring"
+                      className="form-input focus-ring"
                       placeholder="Enter admin verification code"
                     />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">🔐</span>
-                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Contact system administrator for verification code
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Contact system administrator for verification code
-                  </p>
-                </div>
 
                 {/* Password */}
                 <div>
@@ -402,13 +427,14 @@ const AdminRegister: React.FC = () => {
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Submit Button */}
-              <div>
+            {/* Submit Buttons */}
+              <div className="flex flex-col md:flex-row gap-3">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn btn-success btn-lg w-full group"
+                  className="btn btn-success btn-lg flex-1 group"
                 >
                   {loading ? (
                     <div className="flex items-center justify-center">
@@ -423,34 +449,20 @@ const AdminRegister: React.FC = () => {
                     </div>
                   )}
                 </button>
-              </div>
-            </form>
-
-            <div className="text-center">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500 font-medium">Already have admin access?</span>
-                </div>
-              </div>
-              
-              <div className="mt-4">
                 <Link
                   to="/login"
-                  className="btn btn-secondary w-full group"
+                  className="btn btn-secondary flex-1 group"
                 >
                   <span className="mr-2">🔑</span>
                   Admin Sign In
                   <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
                 </Link>
               </div>
-            </div>
+            </form>
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-500 mt-8">
+        <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-4">
           Admin accounts require verification code for security
         </p>
       </div>

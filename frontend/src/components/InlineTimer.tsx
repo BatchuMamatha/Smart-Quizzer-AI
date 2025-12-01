@@ -4,18 +4,20 @@ interface InlineTimerProps {
   initialSeconds: number;
   onTimeUp: () => void;
   onTick?: (elapsedSeconds: number) => void;
+  isPaused?: boolean;
 }
 
 const InlineTimer: React.FC<InlineTimerProps> = ({
   initialSeconds,
   onTimeUp,
   onTick,
+  isPaused = false,
 }) => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(true);
 
   useEffect(() => {
-    if (!isRunning) return;
+    if (!isRunning || isPaused) return;
 
     const timer = setInterval(() => {
       setElapsedSeconds((prev) => {
@@ -37,7 +39,7 @@ const InlineTimer: React.FC<InlineTimerProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isRunning, initialSeconds, onTimeUp, onTick]);
+  }, [isRunning, isPaused, initialSeconds, onTimeUp, onTick]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -45,31 +47,30 @@ const InlineTimer: React.FC<InlineTimerProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Calculate progress percentage (elapsed / total)
-  const progressPercentage = (elapsedSeconds / initialSeconds) * 100;
+  // Calculate remaining time in seconds
+  const timeRemaining = initialSeconds - elapsedSeconds;
   
-  // Determine color based on progress (reverse: less color at start, more as time passes)
-  let timeColor = 'text-green-600'; // 0-50% elapsed = green
-  let bgColor = 'bg-green-50';
-  let borderColor = 'border-green-200';
+  // Determine color based on time remaining (not percentage)
+  let timeColor = 'text-green-600 dark:text-green-500'; // Default: plenty of time
+  let bgColor = 'bg-green-50 dark:bg-green-900/20';
+  let borderColor = 'border-green-200 dark:border-green-800';
   
-  if (progressPercentage >= 75) {
-    // 75-100% elapsed (25% time left)
-    timeColor = 'text-red-600';
-    bgColor = 'bg-red-50';
-    borderColor = 'border-red-200';
-  } else if (progressPercentage >= 50) {
-    // 50-75% elapsed (50% time left)
-    timeColor = 'text-yellow-600';
-    bgColor = 'bg-yellow-50';
-    borderColor = 'border-yellow-200';
+  if (timeRemaining <= 120) {
+    // Less than 2 minutes (120 seconds) remaining = RED
+    timeColor = 'text-red-600 dark:text-red-400';
+    bgColor = 'bg-red-50 dark:bg-red-900/20';
+    borderColor = 'border-red-200 dark:border-red-800';
+  } else if (timeRemaining <= 300) {
+    // Less than 5 minutes (300 seconds) remaining = YELLOW
+    timeColor = 'text-yellow-600 dark:text-yellow-500';
+    bgColor = 'bg-yellow-50 dark:bg-yellow-900/20';
+    borderColor = 'border-yellow-200 dark:border-yellow-800';
   }
 
-  // Audio alert when 90% of time has elapsed (10% remaining)
+  // Audio alert when less than 2 minutes remaining
   useEffect(() => {
-    const timeRemaining = initialSeconds - elapsedSeconds;
-    if (timeRemaining === 10 && isRunning) {
-      // Play beep sound using Web Audio API
+    if (timeRemaining === 120 && isRunning) {
+      // Play alert sound when hitting 2 minute mark
       try {
         const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
@@ -90,24 +91,29 @@ const InlineTimer: React.FC<InlineTimerProps> = ({
         console.log('Audio context not available');
       }
     }
-  }, [elapsedSeconds, isRunning, initialSeconds]);
-
-  const timeRemaining = initialSeconds - elapsedSeconds;
+  }, [timeRemaining, isRunning]);
 
   return (
-    <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border-2 ${borderColor} ${bgColor}`}>
+    <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border-2 ${borderColor} ${bgColor} ${isPaused ? 'opacity-60' : ''} transition-all duration-300`}>
       {/* Timer Icon and Time - showing elapsed time */}
       <div className="flex items-center gap-1">
-        <span className="text-lg">⏱️</span>
-        <span className={`font-bold text-base ${timeColor}`}>
+        <span className="text-lg">{isPaused ? '⏸️' : '⏱️'}</span>
+        <span className={`font-bold text-base ${timeColor} transition-colors duration-300`}>
           {formatTime(elapsedSeconds)}
         </span>
       </div>
 
-      {/* Warning when 30 seconds remaining */}
-      {timeRemaining <= 30 && timeRemaining > 0 && (
-        <span className="ml-2 text-xs text-red-600 font-semibold animate-pulse">
-          ⚠️ {timeRemaining}s left
+      {/* Paused indicator */}
+      {isPaused && (
+        <span className="ml-2 text-xs text-gray-600 dark:text-gray-400 font-semibold">
+          PAUSED
+        </span>
+      )}
+
+      {/* Warning when less than 2 minutes remaining */}
+      {!isPaused && timeRemaining <= 120 && timeRemaining > 0 && (
+        <span className="ml-2 text-xs text-red-600 dark:text-red-400 font-semibold animate-pulse">
+          ⚠️ {Math.floor(timeRemaining / 60)}:{(timeRemaining % 60).toString().padStart(2, '0')} left
         </span>
       )}
     </div>

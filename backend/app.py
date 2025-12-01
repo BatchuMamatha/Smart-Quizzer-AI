@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
@@ -27,11 +28,32 @@ except Exception:
 # Load environment variables from parent directory
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
+# Validate required environment variables at startup
+REQUIRED_ENV_VARS = [
+    'SECRET_KEY',
+    'GEMINI_API_KEY',
+    'ADMIN_REGISTRATION_CODE'
+]
+
+missing_vars = [var for var in REQUIRED_ENV_VARS if not os.getenv(var)]
+if missing_vars:
+    error_msg = f"CRITICAL: Missing required environment variables: {', '.join(missing_vars)}\n" \
+                f"Please set these in your .env file before starting the application.\n" \
+                f"See .env.example for reference."
+    print(f"\n{'='*80}")
+    print(f"❌ STARTUP FAILURE")
+    print(f"{'='*80}")
+    print(error_msg)
+    print(f"{'='*80}\n")
+    sys.exit(1)
+
+print("✅ All required environment variables validated")
+
 # Import our modules
 from models import (
     db, User, QuizSession, Question, Topic, QuizLeaderboard,
     Badge, UserBadge, PerformanceTrend, LearningPath, LearningMilestone,
-    MultiplayerRoom, MultiplayerParticipant, PasswordResetToken
+    MultiplayerRoom, MultiplayerParticipant, PasswordResetToken, EmailVerificationToken
 )
 from auth import init_jwt, generate_tokens, auth_required
 from question_gen import question_generator
@@ -103,6 +125,31 @@ def send_welcome_email(user_email, user_name):
             'message': 'Failed to send welcome email'
         }
 
+def send_verification_email(user_email, user_name, verification_token, frontend_url):
+    """
+    Send email verification email to newly registered user
+    
+    Args:
+        user_email (str): User's email address
+        user_name (str): User's full name
+        verification_token (str): Token for email verification
+        frontend_url (str): Frontend base URL
+    
+    Returns:
+        dict: {'success': bool, 'message': str, 'error': str if failed}
+    """
+    try:
+        verification_url = f"{frontend_url}/verify-email/{verification_token}"
+        return email_service.send_verification_email(user_email, user_name, verification_token, verification_url)
+    except Exception as e:
+        logger.error(f"Error sending verification email: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to send verification email'
+        }
+
+
 def send_password_reset_email(user_email, user_name, reset_token, reset_url):
     """
     Send password reset email with secure token
@@ -155,6 +202,13 @@ def validate_password(password):
     
     return True, "Password is valid"
 
+# ==================== RATE LIMITING CONFIGURATION ====================
+
+# Rate limiting for quiz start attempts
+quiz_start_attempts = {}  # Dictionary to track quiz start attempts by user
+MAX_QUIZ_START_ATTEMPTS = 5  # Maximum attempts per time window
+QUIZ_START_WINDOW = 300  # 5 minutes in seconds
+
 # ==================== APP INITIALIZATION ====================
 
 def create_app():
@@ -195,23 +249,40 @@ def create_app():
         r"/api/*": {
             "origins": cors_origins,
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "expose_headers": ["Content-Type", "Authorization"],
+            "allow_headers": ["Content-Type", "Authorization", "X-CSRF-Token"],
+            "expose_headers": ["Content-Type", "Authorization", "X-CSRF-Token"],
             "supports_credentials": True
         }
     })
     
-    # Initialize SocketIO with CORS support
+    # Initialize CSRF Protection
+    csrf = CSRFProtect(app)
+    
+    # Exempt SocketIO from CSRF (uses token-based auth)
+    app.config['WTF_CSRF_CHECK_DEFAULT'] = False  # We'll enable per-endpoint
+    app.config['WTF_CSRF_TIME_LIMIT'] = None  # Token doesn't expire
+    app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow for development
+    
+    # Initialize SocketIO with CORS support and error handling
     socketio = SocketIO(app, 
                        cors_allowed_origins=cors_origins,
                        async_mode='threading',
                        logger=False,
                        engineio_logger=False,
-                       ping_interval=60,
-                       ping_timeout=10,
-                       max_http_buffer_size=int(1e6))
+                       ping_interval=25,
+                       ping_timeout=60,
+                       max_http_buffer_size=int(1e6),
+                       transports=['websocket', 'polling'],
+                       allow_upgrades=True)
     
     init_jwt(app)
+    
+    # CSRF Token endpoint
+    @app.route('/api/csrf-token', methods=['GET'])
+    def get_csrf_token():
+        """Generate and return CSRF token for client"""
+        token = generate_csrf()
+        return jsonify({'csrf_token': token}), 200
     
     # Create tables and initialize database
     with app.app_context():
@@ -397,8 +468,10 @@ def handle_connect():
             'status': 'connected',
             'timestamp': datetime.now().isoformat()
         })
+        return True
     except Exception as e:
         logger.error(f"WebSocket connection error: {e}")  # type: ignore
+        return False
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -407,6 +480,12 @@ def handle_disconnect():
         logger.info(f"WebSocket client disconnected")  # type: ignore
     except Exception as e:
         logger.error(f"WebSocket disconnect error: {e}")  # type: ignore
+
+@socketio.on_error_default
+def default_error_handler(e):
+    """Handle Socket.IO errors"""
+    logger.error(f"Socket.IO error: {e}")  # type: ignore
+    return False
 
 @socketio.on('join_leaderboard')
 def handle_join_leaderboard(data):
@@ -605,6 +684,17 @@ def root():
         }
     }), 200
 
+# Serve uploaded files (avatars, etc.)
+@app.route('/uploads/<path:filename>')
+def serve_upload(filename):
+    """Serve uploaded files like avatars"""
+    try:
+        upload_dir = app.config['UPLOAD_FOLDER']
+        return send_file(os.path.join(upload_dir, filename))
+    except Exception as e:
+        logger.error(f"Error serving file {filename}: {e}")
+        return jsonify({'error': 'File not found'}), 404
+
 # Health endpoint
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -751,6 +841,39 @@ def check_username_availability():
         logger.error(f"Error checking username availability: {e}")
         return jsonify({'error': 'Failed to check username availability'}), 500
 
+@app.route('/api/auth/check-email', methods=['POST'])
+def check_email_availability():
+    """Check if email is available for registration or update"""
+    try:
+        data = request.get_json()
+        if not data or 'email' not in data:
+            return jsonify({'error': 'Email is required'}), 400
+        
+        email = data['email'].strip()
+        if not email:
+            return jsonify({'available': False, 'message': 'Email cannot be empty'}), 200
+        
+        # Basic email format validation
+        if '@' not in email or '.' not in email.split('@')[-1]:
+            return jsonify({'available': False, 'message': 'Invalid email format'}), 200
+        
+        # Optional: exclude current user's email when checking (for profile updates)
+        current_user_id = data.get('current_user_id')
+        
+        # Check if email exists
+        existing_user = User.query.filter_by(email=email).first()
+        
+        if existing_user:
+            # If checking for profile update, allow if it's the same user
+            if current_user_id and existing_user.id == current_user_id:
+                return jsonify({'available': True, 'message': 'This is your current email'}), 200
+            return jsonify({'available': False, 'message': 'Email already in use'}), 200
+        
+        return jsonify({'available': True, 'message': 'Email is available'}), 200
+    except Exception as e:
+        logger.error(f"Error checking email availability: {e}")
+        return jsonify({'error': 'Failed to check email availability'}), 500
+
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     try:
@@ -790,7 +913,12 @@ def register():
         # Verify admin code if trying to register as admin
         if role == 'admin':
             admin_code = data.get('admin_code', '').strip()
-            expected_code = os.getenv('ADMIN_REGISTRATION_CODE', 'ADMIN2024')
+            # No default value - requires .env configuration
+            expected_code = os.getenv('ADMIN_REGISTRATION_CODE')
+            
+            if not expected_code:
+                print(f"⚠️ CRITICAL: ADMIN_REGISTRATION_CODE not configured in .env")
+                return jsonify({'error': 'Admin registration is not configured'}), 500
             
             if not admin_code:
                 print(f"⚠️ Admin registration failed: No admin code provided")
@@ -807,8 +935,10 @@ def register():
             username=data['username'],# type: ignore
             email=data['email'],# type: ignore
             full_name=data['full_name'],# type: ignore
+            phone_number=data.get('phone_number', '').strip() or None,# type: ignore
             skill_level=data['skill_level'],# type: ignore
-            role=role# type: ignore
+            role=role,# type: ignore
+            email_verified=True  # Email verification disabled - mark verified by default# type: ignore
         )
         user.set_password(data['password'])
         
@@ -819,21 +949,8 @@ def register():
         tokens = generate_tokens(user.id)
         print(f"✅ User '{user.username}' registered successfully as {role}")
         
-        # Send welcome email (optional - don't fail registration if email fails)
-        try:
-            email_result = send_welcome_email(user.email, user.full_name)
-            if email_result['success']:
-                print(f"📧 Welcome email sent to {user.email}")
-            else:
-                error_msg = email_result.get('error', 'Unknown error')
-                print(f"⚠️ Welcome email failed: {error_msg}")
-                # Log detailed error info for debugging
-                if 'BadCredentials' in str(error_msg):
-                    print(f"   → Issue: Gmail authentication failed (Error 535)")
-                    print(f"   → Fix: Use Google App Password, not regular Gmail password")
-                    print(f"   → Get App Password: https://myaccount.google.com/apppasswords")
-        except Exception as e:
-            print(f"⚠️ Welcome email exception: {e}")
+        # Email verification feature disabled — do not generate or send verification tokens.
+        # Users are marked as verified by default so they can access all features.
         
         # Add stats to user data
         user_dict = user.to_dict()
@@ -982,6 +1099,157 @@ def get_profile(current_user_id):
         return jsonify(profile_data), 200
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/profile', methods=['PUT'])
+@auth_required
+def update_profile(current_user_id):
+    """Update user profile information"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Update allowed fields
+        if 'full_name' in data and data['full_name'].strip():
+            user.full_name = data['full_name'].strip()
+        
+        if 'email' in data and data['email'].strip():
+            # Check if email is already taken by another user
+            existing_user = User.query.filter_by(email=data['email']).first()
+            if existing_user and existing_user.id != current_user_id:
+                return jsonify({'error': 'Email already in use'}), 409
+            user.email = data['email'].strip()
+        
+        if 'phone_number' in data:
+            phone = data['phone_number'].strip() if data['phone_number'] else None
+            user.phone_number = phone
+        
+        if 'skill_level' in data:
+            valid_levels = ['Beginner', 'Intermediate', 'Advanced']
+            if data['skill_level'] in valid_levels:
+                user.skill_level = data['skill_level']
+        
+        if 'avatar_url' in data:
+            user.avatar_url = data['avatar_url']
+        
+        user.updated_at = datetime.now()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Profile updated successfully',
+            'user': user.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating profile: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/profile/avatar', methods=['POST'])
+@auth_required
+def upload_avatar(current_user_id):
+    """Upload user profile avatar/picture"""
+    try:
+        # Check if file is in request
+        if 'avatar' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['avatar']
+        
+        # Check if file is selected
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        # Validate file type
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        
+        if file_ext not in allowed_extensions:
+            return jsonify({'error': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'}), 400
+        
+        # Get user
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Create avatars directory if it doesn't exist
+        avatars_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'avatars')
+        os.makedirs(avatars_dir, exist_ok=True)
+        
+        # Delete old avatar if exists
+        if user.avatar_url:
+            try:
+                old_avatar_path = os.path.join(app.config['UPLOAD_FOLDER'], user.avatar_url.replace('/uploads/', ''))
+                if os.path.exists(old_avatar_path):
+                    os.remove(old_avatar_path)
+                    logger.info(f"Deleted old avatar: {old_avatar_path}")
+            except Exception as e:
+                logger.warning(f"Could not delete old avatar: {e}")
+        
+        # Generate unique filename
+        filename = f"avatar_{current_user_id}_{uuid.uuid4().hex[:8]}.{file_ext}"
+        filepath = os.path.join(avatars_dir, filename)
+        
+        # Save file
+        file.save(filepath)
+        logger.info(f"Avatar saved: {filepath}")
+        
+        # Update user avatar URL (relative path for serving)
+        user.avatar_url = f'/uploads/avatars/{filename}'
+        user.updated_at = datetime.now()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Avatar uploaded successfully',
+            'avatar_url': user.avatar_url,
+            'user': user.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error uploading avatar: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/auth/profile/avatar', methods=['DELETE'])
+@auth_required
+def delete_avatar(current_user_id):
+    """Delete user profile avatar"""
+    try:
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Delete avatar file if exists
+        if user.avatar_url:
+            try:
+                avatar_path = os.path.join(app.config['UPLOAD_FOLDER'], user.avatar_url.replace('/uploads/', ''))
+                if os.path.exists(avatar_path):
+                    os.remove(avatar_path)
+                    logger.info(f"Deleted avatar: {avatar_path}")
+            except Exception as e:
+                logger.warning(f"Could not delete avatar file: {e}")
+        
+        # Update user record
+        user.avatar_url = None
+        user.updated_at = datetime.now()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Avatar deleted successfully',
+            'user': user.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting avatar: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/auth/profile/skill-level', methods=['PUT'])
@@ -1320,6 +1588,33 @@ def reset_password():
         print(f"Password reset error: {e}")
         return jsonify({'error': 'Failed to reset password'}), 500
 
+@app.route('/api/auth/verify-email/<token>', methods=['GET'])
+def verify_email(token):
+    """Verify user email address using token"""
+    # Email verification feature has been disabled in this deployment.
+    # Return success so clients do not block users on verification.
+    return jsonify({
+        'success': True,
+        'message': 'Email verification disabled on this server'
+    }), 200
+
+@app.route('/api/auth/resend-verification', methods=['POST'])
+def resend_verification():
+    """Resend verification email endpoint (disabled).
+
+    Keeping the endpoint for compatibility but it will not send emails.
+    """
+    return jsonify({
+        'success': True,
+        'message': 'Email verification is disabled on this server'
+    }), 200
+        
+    # Email verification disabled - always return success
+    return jsonify({
+        'success': True,
+        'message': 'Email verification is disabled'
+    }), 200
+
 @app.route('/api/admin/test-email', methods=['POST'])
 @auth_required
 def test_email_config(current_user_id):
@@ -1389,7 +1684,55 @@ def get_topics():
 @handle_errors
 def start_quiz(current_user_id):
     try:
+        print(f"🎯 Quiz start request received for user {current_user_id}")
         data = request.get_json()
+        print(f"📥 Request data: {data}")
+        
+        # Rate limiting: Check quiz start attempts for this user
+        current_time = datetime.now().timestamp()
+        user_key = str(current_user_id)
+        print(f"🕐 Rate limiting check for user {user_key}")
+        
+        if user_key in quiz_start_attempts:
+            # Clean old attempts outside the window
+            quiz_start_attempts[user_key] = [
+                timestamp for timestamp in quiz_start_attempts[user_key]
+                if current_time - timestamp < QUIZ_START_WINDOW
+            ]
+            
+            # Check if too many attempts
+            if len(quiz_start_attempts[user_key]) >= MAX_QUIZ_START_ATTEMPTS:
+                return jsonify({
+                    'error': f'Too many quiz start requests. Please try again in {QUIZ_START_WINDOW // 60} minutes.',
+                    'retry_after': QUIZ_START_WINDOW,
+                    'rate_limited': True
+                }), 429
+        else:
+            quiz_start_attempts[user_key] = []
+        
+        # Record this attempt
+        quiz_start_attempts[user_key].append(current_time)
+        
+        # Auto-complete any existing active quiz sessions to allow starting new ones
+        active_quizzes = QuizSession.query.filter_by(
+            user_id=current_user_id,
+            status='active'
+        ).all()
+        
+        if active_quizzes:
+            print(f"🔄 Auto-completing {len(active_quizzes)} existing active quiz(es) for user {current_user_id}")
+            for active_quiz in active_quizzes:
+                active_quiz.status = 'completed'
+                active_quiz.completed_at = datetime.now()
+                print(f"   ✅ Completed quiz: {active_quiz.topic} (ID: {active_quiz.id})")
+            
+            try:
+                db.session.commit()
+                print(f"💾 Successfully auto-completed existing quizzes")
+            except Exception as e:
+                db.session.rollback()
+                print(f"❌ Error auto-completing quizzes: {e}")
+                # Continue anyway - don't block new quiz creation
         
         # Validate input parameters using comprehensive validation
         validation_errors = InputValidator.validate_quiz_params(data)
@@ -4407,4 +4750,16 @@ if __name__ == '__main__':
     
     # Use socketio.run instead of app.run for WebSocket support
     debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
-    socketio.run(app, debug=debug_mode, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True, use_reloader=False)
+    try:
+        socketio.run(app, 
+                    debug=debug_mode, 
+                    host='0.0.0.0', 
+                    port=5000, 
+                    allow_unsafe_werkzeug=True, 
+                    use_reloader=False,
+                    log_output=False)
+    except Exception as e:
+        logger.error(f"Failed to start Socket.IO server: {e}")
+        # Fallback to regular Flask app if Socket.IO fails
+        print("⚠️  Socket.IO failed, falling back to regular Flask server")
+        app.run(debug=debug_mode, host='0.0.0.0', port=5000)

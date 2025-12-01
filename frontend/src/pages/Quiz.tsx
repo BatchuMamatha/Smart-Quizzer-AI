@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { quizAPI, Question, QuizSession } from '../lib/api';
 import Header from '../components/Header';
 import InlineTimer from '../components/InlineTimer';
+import { toast } from '../lib/toast';
 
 interface QuizState {
   quizData: {
@@ -32,12 +33,54 @@ const Quiz: React.FC = () => {
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackRating, setFeedbackRating] = useState(0);
   
-  // Timer states - simplified (no pause/resume)
+  // Timer states with pause/resume support
   const [timerDuration, setTimerDuration] = useState(DEFAULT_QUIZ_DURATION_SECONDS);
   const [timerStarted, setTimerStarted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isAutoSubmitting, setIsAutoSubmitting] = useState(false);
+  const [quizCompleted, setQuizCompleted] = useState(false);
+  const [autoSubmitFailed, setAutoSubmitFailed] = useState(false);
+  const [showNavigationWarning, setShowNavigationWarning] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
 
   useEffect(() => {
+    const initializeTimer = async () => {
+      if (!quizData || !quizData.quiz_session || !quizData.quiz_session.id) return;
+      
+      try {
+        // Try to sync timer with backend first
+        const timerStatus = await quizAPI.getTimerStatus(quizData.quiz_session.id);
+        
+        if (timerStatus.is_started && !timerStatus.is_expired) {
+          // Timer already started on backend, use remaining time
+          setTimerDuration(timerStatus.time_remaining_seconds || DEFAULT_QUIZ_DURATION_SECONDS);
+          setIsPaused(timerStatus.is_paused || false);
+          setTimerStarted(true);
+        } else if (!timerStatus.is_started) {
+          // Start new timer on backend
+          const result = await quizAPI.startTimer(quizData.quiz_session.id, {
+            time_limit_seconds: DEFAULT_QUIZ_DURATION_SECONDS,
+          });
+          
+          if (result.success) {
+            setTimerDuration(DEFAULT_QUIZ_DURATION_SECONDS);
+            setIsPaused(false);
+            setTimerStarted(true);
+          }
+        } else if (timerStatus.is_expired) {
+          // Timer already expired, auto-submit
+          await handleTimerExpired();
+          return;
+        }
+      } catch (error) {
+        console.error('Timer initialization error:', error);
+        // Fallback to local timer
+        setTimerDuration(DEFAULT_QUIZ_DURATION_SECONDS);
+        setIsPaused(false);
+        setTimerStarted(true);
+      }
+    };
+
     if (!quizData) {
       navigate('/dashboard');
       return;
@@ -48,39 +91,69 @@ const Quiz: React.FC = () => {
     initializeTimer();
   }, [quizData, navigate]);
 
-  const initializeTimer = async () => {
-    if (!quizData) return;
-    
-    try {
-      // Try to sync timer with backend first
-      const timerStatus = await quizAPI.getTimerStatus(quizData.quiz_session.id);
-      
-      if (timerStatus.is_started && !timerStatus.is_expired) {
-        // Timer already started on backend, use remaining time
-        setTimerDuration(timerStatus.time_remaining_seconds || DEFAULT_QUIZ_DURATION_SECONDS);
-      } else if (!timerStatus.is_started) {
-        // Start new timer on backend
-        const result = await quizAPI.startTimer(quizData.quiz_session.id, {
-          time_limit_seconds: DEFAULT_QUIZ_DURATION_SECONDS,
-        });
-        setTimerDuration(result.time_remaining_seconds);
-      } else if (timerStatus.is_expired) {
-        // Timer already expired, auto-submit
-        await handleTimerExpired();
-        return;
+  // Add beforeunload event listener to warn about page refresh/close
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!quizCompleted && !isAutoSubmitting) {
+        e.preventDefault();
+        e.returnValue = ''; // Modern browsers require this
+        return ''; // Some browsers show this message
       }
-      
-      setTimerStarted(true);
-    } catch (error) {
-      console.error('Error initializing timer:', error);
-      // Fallback: start local timer if backend sync fails
-      setTimerDuration(DEFAULT_QUIZ_DURATION_SECONDS);
-      setTimerStarted(true);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [quizCompleted, isAutoSubmitting]);
+
+  // Custom navigation blocking for internal navigation
+  useEffect(() => {
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+
+    const interceptNavigation = (originalMethod: typeof window.history.pushState) => {
+      return function (this: History, ...args: Parameters<typeof window.history.pushState>) {
+        if (!quizCompleted && !isAutoSubmitting) {
+          setPendingNavigation(() => () => originalMethod.apply(this, args));
+          setShowNavigationWarning(true);
+          return;
+        }
+        return originalMethod.apply(this, args);
+      };
+    };
+
+    window.history.pushState = interceptNavigation(originalPushState);
+    window.history.replaceState = interceptNavigation(originalReplaceState);
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (!quizCompleted && !isAutoSubmitting) {
+        e.preventDefault();
+        window.history.pushState(null, '', window.location.href);
+        setPendingNavigation(() => () => window.history.back());
+        setShowNavigationWarning(true);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [quizCompleted, isAutoSubmitting]);
+
+  // Handle navigation to results when quiz is completed
+  useEffect(() => {
+    if (quizCompleted && quizData?.quiz_session?.id) {
+      navigate('/results', { state: { quizId: quizData.quiz_session.id } });
     }
-  };
+  }, [quizCompleted, quizData?.quiz_session?.id, navigate]);
 
   const handleTimerExpired = async () => {
-    if (isAutoSubmitting) return;
+    if (isAutoSubmitting || !quizData || !quizData.quiz_session || !quizData.quiz_session.id) return;
     
     setIsAutoSubmitting(true);
     console.log('⏱️ Timer expired! Auto-submitting quiz...');
@@ -91,28 +164,91 @@ const Quiz: React.FC = () => {
       console.log('✅ Quiz auto-submitted:', result);
       
       // Show a notification before redirecting
-      alert(`⏱️ Time's up! Your quiz has been auto-submitted.\n\nScore: ${result.quiz_session.score_percentage.toFixed(1)}%\nCorrect: ${result.summary.correct_answers}/${result.summary.total_questions}`);
+      toast.info(
+        "Time's Up!", 
+        `Quiz auto-submitted. Score: ${result.quiz_session.score_percentage.toFixed(1)}% (${result.summary.correct_answers}/${result.summary.total_questions} correct)`,
+        { duration: 6000 }
+      );
       
-      // Redirect to results page
-      navigate('/results', { state: { quizId: quizData.quiz_session.id } });
+      // Mark quiz as completed (navigation will happen in useEffect)
+      setQuizCompleted(true);
     } catch (error: any) {
       console.error('Error auto-submitting quiz:', error);
-      alert('Error auto-submitting quiz. Please refresh the page.');
+      setAutoSubmitFailed(true);
+      toast.error(
+        'Auto-submit Failed', 
+        'You can now manually submit your quiz or continue answering questions.',
+        { duration: 7000 }
+      );
     } finally {
       setIsAutoSubmitting(false);
     }
   };
 
-  if (!quizData) {
-    return null;
+  const handlePauseTimer = async () => {
+    if (!quizData || !quizData.quiz_session || !quizData.quiz_session.id || isPaused) return;
+    
+    try {
+      const result = await quizAPI.pauseTimer(quizData.quiz_session.id);
+      setIsPaused(true);
+      setTimerDuration(result.time_remaining_seconds);
+      console.log('⏸️ Timer paused');
+    } catch (error) {
+      console.error('Error pausing timer:', error);
+      toast.error('Timer Error', 'Failed to pause timer. Please try again.');
+    }
+  };
+
+  const handleResumeTimer = async () => {
+    if (!quizData || !quizData.quiz_session || !quizData.quiz_session.id || !isPaused) return;
+    
+    try {
+      const result = await quizAPI.resumeTimer(quizData.quiz_session.id);
+      setIsPaused(false);
+      setTimerDuration(result.time_remaining_seconds);
+      console.log('▶️ Timer resumed');
+    } catch (error) {
+      console.error('Error resuming timer:', error);
+      toast.error('Timer Error', 'Failed to resume timer. Please try again.');
+    }
+  };
+
+  if (!quizData || !quizData.questions || !Array.isArray(quizData.questions) || quizData.questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading quiz questions...</p>
+        </div>
+      </div>
+    );
   }
 
   const { quiz_session, questions } = quizData;
   const currentQuestion = questions[currentQuestionIndex];
 
+  // Additional safety check for current question
+  if (!currentQuestion) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Question Not Found</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">Unable to load the current question.</p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const handleAnswerSubmit = async () => {
     if (!selectedAnswer) {
-      alert('Please select an answer');
+      toast.warning('Answer Required', 'Please select an answer before submitting');
       return;
     }
 
@@ -142,7 +278,7 @@ const Quiz: React.FC = () => {
         // Quiz completed - results will be shown when navigating
       }
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to submit answer');
+      toast.error('Submission Failed', error.response?.data?.error || 'Failed to submit answer. Please try again.');
     }
   };
 
@@ -154,46 +290,84 @@ const Quiz: React.FC = () => {
       setFeedback(null);
       setStartTime(Date.now());
     } else {
-      // Quiz completed, navigate to results
-      navigate('/results', { state: { quizId: quiz_session.id } });
+      // Quiz completed, mark as completed (navigation will happen in useEffect)
+      setQuizCompleted(true);
     }
   };
 
   const handleFlagQuestion = async () => {
     if (!flagReason.trim()) {
-      alert('Please provide a reason for flagging this question');
+      toast.warning('Reason Required', 'Please provide a reason for flagging this question');
       return;
     }
 
     try {
       await quizAPI.flagQuestion(currentQuestion.id, flagReason);
-      alert('Question flagged successfully. Thank you for your feedback!');
+      toast.success('Question Flagged', 'Thank you for your feedback! Our team will review it.');
       setShowFlagDialog(false);
       setFlagReason('');
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to flag question');
+      toast.error('Failed to Flag', error.response?.data?.error || 'Could not flag question. Please try again.');
     }
   };
 
   const handleSubmitFeedback = async () => {
     if (feedbackRating === 0) {
-      alert('Please select a rating');
+      toast.warning('Rating Required', 'Please select a rating before submitting');
       return;
     }
     
     if (!feedbackText.trim()) {
-      alert('Please provide some feedback');
+      toast.warning('Feedback Required', 'Please provide some feedback');
       return;
     }
 
     try {
       await quizAPI.submitFeedback(currentQuestion.id, feedbackText, feedbackRating);
-      alert('Thank you for your feedback! It helps us improve.');
+      toast.success('Feedback Submitted', 'Thank you! Your feedback helps us improve.');
       setShowFeedbackDialog(false);
       setFeedbackText('');
       setFeedbackRating(0);
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to submit feedback');
+      toast.error('Feedback Error', error.response?.data?.error || 'Failed to submit feedback. Please try again.');
+    }
+  };
+
+  const handleManualSubmitQuiz = async () => {
+    if (!quizData || !quizData.quiz_session || !quizData.quiz_session.id) return;
+    
+    if (!window.confirm('⚠️ Are you sure you want to submit your quiz now? This will end the quiz and calculate your final score.')) {
+      return;
+    }
+
+    setIsAutoSubmitting(true);
+    
+    try {
+      const result = await quizAPI.autoSubmitQuiz(quizData.quiz_session.id);
+      
+      console.log('✅ Quiz manually submitted:', result);
+      
+      // Show results
+      toast.success(
+        'Quiz Complete!', 
+        `Score: ${result.quiz_session.score_percentage.toFixed(1)}% (${result.summary.correct_answers}/${result.summary.total_questions} correct)`,
+        { duration: 6000 }
+      );
+      
+      // Mark quiz as completed to allow navigation
+      setQuizCompleted(true);
+      
+      // Redirect to results page
+      navigate('/results', { state: { quizId: quizData.quiz_session.id } });
+    } catch (error: any) {
+      console.error('Error manually submitting quiz:', error);
+      toast.error(
+        'Submission Failed', 
+        'Failed to submit quiz. Please try again or contact support.',
+        { duration: 7000 }
+      );
+    } finally {
+      setIsAutoSubmitting(false);
     }
   };
 
@@ -212,7 +386,7 @@ const Quiz: React.FC = () => {
                 disabled={showFeedback}
                 className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
               />
-              <span className="text-sm text-gray-700">{option}</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">{option}</span>
             </label>
           ))}
         </div>
@@ -230,7 +404,7 @@ const Quiz: React.FC = () => {
               disabled={showFeedback}
               className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
             />
-            <span className="text-sm text-gray-700">True</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">True</span>
           </label>
           <label className="flex items-center space-x-3 cursor-pointer">
             <input
@@ -240,9 +414,9 @@ const Quiz: React.FC = () => {
               checked={selectedAnswer === 'False'}
               onChange={(e) => setSelectedAnswer(e.target.value)}
               disabled={showFeedback}
-              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
+              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600"
             />
-            <span className="text-sm text-gray-700">False</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">False</span>
           </label>
         </div>
       );
@@ -254,14 +428,60 @@ const Quiz: React.FC = () => {
           disabled={showFeedback}
           placeholder="Enter your answer..."
           rows={3}
-          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+          className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 placeholder-gray-500 dark:placeholder-gray-400"
         />
       );
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
+      {/* Navigation Warning Dialog */}
+      {showNavigationWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 animate-scale-in">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-4xl">⚠️</span>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Leave Quiz?
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300">
+                Are you sure you want to leave? Your quiz progress will be lost and the quiz will not be saved.
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowNavigationWarning(false);
+                  setPendingNavigation(null);
+                }}
+                className="flex-1 px-6 py-3 bg-gray-500 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+              >
+                <span className="mr-2">↩️</span>
+                Stay on Quiz
+              </button>
+              <button
+                onClick={() => {
+                  setQuizCompleted(true);
+                  setShowNavigationWarning(false);
+                  if (pendingNavigation) {
+                    pendingNavigation();
+                  }
+                  setPendingNavigation(null);
+                }}
+                className="flex-1 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200"
+              >
+                <span className="mr-2">🚪</span>
+                Leave Quiz
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background Decorations */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-green-400 to-blue-500 rounded-full opacity-10 blur-3xl"></div>
@@ -299,6 +519,61 @@ const Quiz: React.FC = () => {
             </div>
           </div>
 
+          {/* Auto-Submit Failed Warning Banner */}
+          {autoSubmitFailed && (
+            <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-lg animate-fade-in-up">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <span className="text-2xl">⚠️</span>
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-sm font-bold text-red-800 mb-1">
+                    Auto-Submit Failed
+                  </h3>
+                  <p className="text-sm text-red-700 mb-3">
+                    The quiz timer has expired but automatic submission failed. You can continue answering questions or manually submit your quiz now.
+                  </p>
+                  <button
+                    onClick={handleManualSubmitQuiz}
+                    disabled={isAutoSubmitting}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {isAutoSubmitting ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <span className="mr-2">📤</span>
+                        Submit Quiz Now
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Quiz Paused Banner */}
+          {isPaused && (
+            <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-lg shadow-lg animate-fade-in-up">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <span className="text-2xl">⏸️</span>
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-sm font-bold text-yellow-800 mb-1">
+                    Quiz Paused
+                  </h3>
+                  <p className="text-sm text-yellow-700">
+                    The timer is currently paused. Click the "Resume" button to continue your quiz.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Question Card */}
           <div className="question-card animate-fade-in-scale mb-8">
             <div className="p-6 sm:p-8">
@@ -312,10 +587,24 @@ const Quiz: React.FC = () => {
                     {currentQuestion.difficulty_level === 'Beginner' ? '🌱' : currentQuestion.difficulty_level === 'Intermediate' ? '🚀' : '🏆'} {currentQuestion.difficulty_level}
                   </span>
                   {timerStarted && (
-                    <InlineTimer
-                      initialSeconds={timerDuration}
-                      onTimeUp={handleTimerExpired}
-                    />
+                    <div className="flex items-center gap-2">
+                      <InlineTimer
+                        initialSeconds={timerDuration}
+                        onTimeUp={handleTimerExpired}
+                        isPaused={isPaused}
+                      />
+                      <button
+                        onClick={isPaused ? handleResumeTimer : handlePauseTimer}
+                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
+                          isPaused
+                            ? 'bg-green-500 hover:bg-green-600 text-white'
+                            : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                        }`}
+                        title={isPaused ? 'Resume Timer' : 'Pause Timer'}
+                      >
+                        {isPaused ? '▶️ Resume' : '⏸️ Pause'}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -427,17 +716,17 @@ const Quiz: React.FC = () => {
                       
                       {/* Adaptive Learning Insights */}
                       {feedback.adaptive_insights && (
-                        <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-                          <h5 className="text-sm font-bold text-blue-800 mb-3 flex items-center">
+                        <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+                          <h5 className="text-sm font-bold text-blue-800 dark:text-blue-400 mb-3 flex items-center">
                             🧠 Adaptive Learning Insights
                           </h5>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Next Difficulty:</span>
+                              <span className="text-gray-600 dark:text-gray-400">Next Difficulty:</span>
                               <span className={`font-semibold px-2 py-1 rounded-full text-xs ${
-                                feedback.adaptive_insights.next_difficulty === 'easy' ? 'bg-green-100 text-green-700' :
-                                feedback.adaptive_insights.next_difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
+                                feedback.adaptive_insights.next_difficulty === 'easy' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400' :
+                                feedback.adaptive_insights.next_difficulty === 'medium' ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400' :
+                                'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                               }`}>
                                 {feedback.adaptive_insights.next_difficulty.toUpperCase()}
                               </span>
@@ -445,8 +734,8 @@ const Quiz: React.FC = () => {
                             
                             {feedback.adaptive_insights.difficulty_change && (
                               <div className="flex justify-between">
-                                <span className="text-gray-600">Adjusted:</span>
-                                <span className="font-semibold text-blue-700">
+                                <span className="text-gray-600 dark:text-gray-400">Adjusted:</span>
+                                <span className="font-semibold text-blue-700 dark:text-blue-400">
                                   {feedback.adaptive_insights.performance_trend > 0 ? '📈 Level Up!' : 
                                    feedback.adaptive_insights.performance_trend < 0 ? '📉 Adjusted Down' : '➡️ Stable'}
                                 </span>
@@ -455,23 +744,23 @@ const Quiz: React.FC = () => {
                             
                             {feedback.adaptive_insights.consecutive_correct > 0 && (
                               <div className="flex justify-between">
-                                <span className="text-gray-600">Streak:</span>
-                                <span className="font-semibold text-green-700">
+                                <span className="text-gray-600 dark:text-gray-400">Streak:</span>
+                                <span className="font-semibold text-green-700 dark:text-green-400">
                                   🔥 {feedback.adaptive_insights.consecutive_correct} correct
                                 </span>
                               </div>
                             )}
                             
                             <div className="flex justify-between">
-                              <span className="text-gray-600">Confidence:</span>
-                              <span className="font-semibold text-purple-700">
+                              <span className="text-gray-600 dark:text-gray-400">Confidence:</span>
+                              <span className="font-semibold text-purple-700 dark:text-purple-400">
                                 {Math.round(feedback.adaptive_insights.confidence_level * 100)}%
                               </span>
                             </div>
                           </div>
                           
                           {feedback.adaptive_insights.adaptation_reason && (
-                            <div className="mt-2 text-xs text-gray-600 italic">
+                            <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 italic">
                               Reason: {feedback.adaptive_insights.adaptation_reason.replace(/_/g, ' ')}
                             </div>
                           )}

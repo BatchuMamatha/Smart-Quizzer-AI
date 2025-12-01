@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authAPI } from '../lib/api';
 import { UserManager } from '../lib/userManager';
+import { ErrorNotification } from '../components/ErrorNotification';
+import { Button } from '../components/Button';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { SKILL_LEVELS, getSkillLevelFullDisplay } from '../lib/skillLevelUtils';
 
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -10,6 +14,7 @@ const Register: React.FC = () => {
     password: '',
     confirmPassword: '',
     full_name: '',
+    phone_number: '',
     skill_level: 'Intermediate',
   });
   const [loading, setLoading] = useState(false);
@@ -91,6 +96,21 @@ const Register: React.FC = () => {
     return 'Strong';
   };
 
+  const validateEmail = (email: string): { valid: boolean; message: string } => {
+    // Email regex pattern for comprehensive validation
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    
+    if (!email.trim()) {
+      return { valid: false, message: 'Email address is required' };
+    }
+    
+    if (!emailRegex.test(email)) {
+      return { valid: false, message: 'Please enter a valid email address (e.g., user@example.com)' };
+    }
+    
+    return { valid: true, message: 'Email is valid' };
+  };
+
   const validatePasswordStrength = (password: string): { valid: boolean; message: string } => {
     if (password.length < 8) {
       return { valid: false, message: 'Password must be at least 8 characters long' };
@@ -122,6 +142,14 @@ const Register: React.FC = () => {
       return;
     }
 
+    // Validate email format
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.valid) {
+      setError(emailValidation.message);
+      setLoading(false);
+      return;
+    }
+
     // Validate password match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
@@ -141,7 +169,7 @@ const Register: React.FC = () => {
       const { confirmPassword, ...registerData } = formData;
       const response = await authAPI.register(registerData);
       userManager.login(response.user, response.tokens.access_token);
-      navigate('/dashboard');
+      navigate('/dashboard', { state: { fromRegistration: true } });
     } catch (error: any) {
       setError(error.response?.data?.error || 'Registration failed');
     } finally {
@@ -150,14 +178,14 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900 py-12 px-4 sm:px-6 lg:px-8">
       {/* Background Decorations */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-green-400 to-blue-500 rounded-full opacity-20 blur-3xl"></div>
         <div className="absolute top-1/3 left-1/3 w-64 h-64 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full opacity-15 blur-3xl"></div>
       </div>
 
-      <div className="relative max-w-md w-full space-y-8">
+      <div className="relative max-w-4xl w-full space-y-6">
         {/* Header */}
         <div className="text-center animate-fade-in-up">
           <div className="mx-auto h-20 w-20 bg-gradient-to-br from-green-600 to-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl hover-glow">
@@ -166,10 +194,10 @@ const Register: React.FC = () => {
           <h2 className="text-4xl font-bold text-gradient mb-2">
             Join Smart Quizzer
           </h2>
-          <p className="text-gray-600 text-lg font-medium">
+          <p className="text-gray-600 dark:text-gray-300 text-lg font-medium">
             Start Your AI-Powered Learning Journey
           </p>
-          <p className="text-gray-500 mt-2">
+          <p className="text-gray-500 dark:text-gray-400 mt-2">
             Create your account and unlock personalized quizzes
           </p>
         </div>
@@ -177,31 +205,21 @@ const Register: React.FC = () => {
         {/* Registration Form */}
         <div className="card animate-fade-in-scale">
           <div className="card-body space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 animate-fade-in-up">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <span className="text-red-400 text-lg">⚠️</span>
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">Registration Error</h3>
-                      <p className="text-sm text-red-600 mt-1">{error}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && <ErrorNotification message={error} dismissible onDismiss={() => setError('')} />}
 
-              <div className="grid grid-cols-1 gap-4">
-                {/* Full Name */}
-                <div>
-                  <label htmlFor="full_name" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">👨‍💼</span>
-                      Full Name
-                    </span>
-                  </label>
-                  <div className="relative">
+              {/* Personal Information Section */}
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                  <span className="mr-2">👤</span>
+                  Personal Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Full Name */}
+                  <div>
+                    <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      👨‍💼 Full Name
+                    </label>
                     <input
                       id="full_name"
                       name="full_name"
@@ -210,70 +228,56 @@ const Register: React.FC = () => {
                       required
                       value={formData.full_name}
                       onChange={handleChange}
-                      className="form-input pl-12 focus-ring"
+                      className="form-input focus-ring"
                       placeholder="Enter your full name"
                     />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">👨‍💼</span>
-                    </div>
                   </div>
-                </div>
 
-                {/* Username */}
-                <div>
-                  <label htmlFor="username" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">👤</span>
-                      Username
-                    </span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="username"
-                      name="username"
-                      type="text"
-                      autoComplete="username"
-                      required
-                      value={formData.username}
-                      onChange={handleChange}
-                      className="form-input pl-12 focus-ring"
-                      placeholder="Choose a username"
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">👤</span>
+                  {/* Username */}
+                  <div>
+                    <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      👤 Username
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="username"
+                        name="username"
+                        type="text"
+                        autoComplete="username"
+                        required
+                        value={formData.username}
+                        onChange={handleChange}
+                        className="form-input focus-ring pr-10"
+                        placeholder="Choose a username"
+                      />
+                      {formData.username.length >= 3 && (
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                          {usernameAvailability.checking ? (
+                            <LoadingSpinner size="sm" />
+                          ) : usernameAvailability.available === true ? (
+                            <span className="text-green-500 text-lg">✅</span>
+                          ) : usernameAvailability.available === false ? (
+                            <span className="text-red-500 text-lg">❌</span>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
-                    {formData.username.length >= 3 && (
-                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                        {usernameAvailability.checking ? (
-                          <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                        ) : usernameAvailability.available === true ? (
-                          <span className="text-green-500 text-xl">✅</span>
-                        ) : usernameAvailability.available === false ? (
-                          <span className="text-red-500 text-xl">❌</span>
-                        ) : null}
-                      </div>
+                    {formData.username.length >= 3 && usernameAvailability.message && (
+                      <p className={`text-xs mt-1 ${
+                        usernameAvailability.available === true ? 'text-green-600' :
+                        usernameAvailability.available === false ? 'text-red-600' :
+                        'text-gray-600'
+                      }`}>
+                        {usernameAvailability.message}
+                      </p>
                     )}
                   </div>
-                  {formData.username.length >= 3 && usernameAvailability.message && (
-                    <p className={`text-sm mt-1 ${
-                      usernameAvailability.available === true ? 'text-green-600' :
-                      usernameAvailability.available === false ? 'text-red-600' :
-                      'text-gray-600'
-                    }`}>
-                      {usernameAvailability.message}
-                    </p>
-                  )}
-                </div>
 
-                {/* Email */}
-                <div>
-                  <label htmlFor="email" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">📧</span>
-                      Email Address
-                    </span>
-                  </label>
-                  <div className="relative">
+                  {/* Email */}
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      📧 Email Address
+                    </label>
                     <input
                       id="email"
                       name="email"
@@ -282,76 +286,87 @@ const Register: React.FC = () => {
                       required
                       value={formData.email}
                       onChange={handleChange}
-                      className="form-input pl-12 focus-ring"
+                      className="form-input focus-ring"
                       placeholder="Enter your email"
                     />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">📧</span>
-                    </div>
+                  </div>
+
+                  {/* Phone Number (Optional) */}
+                  <div>
+                    <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      📱 Phone <span className="text-gray-400 text-xs">(optional)</span>
+                    </label>
+                    <input
+                      id="phone_number"
+                      name="phone_number"
+                      type="tel"
+                      autoComplete="tel"
+                      pattern="[+]?[0-9]{10,15}"
+                      value={formData.phone_number}
+                      onChange={handleChange}
+                      className="form-input focus-ring"
+                      placeholder="+1234567890"
+                    />
                   </div>
                 </div>
 
                 {/* Skill Level */}
-                <div>
-                  <label htmlFor="skill_level" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">🎯</span>
-                      Skill Level
-                    </span>
+                <div className="mt-3">
+                  <label htmlFor="skill_level" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    🎯 Skill Level
                   </label>
-                  <div className="relative">
-                    <select
-                      id="skill_level"
-                      name="skill_level"
-                      value={formData.skill_level}
-                      onChange={handleChange}
-                      className="form-select pl-12 focus-ring"
-                    >
-                      <option value="Beginner">🌱 Beginner - Just starting out</option>
-                      <option value="Intermediate">🚀 Intermediate - Some experience</option>
-                      <option value="Advanced">🏆 Advanced - Expert level</option>
-                    </select>
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">🎯</span>
-                    </div>
-                  </div>
+                  <select
+                    id="skill_level"
+                    name="skill_level"
+                    value={formData.skill_level}
+                    onChange={handleChange}
+                    className="form-select focus-ring w-full md:w-1/2"
+                  >
+                    {SKILL_LEVELS.map(level => (
+                      <option key={level} value={level}>
+                        {getSkillLevelFullDisplay(level)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+              </div>
 
-                {/* Password */}
-                <div>
-                  <label htmlFor="password" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">🔒</span>
-                      Password
-                    </span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      required
-                      value={formData.password}
-                      onChange={handleChange}
-                      className="form-input pl-12 pr-12 focus-ring"
-                      placeholder="Create a password"
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">🔒</span>
+              {/* Security Section */}
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                  <span className="mr-2">🔒</span>
+                  Security
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Password */}
+                  <div className="md:col-span-2">
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      🔒 Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        required
+                        value={formData.password}
+                        onChange={handleChange}
+                        className="form-input pr-10 focus-ring"
+                        placeholder="Create a password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        <span className="text-lg">{showPassword ? '🙈' : '👁️'}</span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      <span className="text-lg">{showPassword ? '🙈' : '👁️'}</span>
-                    </button>
-                  </div>
-                  
-                  {/* Password Strength Indicator */}
-                  {formData.password && (
-                    <div className="mt-2">
+                    
+                    {/* Password Strength Indicator */}
+                    {formData.password && (
+                      <div className="mt-2">
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="text-gray-500">Password Strength</span>
                         <span className={`font-medium ${passwordStrength <= 1 ? 'text-red-600' : passwordStrength <= 2 ? 'text-yellow-600' : passwordStrength <= 3 ? 'text-blue-600' : 'text-green-600'}`}>
@@ -388,106 +403,80 @@ const Register: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
-
-                {/* Confirm Password */}
-                <div>
-                  <label htmlFor="confirmPassword" className="form-label">
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">🔐</span>
-                      Confirm Password
-                    </span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      required
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      className="form-input pl-12 pr-12 focus-ring"
-                      placeholder="Confirm your password"
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="text-gray-400 text-lg">🔐</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      <span className="text-lg">{showConfirmPassword ? '🙈' : '👁️'}</span>
-                    </button>
                   </div>
-                  
-                  {/* Password Match Indicator */}
-                  {formData.confirmPassword && (
-                    <div className="mt-2 flex items-center text-xs">
-                      {formData.password === formData.confirmPassword ? (
-                        <span className="flex items-center text-green-600">
-                          <span className="mr-1">✅</span>
-                          Passwords match
-                        </span>
-                      ) : (
-                        <span className="flex items-center text-red-600">
-                          <span className="mr-1">❌</span>
-                          Passwords don't match
-                        </span>
-                      )}
+
+                  {/* Confirm Password */}
+                  <div className="md:col-span-2">
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      🔐 Confirm Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        autoComplete="new-password"
+                        required
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        className="form-input pr-10 focus-ring"
+                        placeholder="Confirm your password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        <span className="text-lg">{showConfirmPassword ? '🙈' : '👁️'}</span>
+                      </button>
                     </div>
-                  )}
+                    
+                    {/* Password Match Indicator */}
+                    {formData.confirmPassword && (
+                      <div className="mt-1 flex items-center text-xs">
+                        {formData.password === formData.confirmPassword ? (
+                          <span className="flex items-center text-green-600">
+                            <span className="mr-1">✅</span>
+                            Passwords match
+                          </span>
+                        ) : (
+                          <span className="flex items-center text-red-600">
+                            <span className="mr-1">❌</span>
+                            Passwords don't match
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <button
+              {/* Submit Buttons */}
+              <div className="flex flex-col md:flex-row gap-3">
+                <Button
                   type="submit"
-                  disabled={loading}
-                  className="btn btn-success btn-lg w-full group"
+                  variant="success"
+                  size="lg"
+                  className="flex-1"
+                  loading={loading}
+                  icon={!loading && <span>🎉</span>}
                 >
-                  {loading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="spinner mr-3"></div>
-                      Creating Account...
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center">
-                      <span className="mr-2">🎉</span>
-                      Create Account
-                      <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
-                    </div>
-                  )}
-                </button>
-              </div>
-            </form>
-
-            <div className="text-center">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500 font-medium">Already have an account?</span>
-                </div>
-              </div>
-              
-              <div className="mt-4">
+                  {loading ? 'Creating Account...' : 'Create Account'}
+                </Button>
                 <Link
                   to="/login"
-                  className="btn btn-secondary w-full group"
+                  className="btn btn-secondary flex-1 group"
                 >
                   <span className="mr-2">🔑</span>
                   Sign In
                   <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
                 </Link>
               </div>
-            </div>
+            </form>
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-500 mt-8">
+        <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-4">
           By creating an account, you agree to our terms of service and privacy policy
         </p>
       </div>

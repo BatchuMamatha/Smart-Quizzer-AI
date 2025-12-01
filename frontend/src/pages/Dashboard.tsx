@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { UserManager } from '../lib/userManager';
 import { topicsAPI, quizAPI, Topic, User } from '../lib/api';
 import Header from '../components/Header';
+import WelcomeModal from '../components/WelcomeModal';
+// EmailVerificationBanner import removed - verification disabled
+import QuizBookmarks from '../components/QuizBookmarks';
+import { QuizBookmarksManager, QuizBookmark } from '../lib/quizBookmarks';
+import { toast } from '../lib/toast';
+
+const quizBookmarksManager = QuizBookmarksManager.getInstance();
 
 // Default topics as fallback
 const defaultTopics: Topic[] = [
@@ -23,13 +30,21 @@ const Dashboard: React.FC = () => {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTopic, setSelectedTopic] = useState('');
-  const [selectedSkillLevel, setSelectedSkillLevel] = useState('');
+  const [selectedSkillLevel, setSelectedSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced' | ''>('');
   const [numQuestions, setNumQuestions] = useState(5);
   const [customTopic, setCustomTopic] = useState('');
   const [showCustomTopic, setShowCustomTopic] = useState(false);
+  const [usingFallbackTopics, setUsingFallbackTopics] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showBookmarks, setShowBookmarks] = useState(false);
+
+  // Constants for validation
+  const MIN_CUSTOM_TOPIC_LENGTH = 10;
+  const MAX_CUSTOM_TOPIC_LENGTH = 10000;
   const [startingQuiz, setStartingQuiz] = useState(false);
   
   const navigate = useNavigate();
+  const location = useLocation();
   const userManager = UserManager.getInstance();
 
   useEffect(() => {
@@ -43,21 +58,33 @@ const Dashboard: React.FC = () => {
     setUser(currentUser);
     setSelectedSkillLevel(currentUser.skill_level);
     
+    // Check if this is a first-time user (from registration)
+    const isFirstTimeUser = (location.state as any)?.fromRegistration;
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    
+    if (isFirstTimeUser && !hasSeenWelcome) {
+      setShowWelcomeModal(true);
+      localStorage.setItem('hasSeenWelcome', 'true');
+    }
+    
     // Load topics function
     const loadTopics = async () => {
       try {
         const topicsData = await topicsAPI.getTopics();
         if (topicsData && topicsData.length > 0) {
           setTopics(topicsData);
+          setUsingFallbackTopics(false);
         } else {
           // Use default topics if API returns empty or fails
           console.log('Using default topics as fallback');
           setTopics(defaultTopics);
+          setUsingFallbackTopics(true);
         }
       } catch (error) {
         console.error('Error loading topics from API, using default topics:', error);
         // Use default topics as fallback
         setTopics(defaultTopics);
+        setUsingFallbackTopics(true);
       } finally {
         setLoading(false);
       }
@@ -65,25 +92,31 @@ const Dashboard: React.FC = () => {
 
     // Just load topics, don't try to fetch profile separately
     loadTopics();
-  }, [navigate, userManager]);
+  }, [navigate, userManager, location.state]);
 
   // Remove the separate loadTopics and loadUserProfile functions since they're now inside useEffect
 
   const handleStartQuiz = async () => {
     if (!selectedTopic || !selectedSkillLevel) {
-      alert('Please select a topic and skill level');
+      toast.warning('Selection Required', 'Please select a topic and skill level');
       return;
     }
 
     // Validate custom topic content if Custom is selected
     if (selectedTopic === 'Custom' && (!customTopic || customTopic.trim().length === 0)) {
-      alert('Please enter custom topic content');
+      toast.warning('Content Required', 'Please enter custom topic content');
       return;
     }
 
     // Ensure minimum content length for custom topics
-    if (selectedTopic === 'Custom' && customTopic.trim().length < 10) {
-      alert('Please enter at least 10 characters for custom topic content');
+    if (selectedTopic === 'Custom' && customTopic.trim().length < MIN_CUSTOM_TOPIC_LENGTH) {
+      toast.warning('Content Too Short', `Please enter at least ${MIN_CUSTOM_TOPIC_LENGTH} characters for custom topic content`);
+      return;
+    }
+
+    // Ensure maximum content length for custom topics
+    if (selectedTopic === 'Custom' && customTopic.trim().length > MAX_CUSTOM_TOPIC_LENGTH) {
+      toast.warning('Content Too Long', `Maximum ${MAX_CUSTOM_TOPIC_LENGTH.toLocaleString()} characters allowed`);
       return;
     }
 
@@ -107,6 +140,32 @@ const Dashboard: React.FC = () => {
       
       // Enhanced error handling
       let errorMessage = 'Failed to start quiz';
+      
+      // Handle rate limiting
+      if (error.response?.status === 429) {
+        const retryAfter = error.response?.data?.retry_after || 300;
+        const minutes = Math.ceil(retryAfter / 60);
+        errorMessage = error.response.data?.error || `Too many quiz attempts. Please wait ${minutes} minute${minutes > 1 ? 's' : ''} before trying again.`;
+        toast.error('Rate Limit Exceeded', errorMessage, { duration: 7000 });
+        return;
+      }
+      
+      // Handle active session conflict
+      if (error.response?.status === 409 && error.response?.data?.has_active_session) {
+        const activeQuizTopic = error.response.data.active_quiz_topic || 'a quiz';
+        const activeQuizId = error.response.data.active_quiz_id;
+        
+        if (window.confirm(
+          `You already have an active quiz on "${activeQuizTopic}".\n\n` +
+          `Would you like to resume it now?\n\n` +
+          `Click OK to resume, or Cancel to stay on the dashboard.`
+        )) {
+          // Navigate to quiz page with resume state
+          navigate('/quiz', { state: { resumeQuizId: activeQuizId } });
+        }
+        return;
+      }
+      
       if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.message) {
@@ -115,26 +174,57 @@ const Dashboard: React.FC = () => {
         errorMessage = error;
       }
       
-      alert(`Quiz Start Error: ${errorMessage}`);
+      toast.error('Quiz Start Error', errorMessage);
     } finally {
       setStartingQuiz(false);
     }
   };
 
+  const handleBookmarkQuiz = () => {
+    if (!selectedTopic || !selectedSkillLevel) {
+      toast.warning('Selection Required', 'Please select a topic and skill level to bookmark');
+      return;
+    }
+
+    const bookmark = quizBookmarksManager.addBookmark(
+      selectedTopic,
+      selectedSkillLevel as 'Beginner' | 'Intermediate' | 'Advanced',
+      numQuestions,
+      selectedTopic === 'Custom' ? ['custom'] : []
+    );
+
+    if (bookmark) {
+      toast.success(
+        'Quiz Bookmarked!', 
+        `${selectedTopic} \u2022 ${selectedSkillLevel} \u2022 ${numQuestions} questions`
+      );
+    }
+  };
+
+  const handleStartFromBookmark = (bookmark: QuizBookmark) => {
+    setSelectedTopic(bookmark.topic);
+    setSelectedSkillLevel(bookmark.skillLevel);
+    setNumQuestions(bookmark.questionCount);
+    setShowBookmarks(false);
+    
+    // Scroll to quiz setup
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900 flex items-center justify-center">
         <div className="text-center animate-fade-in-up">
           <div className="spinner-large mb-6"></div>
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">Loading Dashboard</h3>
-          <p className="text-gray-500">Preparing your personalized quiz experience...</p>
+          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Loading Dashboard</h3>
+          <p className="text-gray-500 dark:text-gray-400">Preparing your personalized quiz experience...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900 dark:to-indigo-900">
       {/* Background Decorations */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-green-400 to-blue-500 rounded-full opacity-10 blur-3xl"></div>
@@ -145,6 +235,43 @@ const Dashboard: React.FC = () => {
 
       <main className="relative max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
+          
+          {/* Email Verification Banner - DISABLED */}
+          {/* Email verification feature has been disabled */}
+          
+          {/* Fallback Topics Warning Banner */}
+          {usingFallbackTopics && (
+            <div className="mb-6 bg-orange-50 border-l-4 border-orange-400 p-4 rounded-lg shadow-md animate-fade-in-up">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <span className="text-2xl">⚠️</span>
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-sm font-semibold text-orange-800 mb-1">
+                    Using Default Topics
+                  </h3>
+                  <p className="text-sm text-orange-700">
+                    Unable to load topics from server. Showing cached default topics instead. 
+                    Your quiz functionality is not affected, but some topics may be outdated.
+                  </p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="mt-2 text-xs font-medium text-orange-800 hover:text-orange-900 underline"
+                  >
+                    🔄 Retry loading topics
+                  </button>
+                </div>
+                <button
+                  onClick={() => setUsingFallbackTopics(false)}
+                  className="flex-shrink-0 ml-3 text-orange-400 hover:text-orange-600 transition-colors"
+                  title="Dismiss warning"
+                >
+                  <span className="text-xl">✕</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             {/* Quiz Setup - Enhanced */}
@@ -200,20 +327,43 @@ const Dashboard: React.FC = () => {
                   {/* Custom Topic Input */}
                   {showCustomTopic && (
                     <div className="animate-fade-in-up">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                        <span className="mr-2 text-lg">✍️</span>
-                        Custom Topic Content
+                      <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center justify-between">
+                        <span className="flex items-center">
+                          <span className="mr-2 text-lg">✍️</span>
+                          Custom Topic Content
+                        </span>
+                        <span className={`text-xs font-normal ${
+                          customTopic.length > MAX_CUSTOM_TOPIC_LENGTH 
+                            ? 'text-red-600 font-semibold' 
+                            : customTopic.length > MAX_CUSTOM_TOPIC_LENGTH * 0.9
+                            ? 'text-orange-600'
+                            : 'text-gray-500'
+                        }`}>
+                          {customTopic.length.toLocaleString()} / {MAX_CUSTOM_TOPIC_LENGTH.toLocaleString()} characters
+                        </span>
                       </label>
                       <textarea
                         value={customTopic}
                         onChange={(e) => setCustomTopic(e.target.value)}
+                        maxLength={MAX_CUSTOM_TOPIC_LENGTH}
                         placeholder="Enter the content you want to generate questions from..."
                         rows={4}
-                        className="block w-full px-4 py-3 text-base border border-gray-300 rounded-xl shadow-sm placeholder-gray-500 text-gray-900 bg-white resize-none transition-all duration-200 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className={`block w-full px-4 py-3 text-base border rounded-xl shadow-sm placeholder-gray-500 text-gray-900 bg-white resize-none transition-all duration-200 focus:outline-none focus:ring-2 ${
+                          customTopic.length > MAX_CUSTOM_TOPIC_LENGTH
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                            : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
+                        }`}
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        💡 Tip: Paste any text content and our AI will create personalized quiz questions
-                      </p>
+                      <div className="flex items-start justify-between mt-1">
+                        <p className="text-xs text-gray-500">
+                          💡 Tip: Paste any text content and our AI will create personalized quiz questions
+                        </p>
+                        {customTopic.length < MIN_CUSTOM_TOPIC_LENGTH && customTopic.length > 0 && (
+                          <p className="text-xs text-orange-600">
+                            ⚠️ Minimum {MIN_CUSTOM_TOPIC_LENGTH} characters required
+                          </p>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -224,7 +374,7 @@ const Dashboard: React.FC = () => {
                       Skill Level
                     </label>
                     <div className="grid grid-cols-3 gap-3">
-                      {['Beginner', 'Intermediate', 'Advanced'].map((level) => (
+                      {(['Beginner', 'Intermediate', 'Advanced'] as const).map((level) => (
                         <button
                           key={level}
                           type="button"
@@ -258,8 +408,8 @@ const Dashboard: React.FC = () => {
                           onClick={() => setNumQuestions(num)}
                           className={`p-3 rounded-xl border-2 text-sm font-medium transition-all duration-200 ${
                             numQuestions === num
-                              ? 'border-green-500 bg-green-50 text-green-700 shadow-md'
-                              : 'border-gray-200 bg-white text-gray-600 hover:border-green-300 hover:bg-green-50'
+                              ? 'border-green-500 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 shadow-md'
+                              : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:border-green-300 dark:hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'
                           }`}
                         >
                           <div className="text-xl mb-1">{num}</div>
@@ -269,7 +419,7 @@ const Dashboard: React.FC = () => {
                     </div>
                     {/* Custom Input Option */}
                     <div className="flex items-center space-x-2">
-                      <label htmlFor="custom-questions" className="text-sm text-gray-600 whitespace-nowrap">
+                      <label htmlFor="custom-questions" className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                         Or enter custom:
                       </label>
                       <input
@@ -282,37 +432,48 @@ const Dashboard: React.FC = () => {
                           const value = parseInt(e.target.value) || 1;
                           setNumQuestions(Math.min(Math.max(value, 1), 20));
                         }}
-                        className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
+                        className="flex-1 px-4 py-2 border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:focus:ring-green-800 transition-all"
                         placeholder="1-20"
                       />
-                      <span className="text-sm text-gray-500">questions</span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">questions</span>
                     </div>
                   </div>
 
                   {/* Start Quiz Button */}
-                  <button
-                    onClick={handleStartQuiz}
-                    disabled={startingQuiz || !selectedTopic || !selectedSkillLevel}
-                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group"
-                  >
-                    {startingQuiz ? (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-3"></div>
-                        🤖 Generating AI Questions...
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center">
-                        <span className="mr-2">🚀</span>
-                        Start Quiz Adventure
-                        <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
-                      </div>
-                    )}
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleStartQuiz}
+                      disabled={startingQuiz || !selectedTopic || !selectedSkillLevel}
+                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group"
+                    >
+                      {startingQuiz ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-3"></div>
+                          🤖 Generating AI Questions...
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center">
+                          <span className="mr-2">🚀</span>
+                          Start Quiz
+                          <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
+                        </div>
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={handleBookmarkQuiz}
+                      disabled={!selectedTopic || !selectedSkillLevel}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-4 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      title="Bookmark this quiz configuration"
+                    >
+                      ⭐
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Profile & Stats - Enhanced */}
+            {/* Profile & Stats - Enhanced - Moved to top right */}
             <div className="space-y-6">
               {/* User Profile Card */}
               <div className="bg-white bg-opacity-90 backdrop-blur-lg border border-white border-opacity-30 rounded-2xl shadow-xl p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/25 animate-fade-in-scale" style={{animationDelay: '200ms'}}>
@@ -380,6 +541,16 @@ const Dashboard: React.FC = () => {
                       Analytics Overview
                       <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
                     </button>
+                    
+                    <button
+                      onClick={() => setShowWelcomeModal(true)}
+                      className="w-full bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-200 group"
+                      title="View the welcome tour again"
+                    >
+                      <span className="mr-2">🎉</span>
+                      Welcome Tour
+                      <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
+                    </button>
                   
                   </div>
                 </div>
@@ -389,9 +560,40 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
+          {/* Saved Quizzes Section - Full width below main content */}
+          <div className="mt-8">
+            <div className="bg-white bg-opacity-90 backdrop-blur-lg border border-white border-opacity-30 rounded-2xl shadow-xl p-8 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/25">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+                    <span className="mr-3 text-3xl">⭐</span>
+                    Saved Quizzes
+                  </h3>
+                  <p className="text-gray-600 mt-1">Quick access to your favorite quiz configurations</p>
+                </div>
+                <button
+                  onClick={() => setShowBookmarks(!showBookmarks)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                >
+                  {showBookmarks ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              
+              {showBookmarks && (
+                <QuizBookmarks onStartQuiz={handleStartFromBookmark} />
+              )}
+            </div>
+          </div>
 
         </div>
       </main>
+
+      {/* Welcome Modal for First-Time Users */}
+      <WelcomeModal
+        isOpen={showWelcomeModal}
+        onClose={() => setShowWelcomeModal(false)}
+        userName={user?.full_name || user?.username}
+      />
     </div>
   );
 };
